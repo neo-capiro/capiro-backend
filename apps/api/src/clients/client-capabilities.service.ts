@@ -3,10 +3,12 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EmbeddingsService } from '../embeddings/embeddings.service.js';
+import { visibleCapabilityProvenance } from './portfolio/portfolio-source-access.js';
 import { OutcomeService } from '../engagement/outcome/outcome.service.js';
 
 export interface CreateCapabilityInput {
   name: string;
+  lifecycle?: 'in_service' | 'in_development' | 'planned' | 'unspecified';
   type?: string;
   description?: string;
   sector?: string;
@@ -106,10 +108,11 @@ export class ClientCapabilitiesService {
   async listCapabilities(ctx: TenantContext, clientId: string) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await this.assertClient(ctx.tenantId, clientId, tx as any);
-      return tx.clientCapability.findMany({
+      const capabilities = await tx.clientCapability.findMany({
         where: { tenantId: ctx.tenantId, clientId },
         orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
       });
+      return Promise.all(capabilities.map(async row => ({...row, provenance: await visibleCapabilityProvenance(tx, ctx, clientId, row.provenance)})));
     });
   }
 
@@ -119,7 +122,7 @@ export class ClientCapabilitiesService {
     return this.afterCapabilityCreated(ctx, created);
   }
 
-  async createCapabilityInTransaction(tx: Prisma.TransactionClient, ctx: TenantContext, clientId: string, input: CreateCapabilityInput) {
+  async createCapabilityInTransaction(tx: Prisma.TransactionClient, ctx: TenantContext, clientId: string, input: CreateCapabilityInput, provenance?: Prisma.InputJsonValue) {
     await this.assertClient(ctx.tenantId, clientId, tx as any);
     const created = await tx.clientCapability.create({
       data: {
@@ -127,6 +130,9 @@ export class ClientCapabilitiesService {
         clientId,
         name: input.name,
         type: input.type ?? 'product',
+        lifecycle: input.lifecycle ?? 'unspecified',
+        reviewStatus: 'approved',
+        provenance: provenance ?? [{origin: 'person', actorUserId: ctx.userId, approvedAt: new Date().toISOString()}],
         description: input.description ?? null,
         sector: input.sector ?? null,
         tags: normalizeCapabilityTags(input.tags) as object,
@@ -168,10 +174,17 @@ export class ClientCapabilitiesService {
     id: string,
     input: UpdateCapabilityInput,
   ) {
-    const updated = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const updated = await this.prisma.withTenant(ctx.tenantId, tx => this.updateCapabilityInTransaction(tx, ctx, clientId, id, input));
+    // Re-embed asynchronously. content_hash skips when the text-relevant
+    // fields didn't actually change (e.g. user only tweaked sortOrder).
+    this.embeddings.embedCapabilityFireAndForget(id);
+    return updated;
+  }
+
+  async updateCapabilityInTransaction(tx: Prisma.TransactionClient, ctx: TenantContext, clientId: string, id: string, input: UpdateCapabilityInput, reviewedProvenance?: Prisma.InputJsonValue) {
       const existing = await tx.clientCapability.findFirst({
         where: { id, tenantId: ctx.tenantId, clientId },
-        select: { id: true },
+        select: { id: true, provenance: true },
       });
       if (!existing) throw new NotFoundException('Capability not found');
       const updated = await tx.clientCapability.update({
@@ -179,6 +192,9 @@ export class ClientCapabilitiesService {
         data: {
           ...('name' in input ? { name: input.name } : {}),
           ...('type' in input ? { type: input.type } : {}),
+          ...('lifecycle' in input ? { lifecycle: input.lifecycle } : {}),
+          version: { increment: 1 },
+          provenance: [...(Array.isArray(existing.provenance) ? existing.provenance : []), ...(reviewedProvenance ? (Array.isArray(reviewedProvenance) ? reviewedProvenance : [reviewedProvenance]) : [{origin: 'person', actorUserId: ctx.userId, approvedAt: new Date().toISOString(), changes: input}])] as Prisma.InputJsonValue,
           ...('description' in input ? { description: input.description ?? null } : {}),
           ...('sector' in input ? { sector: input.sector ?? null } : {}),
           ...('tags' in input ? { tags: normalizeCapabilityTags(input.tags) as object } : {}),
@@ -211,12 +227,7 @@ export class ClientCapabilitiesService {
       await tx.clientCapabilityFitRecommendation.deleteMany({
         where: { clientId, tenantId: ctx.tenantId },
       });
-      return updated;
-    });
-    // Re-embed asynchronously. content_hash skips when the text-relevant
-    // fields didn't actually change (e.g. user only tweaked sortOrder).
-    this.embeddings.embedCapabilityFireAndForget(id);
-    return updated;
+      return {...updated, provenance: await visibleCapabilityProvenance(tx, ctx, clientId, updated.provenance)};
   }
 
   async deleteCapability(ctx: TenantContext, clientId: string, id: string) {

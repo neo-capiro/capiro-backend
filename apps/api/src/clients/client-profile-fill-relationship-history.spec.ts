@@ -5,7 +5,7 @@ import {
   matchRelationshipCandidate,
 } from './client-profile-fill-relationship-history.service.js';
 
-describe('Fill with Meri relationship-history matching', () => {
+describe('Profile research relationship-history matching', () => {
   it('accepts an exact known client contact and normalizes email casing', () => {
     expect(
       matchRelationshipCandidate(
@@ -56,7 +56,7 @@ describe('Fill with Meri relationship-history matching', () => {
   });
 });
 
-describe('Fill with Meri relationship-history architecture contract', () => {
+describe('Profile research relationship-history architecture contract', () => {
   const service = readFileSync(
     resolve(process.cwd(), 'src/clients/client-profile-fill-relationship-history.service.ts'),
     'utf8',
@@ -76,8 +76,11 @@ describe('Fill with Meri relationship-history architecture contract', () => {
 
   it('reuses the durable synced-email specialist and review pipeline', () => {
     expect(factory).toContain('relationshipHistory.gather');
-    expect(factory).toContain("String(finding.kind) === 'relationship_link'");
-    expect(factory).toContain('relationshipHistory.apply');
+    const fill=readFileSync(resolve(process.cwd(),'src/clients/client-profile-fill.service.ts'),'utf8');
+    expect(fill).toContain("finding.kind==='relationship_link'");
+    expect(fill).toContain('this.relationshipHistory.applyInTransaction(scope,ctx,clientId,finding)');
+    expect(service).toContain('overrideAssociationInTransaction(scope.tx,ctx');
+    expect(service).toContain('scope.afterCommit.push');
     expect(moduleSource).toContain('ClientProfileFillRelationshipHistoryService');
   });
 

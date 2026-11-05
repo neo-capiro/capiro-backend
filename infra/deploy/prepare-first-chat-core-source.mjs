@@ -7,6 +7,7 @@ import { closeSync, existsSync, fstatSync, mkdirSync, openSync, readSync, writeF
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inflateRawSync } from 'node:zlib';
+import { nativePostgresHarnessPaths, sourcePathAllowed } from './first-chat-source-policy.mjs';
 
 const inputPaths = [
   '.dockerignore',
@@ -16,6 +17,13 @@ const inputPaths = [
   'apps/api/nest-cli.json',
   'apps/api/tsconfig.json',
   'apps/api/tsconfig.build.json',
+  'apps/api/jest.config.cjs',
+  'apps/api/jest.native-runtime-environment.cjs',
+  'apps/api/jest.native-sanitize-html.cjs',
+  'apps/api/jest.native-tango.cjs',
+  'apps/api/jest.worker-database.cjs',
+  'apps/api/jest.setup.ts',
+  ...nativePostgresHarnessPaths,
   'apps/api/src',
   'apps/api/prisma',
   'apps/api/scripts',
@@ -49,7 +57,6 @@ const migrationFiles = [
   'apps/api/prisma/migrations/20281018080000_clio_memory_scope_unique/migration.sql',
   reviewedStage1Migration,
 ];
-const forbiddenPath = /(^|\/)(?:\.env(?:\.[^/]*)?|\.npmrc|\.aws|\.ssh|id_rsa|id_ed25519|credentials\.json|service-account\.json)$|\.(?:pem|p12|pfx|key)$/i;
 
 function git(args, encoding = 'utf8') {
   const result = spawnSync('git', args, {
@@ -198,7 +205,7 @@ const files = raw.split('\0').filter(Boolean).map(row => {
   const match = /^(\d{6}) blob ([0-9a-f]{40})\s+(\d+)\t(.+)$/.exec(row);
   if (!match) throw new Error(`Non-regular or malformed tree entry: ${row.slice(0, 120)}`);
   const [, mode, blobSha, size, path] = match;
-  if (!['100644', '100755'].includes(mode) || !covered(path) || forbiddenPath.test(path)) {
+  if (!['100644', '100755'].includes(mode) || !covered(path) || !sourcePathAllowed(path,()=>git(['show',`${ref}:${path}`],null))) {
     throw new Error(`Disallowed archive entry: ${path}`);
   }
   return { path, mode, blobSha, size: Number(size) };

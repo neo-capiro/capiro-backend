@@ -15,7 +15,8 @@ export function fillTaskRunAdmissible(
 ): string {
   return `EXISTS (SELECT 1 FROM client_profile_fill_run r
     WHERE r.id = ${table}.run_id AND r.tenant_id = ${table}.tenant_id
-      AND r.client_id = ${table}.client_id AND r.status = 'running'
+      AND r.client_id IS NOT DISTINCT FROM ${table}.client_id
+      AND r.prospect_id IS NOT DISTINCT FROM ${table}.prospect_id AND r.status = 'running'
       AND ${fillRunBeforeDeadline('r')})`;
 }
 

@@ -246,7 +246,7 @@ export class ClientProfileFillProfileDiscovery {
       evidence: [
         {
           label: `The proposed facility needs ${missing.join(', ')} before District Nexus can resolve it`,
-          source: 'Fill with Meri public-web finding',
+          source: 'Profile research public-web finding',
         },
       ],
     };

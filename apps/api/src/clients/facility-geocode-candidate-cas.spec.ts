@@ -1,3 +1,4 @@
+jest.mock('./client-ordered-owner.access.js', () => ({ requireOwnerClient: jest.fn(async () => ({})) }));
 import 'reflect-metadata';
 import {
   afterAll,
@@ -28,6 +29,7 @@ import {
   persistFacilityGeocodeSnapshot,
   type FacilityCandidateSnapshot,
 } from './facility-geocode-candidate-revision.js';
+import { servingBoundaryVersion } from '../external/census-geocoder/geographic-boundary.js';
 import { facilityAddressHash } from './facility-geocode.util.js';
 import * as facilityGeocode from './facility-geocode.util.js';
 
@@ -46,6 +48,7 @@ const id = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const otherId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const context = { tenantId, userId: 'synthetic-user' } as TenantContext;
 const candidate = {
+  resolution: { status: 'resolved' as const, precision: 'street_interpolated' as const, requiresReview: true, source: 'census' as const, version: { ...servingBoundaryVersion() }, stateFips: '48', districts: [], resolvedAt: '2026-11-04T00:00:00Z' },
   matchedAddress: '2 MAIN ST, AUSTIN TX',
   addressLine: '2 Main St',
   city: 'Austin',
@@ -67,6 +70,7 @@ const snapshot: FacilityCandidateSnapshot = {
   state: 'TX',
   zip: '78701',
   geocodeCandidates: [candidate],
+  country: null, verifiedPoint: null, geographicResolution: null,
   geocodeStatus: 'ambiguous',
   geocodeAttemptCount: 1,
   geocodeInputHash: 'old-address-hash',
@@ -105,6 +109,7 @@ const columns = new Map<string, string>(
     geocodeMatchedAddress: 'geocode_matched_address',
     geocodeNextAttemptAt: 'geocode_next_attempt_at',
     geocodeLastError: 'geocode_last_error',
+    country: 'country', verifiedPoint: 'verified_point_jsonb', geographicResolution: 'geographic_resolution_jsonb', geographicHistory: 'geographic_history_jsonb',
   }),
 );
 const selectedColumns = [...columns].map(([field, column]) => `${column} AS "${field}"`).join(',');
@@ -123,7 +128,7 @@ function predicates(where: object, values: unknown[]): string {
     .map(([key, value]) => {
       const column = columns.get(key);
       if (!column) throw new Error(`Unexpected test filter ${key}`);
-      if (key === 'geocodeCandidates') {
+      if (['geocodeCandidates', 'verifiedPoint', 'geographicResolution', 'geographicHistory'].includes(key)) {
         if (!value || typeof value !== 'object' || !('equals' in value))
           throw new Error('JSON equality required');
         if (value.equals === Prisma.AnyNull)
@@ -156,6 +161,7 @@ beforeAll(async () => {
     congressional_district text, congressional_district_congress integer, district_source text,
     state_house_district text, state_senate_district text, latitude double precision, longitude double precision,
     geocoded_at timestamptz(6), geocode_matched_address text, geocode_next_attempt_at timestamptz(6), geocode_last_error text,
+    country text, verified_point_jsonb jsonb, geographic_resolution_jsonb jsonb, geographic_history_jsonb jsonb,
     updated_at timestamptz(6) NOT NULL DEFAULT '2026-10-11 00:00:00.123456+00');`);
 });
 afterAll(async () => {
@@ -170,8 +176,8 @@ beforeEach(async () => {
   const fields = Object.entries(snapshot);
   await db.query(
     `INSERT INTO client_facilities (${fields.map(([key]) => columns.get(key)).join(',')})
-    VALUES (${fields.map(([key], position) => `$${position + 1}${key === 'geocodeCandidates' ? '::jsonb' : ''}`).join(',')})`,
-    fields.map(([key, value]) => (key === 'geocodeCandidates' ? JSON.stringify(value) : value)),
+    VALUES (${fields.map(([key], position) => `$${position + 1}${['geocodeCandidates', 'verifiedPoint', 'geographicResolution', 'geographicHistory'].includes(key) ? '::jsonb' : ''}`).join(',')})`,
+    fields.map(([key, value]) => (['geocodeCandidates', 'verifiedPoint', 'geographicResolution', 'geographicHistory'].includes(key) ? JSON.stringify(value) : value)),
   );
   beforeUpdate = null;
   updates = 0;
@@ -211,11 +217,11 @@ beforeEach(async () => {
           const column = columns.get(key);
           if (!column) throw new Error(`Unexpected test update ${key}`);
           values.push(
-            key === 'geocodeCandidates'
+            ['geocodeCandidates', 'verifiedPoint', 'geographicResolution', 'geographicHistory'].includes(key)
               ? JSON.stringify(value === Prisma.JsonNull ? null : value)
               : value,
           );
-          return `${column}=$${values.length}${key === 'geocodeCandidates' ? '::jsonb' : ''}`;
+          return `${column}=$${values.length}${['geocodeCandidates', 'verifiedPoint', 'geographicResolution', 'geographicHistory'].includes(key) ? '::jsonb' : ''}`;
         });
         const result = await db.query(
           `UPDATE client_facilities SET ${assignments.join(',')}, updated_at=clock_timestamp()
@@ -228,6 +234,7 @@ beforeEach(async () => {
     },
   };
   const prisma = {
+    withTenantUser: async <T>(_scope: string, _userId: string, fn: (transaction: typeof tx) => Promise<T>) => fn(tx),
     withTenant: async <T>(scope: string, fn: (transaction: typeof tx) => Promise<T>) => {
       expect(scope).toBe(context.tenantId);
       return fn(tx);
@@ -251,7 +258,7 @@ describe('reviewed facility candidate contract and CAS', () => {
       facilityGeocodeCandidateRevision(snapshot),
     );
     expect(facilityGeocodeCandidateRevision(snapshot)).toBe(
-      'v1:bfb3a93592f58572f58fd8a237c66f9537b0c949f272545c74653e59047b930c',
+      'v1:3eed03ede53ec89333ebbe4d5994254c755858df502b14b1bd10ded7743a66bf',
     );
     const precision = await db.query<{ text: string }>(
       'SELECT updated_at::text AS text FROM client_facilities WHERE id=$1',
@@ -407,6 +414,7 @@ describe('reviewed facility candidate contract and CAS', () => {
         await workerCommit(await current(), {
           geocodeStatus: 'ambiguous',
           geocodeCandidates: [candidate],
+          country: null, verifiedPoint: Prisma.DbNull, geographicResolution: Prisma.DbNull,
           geocodeAttemptCount: 2,
           geocodeNextAttemptAt: retryAt,
           geocodeLastError: null,
@@ -560,7 +568,7 @@ describe('reviewed facility candidate contract and CAS', () => {
   test('public list emits the server revision without requiring callers to reconstruct internal fields', async () => {
     const raw = await current();
     const prisma = {
-      withTenant: async (_scope: string, fn: (tx: object) => Promise<unknown>) =>
+      withTenantUser: async (_scope: string, _userId: string, fn: (tx: object) => Promise<unknown>) =>
         fn({
           client: { findFirst: async () => ({ id: clientId }) },
           clientFacility: { findMany: async () => [raw] },

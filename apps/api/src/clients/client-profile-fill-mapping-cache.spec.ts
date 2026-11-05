@@ -46,11 +46,17 @@ describe('reviewed LDA mapping cache effects', () => {
         if (sql.includes('client_memory_access')) return [];
         throw new Error(`Unexpected authority query: ${sql}`);
       }),
-      $queryRawUnsafe: jest.fn(async (sql: string) => {
+      $queryRawUnsafe: jest.fn(async (sql: string, ...args: unknown[]) => {
         if (sql.includes('AS allowed')) return [{ allowed: true }];
         if (sql.includes('SELECT to_jsonb')) return [];
         if (sql.includes('FROM client_profile_fill_run')) return [{ id: runId }];
         if (sql.includes('FROM client_profile_fill_finding')) return [finding];
+        if (sql.includes('FROM profile_fact')) return [];
+        if (sql.includes('INSERT INTO profile_fact(')) {
+          statements.push(sql);
+          expect(args.slice(0, 6)).toEqual([tenantId, clientId, 'lda', JSON.stringify(finding.proposedValue), 'research', `finding:${finding.id}`]);
+          return [{id: '00000000-0000-4000-8000-000000000007', fieldKey: 'lda', value: finding.proposedValue, status: 'approved', isCurrent: true}];
+        }
         throw new Error(`Unexpected review query: ${sql}`);
       }),
       $executeRawUnsafe: jest.fn(async (sql: string) => {
@@ -104,6 +110,7 @@ describe('reviewed LDA mapping cache effects', () => {
     expect(await h.apply()).toMatchObject({ status: 'completed', applied: [finding.id], replayed: false });
     expect(h.committed()).toBe(true);
     expect(h.tx.clientIntelMapping.upsert).toHaveBeenCalledTimes(1);
+    expect(h.statements.filter(sql => sql.includes('INSERT INTO profile_fact('))).toHaveLength(1);
     expect(h.reads.trackedBills.get(h.key)).toBeUndefined();
     expect(h.reads.regulationLinks.get(h.key)).toBeUndefined();
     for (const key of [h.otherClient, h.otherTenant]) {

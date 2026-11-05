@@ -180,7 +180,7 @@ export class ClientProfileFillRefreshSchedule {
       await this.bumpSchedule(row.tenantId, row.clientId, row.cadenceHours, true);
     } catch (error) {
       this.ports.warn(
-        `Scheduled Fill with Meri refresh failed for ${row.clientId}: ${this.ports.safeError(error)}`,
+        `Scheduled Profile research refresh failed for ${row.clientId}: ${this.ports.safeError(error)}`,
       );
       await this.bumpSchedule(row.tenantId, row.clientId, Math.min(24, row.cadenceHours), false);
     }

@@ -1,5 +1,7 @@
+import { writeProfileFact, PROFILE_FIELDS } from './profile-facts.js';
 import {
   BadRequestException,
+  ConflictException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -1227,6 +1229,12 @@ export class ClientsService {
 
     const tenant = await requireClientCapacity(tx, ctx.tenantId, this.billingEnforced);
     await requireOwnerActor(tx, ctx, false, true);
+    if(input.canonicalEntityId){
+      const visible=await tx.$queryRawUnsafe<Array<{id:string}>>(`SELECT id FROM canonical_entities WHERE id=$1::uuid AND entity_type='organization' AND status='active' AND merged_into_entity_id IS NULL AND (identity_scope='global_public' OR tenant_id=$2::uuid)`,input.canonicalEntityId,ctx.tenantId);
+      if(!visible.length)throw new NotFoundException('Organization identity not found');
+      const duplicate=await tx.client.findFirst({where:{tenantId:ctx.tenantId,canonicalEntityId:input.canonicalEntityId},select:{id:true}});
+      if(duplicate)throw new ConflictException('This organization already has a client profile. Review an existing-client link.');
+    }
     const client = await tx.client.create({
       data: {
         tenantId: ctx.tenantId,
@@ -1258,6 +1266,7 @@ export class ClientsService {
         canonicalEntityId: input.canonicalEntityId ?? null,
       },
     });
+    for(const key of PROFILE_FIELDS) if(key in validated && validated[key]!==undefined) await writeProfileFact(tx,ctx,{kind:'client',id:client.id},{fieldKey:key,value:client[key],origin:'person',originId:`manual:create:${key}`,sourceType:'person_entry'});
     return { client, ldaRegistrantId: tenant?.ldaRegistrantId ?? null };
   }
 
@@ -1392,14 +1401,14 @@ export class ClientsService {
     };
   }
 
-  async update(ctx: TenantContext, id: string, input: UpdateClientInput) {
+  async update(ctx: TenantContext, id: string, input: UpdateClientInput, recordFacts = true) {
     const result = await this.prisma.withTenant(ctx.tenantId,
       tx => this.updateInTransaction(tx, ctx, id, input));
     return this.afterUpdate(ctx, id, result);
   }
 
   /** Reuse the canonical writer inside a caller-owned transaction. */
-  async updateInTransaction(tx: Prisma.TransactionClient, ctx: TenantContext, id: string, input: UpdateClientInput) {
+  async updateInTransaction(tx: Prisma.TransactionClient, ctx: TenantContext, id: string, input: UpdateClientInput, recordFacts = true) {
     // Capacity transitions already acquire capacity/tenant before client.
     // Keep that order, then hold current actor and wall grants through commit.
     if (input.status !== undefined)
@@ -1467,6 +1476,7 @@ export class ClientsService {
           : {}),
       },
     });
+    if(recordFacts) for(const key of PROFILE_FIELDS) if(key in input) await writeProfileFact(tx,ctx,{kind:'client',id},{fieldKey:key,value:client[key],origin:'person',originId:`manual:update:${randomUUID()}:${key}`,sourceType:'person_entry'});
     if (client.status === 'archived') await retireClientOfficeDraftsInTx(tx, ctx.tenantId, id);
     return { client, before, input };
   }

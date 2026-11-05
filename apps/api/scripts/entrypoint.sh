@@ -60,6 +60,14 @@ if [ -n "${MERI_CONTROL_ORIGIN+x}${MERI_CONTROL_CA_BASE64+x}${MERI_CONTROL_CA_SH
 fi
 
 case "${1:-serve}" in
+  index-bill-passages|embed-bill-passages|sync-state-text-drain|import-state-dataset-cache|import-state-discovery)
+    bill_command="$1"
+    shift
+    if [ "${1:-}" != "--help" ] && [ "${1:-}" != "-h" ]; then
+      compose_database_url
+    fi
+    exec ./node_modules/.bin/tsx "scripts/$bill_command.ts" "$@"
+    ;;
   # Forecast jobs use the custodian's already qualified DATABASE_URL unchanged.
   # Never synthesize credentials/pool limits or send these through the legacy path.
   sync-government-forecasts)
@@ -344,6 +352,12 @@ case "${1:-serve}" in
     shift
     echo "Running qualify-defense-budget-drain-image-v1 (isolated Postgres+MinIO only; never touches production)"
     exec ./node_modules/.bin/tsx scripts/qualify-defense-budget-drain-image-v1.ts "$@"
+    ;;
+  record-legiscan-capacity-hold|import-federal-billstatus-cache|sync-federal-bill-inventory)
+    verb="$1"
+    shift
+    compose_database_url
+    exec ./node_modules/.bin/tsx "scripts/$verb.ts" "$@"
     ;;
   *)
     exec /bin/sh /usr/local/lib/capiro/entrypoint-legacy.sh "$@"

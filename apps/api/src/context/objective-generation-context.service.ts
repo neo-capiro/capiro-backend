@@ -13,6 +13,7 @@ import {
   readStrategyReferenceWitness,
 } from '@capiro/shared';
 import { DirectoryService } from '../directory/directory.service.js';
+import { houseDistrictNoFromDirectoryContact } from '../common/district-code.util.js';
 import { RepresentationResolverService } from '../clients/representation-resolver.service.js';
 import { classifyStaffKind } from '../clients/client-targets.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -208,7 +209,8 @@ export class ObjectiveGenerationContextService {
           const contact = (await this.directory.getAllContacts()).find((c) => c.id === member.id);
           if (!contact || !contact.state || !['House', 'Senate'].includes(contact.chamber))
             throw new ObjectiveContextIncomplete();
-          const district = Number(contact.district);
+          // Directory display form is 'FL-28'; Number() of it is NaN and silently
+          // collapsed every House member to at-large.
           facilities = await this.representation.facilitiesForMember(
             input.tenantId,
             input.clientId,
@@ -216,7 +218,7 @@ export class ObjectiveGenerationContextService {
               type: 'federal',
               chamber: contact.chamber === 'Senate' ? 'senate' : 'house',
               state: contact.state,
-              district: Number.isFinite(district) && district > 0 ? district : null,
+              district: houseDistrictNoFromDirectoryContact(contact),
             },
           );
         } else if (target.source_directory === 'state') {
@@ -374,16 +376,18 @@ export class ObjectiveGenerationContextService {
     const { governedContext: governed } = bundle;
     const packet = governed.contextPacket;
     const coverage = bundle.coverage;
+    // Required Objective groups below stay lossless and every saved target must be
+    // observed. The shared 8-domain retrieval is supplementary relationship history:
+    // its partial/truncated coverage or release-switch rollback is NOT a refusal.
+    // That exact coverage is bound into coverageDigest and stated in the prompt's
+    // COVERAGE block, so the model is told what was not seen. A packet that was not
+    // persisted still refuses (no traceable packet ID).
     if (
       observed.issues.length ||
-      bundle.kind !== 'governed_packet' ||
+      (bundle.kind !== 'governed_packet' && bundle.kind !== 'release_switch_rollback') ||
       !packet.persisted ||
       !packet.packetId ||
-      !packet.compiledAt ||
-      packet.degraded ||
-      !coverage.complete ||
-      !coverage.paginationComplete ||
-      coverage.truncated
+      !packet.compiledAt
     )
       throw new ObjectiveContextIncomplete();
     const { mailbox_authority: _mailboxAuthority, ...contextSources } = observed.sources;

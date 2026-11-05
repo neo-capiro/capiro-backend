@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { isUUID, maxLength } from 'class-validator';
 import {
   ClientObjectiveDestinationError,
@@ -6,9 +7,12 @@ import {
   type ClientObjectiveRevisionBinding,
   type TenantContext,
 } from '@capiro/shared';
+import { requireOwnerClient } from './client-ordered-owner.access.js';
+import { visiblePortfolioHistory } from './portfolio/portfolio-source-access.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { readTargetContext, type TargetContextQueryDto } from './client-target-context.js';
 import { DirectoryService } from '../directory/directory.service.js';
+import { houseDistrictNoFromDirectoryContact } from '../common/district-code.util.js';
 import type { DirectoryStaffDetail } from '../directory/directory-detail.types.js';
 import { RepresentationResolverService } from './representation-resolver.service.js';
 import {
@@ -28,6 +32,7 @@ export interface AddTargetInput {
   source?: string;
   /** 'congress' (LegiStorm snapshot) | 'state' (OpenStates state_legislator). */
   sourceDirectory?: string;
+  officeTerm?: string;
 }
 
 /** WS-E, LegiStorm gaps/enrichment plan. */
@@ -190,10 +195,11 @@ export class ClientTargetsService {
   async listTargets(ctx: TenantContext, clientId: string) {
     const rows = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await this.assertClient(tx, ctx, clientId);
-      return tx.clientTarget.findMany({
+      const targets = await tx.clientTarget.findMany({
         where: { tenantId: ctx.tenantId, clientId },
         orderBy: { addedAt: 'asc' },
       });
+      return Promise.all(targets.map(async row => ({...row, history: await visiblePortfolioHistory(tx, ctx, clientId, row.history)})));
     });
     const representedFacilitiesByTarget = await this.resolveRepresentedFacilities(
       ctx.tenantId,
@@ -296,17 +302,14 @@ export class ClientTargetsService {
           result.set(t.id, null);
           return;
         }
-        // Mirrors getMemberRepresentationSummary's exact at-large convention
-        // for this SAME directory-snapshot field (directory.service.ts):
-        // district > 0 ? district : null. Not a guess — this is the
-        // already-shipped, working convention for this specific data source.
-        const districtNo = Number(contact.district);
+        // Same parser getMemberRepresentationSummary uses: the directory's display
+        // district is 'FL-28', which Number() turns into NaN (House -> at-large).
         try {
           const facilities = await this.representation.facilitiesForMember(tenantId, clientId, {
             type: 'federal',
             chamber: contact.chamber === 'Senate' ? 'senate' : 'house',
             state: contact.state,
-            district: Number.isFinite(districtNo) && districtNo > 0 ? districtNo : null,
+            district: houseDistrictNoFromDirectoryContact(contact),
           });
           result.set(t.id, facilities);
         } catch {
@@ -342,7 +345,6 @@ export class ClientTargetsService {
   async addTarget(ctx: TenantContext, clientId: string, input: AddTargetInput) {
     const memberId = (input.memberId ?? '').trim();
     if (!memberId) throw new BadRequestException('memberId is required');
-    const source = input.source === 'meri' ? 'meri' : 'manual';
     const sourceDirectory =
       input.sourceDirectory === 'state'
         ? 'state'
@@ -360,33 +362,27 @@ export class ClientTargetsService {
           ? await this.resolveStaffSnapshot(memberId)
           : await this.resolveCongressSnapshot(memberId);
 
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await this.assertClient(tx, ctx, clientId);
-      const existing = await tx.clientTarget.findFirst({
-        where: { clientId, memberId },
-        select: { id: true },
-      });
-      // Idempotent add: a duplicate is not an error (the UI fires optimistically).
-      if (existing) {
-        return tx.clientTarget.findUnique({ where: { id: existing.id } });
-      }
-      return tx.clientTarget.create({
-        data: {
-          tenantId: ctx.tenantId,
-          clientId,
-          memberId,
-          sourceDirectory,
-          memberName: snapshot.memberName,
-          party: snapshot.party,
-          state: snapshot.state,
-          chamber: snapshot.chamber,
-          committee: snapshot.committee,
-          staffKind: snapshot.staffKind,
-          source,
-          addedByUserId: ctx.userId ?? null,
-        },
-      });
-    });
+    return this.prisma.withTenant(ctx.tenantId, tx => this.addTargetInTransaction(tx, ctx, clientId, input, snapshot));
+  }
+
+  /** Used by reviewed capability support so parent and child commit together. */
+  async addTargetInTransaction(tx: Prisma.TransactionClient, ctx: TenantContext, clientId: string, input: AddTargetInput, preparedSnapshot?: TargetSnapshot) {
+    const memberId = input.memberId.trim();
+    if (!memberId) throw new BadRequestException('memberId is required');
+    const sourceDirectory = input.sourceDirectory ?? 'congress';
+    if (!['congress', 'state', 'staff'].includes(sourceDirectory)) throw new BadRequestException('Unknown source directory');
+    await this.assertClient(tx, ctx, clientId);
+    const snapshot = preparedSnapshot ?? (sourceDirectory === 'state' ? await this.resolveStateSnapshot(memberId) : sourceDirectory === 'staff' ? await this.resolveStaffSnapshot(memberId) : await this.resolveCongressSnapshot(memberId));
+    const officeTerm = input.officeTerm?.trim() || 'unknown';
+    if (sourceDirectory === 'congress' && officeTerm !== 'unknown' && !/^congress:[1-9]\d{0,2}$/.test(officeTerm)) throw new BadRequestException('Congress office terms must use canonical congress:N identity');
+    const existing = await tx.clientTarget.findFirst({where: {tenantId: ctx.tenantId, clientId, memberId, sourceDirectory, officeTerm}});
+    if (existing) {
+      if (input.officeTerm && existing.officeTerm !== input.officeTerm) throw new ConflictException('Existing office term differs or is unknown; review that relationship before assigning capability support');
+      return existing;
+    }
+    const saved = await tx.clientTarget.upsert({where: {clientId_sourceDirectory_memberId_officeTerm: {clientId, sourceDirectory, memberId, officeTerm}}, create: {tenantId: ctx.tenantId, clientId, memberId, sourceDirectory, ...snapshot, source: input.source === 'meri' ? 'meri' : 'manual', addedByUserId: ctx.userId ?? null, officeTerm}, update: {}});
+    if (input.officeTerm && saved.officeTerm !== input.officeTerm) throw new ConflictException('Existing office term changed; refresh before creating support');
+    return saved;
   }
 
   /** Congressional snapshot from the in-memory S3 directory (best-effort). */
@@ -485,6 +481,8 @@ export class ClientTargetsService {
     clientId: string,
     memberId: string,
     tier: number | null,
+    sourceDirectory?: string,
+    officeTerm?: string,
   ) {
     const mid = (memberId ?? '').trim();
     if (!mid) throw new BadRequestException('memberId is required');
@@ -493,26 +491,44 @@ export class ClientTargetsService {
     }
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await this.assertClient(tx, ctx, clientId);
-      const existing = await tx.clientTarget.findFirst({
-        where: { clientId, memberId: mid },
-        select: { id: true },
-      });
+      const matches = await tx.clientTarget.findMany({where: {tenantId: ctx.tenantId, clientId, memberId: mid, ...(sourceDirectory ? {sourceDirectory} : {}), ...(officeTerm ? {officeTerm} : {})}, select: {id: true}});
+      if (matches.length > 1) throw new ConflictException('Specify exact target id or sourceDirectory and officeTerm for this office');
+      const existing = matches[0];
       if (!existing) throw new NotFoundException('Target not found');
       return tx.clientTarget.update({ where: { id: existing.id }, data: { tier } });
     });
   }
 
-  async removeTarget(ctx: TenantContext, clientId: string, memberId: string) {
+  async removeTarget(ctx: TenantContext, clientId: string, memberId: string, sourceDirectory?: string, officeTerm?: string) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await this.assertClient(tx, ctx, clientId);
-      const existing = await tx.clientTarget.findFirst({
-        where: { clientId, memberId },
-        select: { id: true },
-      });
+      const matches = await tx.clientTarget.findMany({where: {tenantId: ctx.tenantId, clientId, memberId, ...(sourceDirectory ? {sourceDirectory} : {}), ...(officeTerm ? {officeTerm} : {})}, select: {id: true}});
+      if (matches.length > 1) throw new ConflictException('Specify exact target id or sourceDirectory and officeTerm for this office');
+      const existing = matches[0];
       // Idempotent remove: absent target is a no-op success (optimistic UI).
       if (!existing) return { deleted: true };
       await tx.clientTarget.delete({ where: { id: existing.id } });
       return { deleted: true };
     });
   }
+
+  async setTargetTierById(ctx: TenantContext, clientId: string, targetId: string, tier: number | null) {
+    if (tier !== null && ![1, 2, 3].includes(tier)) throw new BadRequestException('tier must be 1, 2, 3, or null');
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async tx => {
+      await requireOwnerClient(tx, ctx, clientId, false);
+      const target = await tx.clientTarget.findFirst({where: {id: targetId, tenantId: ctx.tenantId, clientId}});
+      if (!target) throw new NotFoundException('Target not found');
+      return tx.clientTarget.update({where: {id: target.id}, data: {tier}});
+    });
+  }
+
+  async removeTargetById(ctx: TenantContext, clientId: string, targetId: string) {
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async tx => {
+      await requireOwnerClient(tx, ctx, clientId, false);
+      const target = await tx.clientTarget.findFirst({where: {id: targetId, tenantId: ctx.tenantId, clientId}});
+      if (target) await tx.clientTarget.delete({where: {id: target.id}});
+      return {deleted: true};
+    });
+  }
+
 }

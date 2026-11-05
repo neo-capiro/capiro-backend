@@ -129,7 +129,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       unknown
     >;
     const runId = asString(core.id);
-    if (!runId) throw new Error('Fill with Meri did not return a run id');
+    if (!runId) throw new Error('Profile research did not return a run id');
     if (!input.requestId || (core.status === 'running' && core.stage === 'research'))
       await this.ensureCompletionTasks(ctx, clientId, runId);
     this.requestTaskSweep();

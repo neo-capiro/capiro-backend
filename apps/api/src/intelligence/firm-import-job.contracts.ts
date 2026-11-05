@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { readImportWebsites, type ImportWebsites } from './firm-import-request.js';
 
 /**
  * Shared vocabulary and pure projections for the durable view of the existing
@@ -84,11 +85,13 @@ export function normalizeImportSelection(ldaClientIds: readonly number[]): numbe
   return [...unique].sort((a, b) => a - b);
 }
 
-export function importRequestSha256(ldaRegistrantId: number, ids: readonly number[]): string {
+export function importRequestSha256(ldaRegistrantId: number, ids: readonly number[], websites: ImportWebsites = {}): string {
   // Order-independent: the identity is the exact SET of selected ids.
   const canonical = JSON.stringify({
     registrantId: ldaRegistrantId,
     ldaClientIds: [...ids].sort((a, b) => a - b),
+    // Omission and an empty map retain the exact historical digest.
+    ...(Object.keys(websites).length ? {websites: Object.fromEntries(Object.entries(websites).sort(([a], [b]) => Number(a) - Number(b)))} : {}),
   });
   return createHash('sha256').update(canonical).digest('hex');
 }
@@ -166,6 +169,8 @@ export function projectImportJob(
 }
 
 export interface ImportJobItemView {
+  /** User-selected research input, not a confirmed canonical company website. */
+  website?: string;
   ldaClientId: number;
   outcome: FirmImportItemOutcome;
   code: FirmImportItemCode | null;
@@ -202,6 +207,7 @@ export function emptyPopulationCounts(): ImportJobPopulationCounts {
 }
 
 export interface ImportJobRowLike {
+  requestJson?: unknown;
   id: string;
   requestKey: string;
   ldaRegistrantId: number;
@@ -226,11 +232,13 @@ export function toImportJobView(
   now: Date = new Date(),
   population?: ImportJobPopulationCounts,
 ): ImportJobView {
+  const websites = readImportWebsites(row.requestJson, row.requestedIds);
   const items: ImportJobItemView[] = row.items
     .slice()
     .sort((a, b) => a.ldaClientId - b.ldaClientId)
     .map((item) => ({
       ldaClientId: item.ldaClientId,
+      ...(websites[String(item.ldaClientId)] ? {website: websites[String(item.ldaClientId)]} : {}),
       outcome: item.outcome,
       code: (item.code as FirmImportItemCode | null) ?? null,
       clientId: item.clientId,

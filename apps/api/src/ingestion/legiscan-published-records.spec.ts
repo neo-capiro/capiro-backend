@@ -1,4 +1,8 @@
-import { publishedRecords, reportSourceFacts } from './legiscan-published-records.js';
+import {
+  publishedRecords,
+  reportSourceFacts,
+  persistPublishedRecords,
+} from './legiscan-published-records.js';
 import type { LegiscanBill } from '../external/legiscan/legiscan.client.js';
 
 const raw = {
@@ -13,6 +17,68 @@ const raw = {
   state_link: 'https://example.gov/bill',
 } as LegiscanBill;
 describe('published-record ingestion', () => {
+  it('keeps archived alternate format proof when current primary metadata is refreshed', async () => {
+    const formats = [
+      {
+        kind: 'text',
+        providerId: 2,
+        providerHash: 'a'.repeat(32),
+        format: { role: 'alternate', receiptId: 'b'.repeat(64) },
+      },
+    ];
+    const db: any = {
+      stateBill: {
+        findUnique: jest.fn(async () => ({
+          reportSourceFacts: { retainedDocumentFormats: formats },
+        })),
+        update: jest.fn(),
+      },
+      stateBillPublishedRecord: { createMany: jest.fn() },
+    };
+    db.$transaction = (run: any) => run(db);
+    await persistPublishedRecords(db, 'bill', {
+      history: [],
+      amendments: [],
+      texts: [],
+    } as unknown as LegiscanBill);
+    expect(
+      db.stateBill.update.mock.calls[0][0].data.reportSourceFacts.retainedDocumentFormats,
+    ).toEqual(formats);
+  });
+  it('adds frozen stubs without replacing current facts or current published membership', async () => {
+    const current = {
+      coverage: { actions: true },
+      currentCommittee: { name: 'Current committee' },
+      documentInventory: {
+        providerChangeHash: 'new',
+        stubs: [{ kind: 'text', providerId: 7, providerHash: 'new' }],
+      },
+    };
+    const db: any = {
+      stateBillPublishedRecord: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        createMany: jest.fn(),
+      },
+      stateBill: {
+        findUnique: jest.fn().mockResolvedValue({ reportSourceFacts: current }),
+        update: jest.fn(),
+      },
+    };
+    db.$transaction = (fn: any) => fn(db);
+    await persistPublishedRecords(
+      db,
+      'tx-2025-hb1',
+      { ...raw, texts: [{ doc_id: 8, text_hash: 'old', text_size: 4, mime: 'text/plain' }] } as any,
+      { historical: true, preserveCurrentFacts: true },
+    );
+    const facts = db.stateBill.update.mock.calls[0][0].data.reportSourceFacts;
+    expect(facts.currentCommittee).toEqual(current.currentCommittee);
+    expect(facts.documentInventory).toEqual(current.documentInventory);
+    expect(facts.retainedDocumentStubs.map((s: any) => s.providerId)).toEqual([7, 8, 10, 11]);
+    expect(db.stateBillPublishedRecord.createMany).toHaveBeenCalledWith(
+      expect.objectContaining({ skipDuplicates: true }),
+    );
+  });
   it('preserves missing, explicit zero, and adopted dispositions without inferring rejection', () => {
     const records = publishedRecords({
       ...raw,

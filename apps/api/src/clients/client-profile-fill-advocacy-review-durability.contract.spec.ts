@@ -9,7 +9,7 @@ const migration = readFileSync(
   'utf8',
 );
 
-describe('Fill with Meri Advocacy review durability migration', () => {
+describe('Profile research Advocacy review durability migration', () => {
   it('runs only when a new durable workflow-v2 Fill run is created', () => {
     expect(migration).toContain('AFTER INSERT ON client_profile_fill_run');
     expect(migration).toContain('FOR EACH ROW');

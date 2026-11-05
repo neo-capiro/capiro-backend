@@ -82,8 +82,12 @@ test('unoffered identities are still refused before any research persistence', a
 test('reloaded workers receive their recorded inputs; malformed new inputs cannot fall back', async () => {
   const h = workflow();
   const task = { clientId, runId, taskType: 'public_web', input: researchTaskInput('public_web', 'https://research.example/', []) };
-  await h.service.executeTask(ctx, structuredClone(task), {});
-  expect(h.engine.gatherPublicWeb).toHaveBeenCalledWith(ctx, clientId, runId, 'https://research.example/');
+  const signal = new AbortController().signal;
+  await h.service.executeTask(ctx, structuredClone(task), {}, signal);
+  expect(h.engine.gatherPublicWeb).toHaveBeenCalledWith(ctx, clientId, runId, 'https://research.example/', undefined, signal, undefined, undefined);
+  const unit = {id: randomUUID(), name: 'Reviewed fixture segment', annualReportYear: 2026, sourceUrls: ['https://research.example/annual-report']};
+  await h.service.executeTask(ctx, {...task, input: researchTaskInput('public_web', 'https://research.example/', [], unit)}, {}, signal);
+  expect(h.engine.gatherPublicWeb).toHaveBeenLastCalledWith(ctx, clientId, runId, 'https://research.example/', undefined, signal, unit, undefined);
   await h.service.executeTask(ctx, { ...task, taskType: 'lda', input: researchTaskInput('lda', null, [suggested]) }, {});
   expect(h.engine.gatherLda).toHaveBeenCalledWith(ctx, clientId, runId, [suggested]);
   expect(() => readResearchInputs({ researchInputVersion: 1 }, 'public_web')).toThrow('does not match');
@@ -113,7 +117,7 @@ test('selected LDA inputs produce provisional findings and do not widen to later
   expect(service.addFinding).toHaveBeenCalledWith(ctx.tenantId, clientId, runId, expect.objectContaining({
     kind: 'lda_identity', factKind: 'recommendation', currentValue: null,
     proposedValue: { externalId: '73', externalName: suggested.name, selectedForResearch: true },
-  }));
+  }), {kind: 'client', id: clientId});
   expect(service.addLdaHistory.mock.calls.map((args: unknown[]) => args[3])).toEqual(['42', '73']);
   expect(service.ldaCandidates).not.toHaveBeenCalled();
 });
@@ -128,28 +132,14 @@ test('web research uses its seed while finding current values remain canonical',
   service.searchCompany = jest.fn(async () => []);
   service.fetchPublicPages = jest.fn(async () => [{ url: 'https://research.example/', html: '', text: 'Evidence', description: 'Proposed description' }]);
   service.extractPublicWeb = jest.fn(async () => null);
-  expect(await service.gatherPublicWeb(ctx, clientId, runId, 'https://research.example/')).toBe(1);
+  const signal = new AbortController().signal;
+  expect(await service.gatherPublicWeb(ctx, clientId, runId, 'https://research.example/', undefined, signal)).toBe(1);
+  expect(service.extractPublicWeb).toHaveBeenCalledWith(ctx, expect.anything(), expect.anything(), [], expect.anything(), {kind:'client',id:clientId}, signal, undefined);
   expect(service.searchCompany).toHaveBeenCalledWith(expect.objectContaining({ website: 'https://research.example/' }));
-  expect(service.fetchPublicPages).toHaveBeenCalledWith('https://research.example/');
+  expect(service.fetchPublicPages).toHaveBeenCalledWith('https://research.example/', signal, false);
   expect(service.addFinding).toHaveBeenCalledWith(ctx.tenantId, clientId, runId, expect.objectContaining({
     targetKey: 'description', currentValue: '', proposedValue: 'Proposed description',
-  }));
-});
-test('legacy start also stores its website seed on the run without a canonical update', async () => {
-  const service = engine();
-  const queries: Array<{ sql: string; args: unknown[] }> = [];
-  service.assertClient = jest.fn();
-  service.latestRunning = jest.fn(async () => null);
-  service.executeRun = jest.fn(async () => undefined);
-  service.getRun = jest.fn(async () => ({ id: runId }));
-  service.clients = { update: jest.fn() };
-  service.prisma = { withTenant: async (_tenant: string, run: any) => run({
-    $queryRawUnsafe: async (sql: string, ...args: unknown[]) => { queries.push({ sql, args }); return [{ id: runId }]; },
-  }) };
-  await service.startRun(ctx, clientId, ['public_web'], undefined, 'https://research.example/');
-  expect(service.clients.update).not.toHaveBeenCalled();
-  expect(JSON.parse(queries[0]!.args[5] as string)).toEqual({ researchInputVersion: 1, website: 'https://research.example/' });
-  expect(service.executeRun).toHaveBeenCalledWith(ctx, clientId, runId, ['public_web'], 'https://research.example/');
+  }), {kind: 'client', id: clientId});
 });
 test('a recorded absent website does not silently adopt a later canonical website', async () => {
   const service = engine();

@@ -25,6 +25,7 @@ import {
   computeFacilityGeocode,
   facilityAddressHash,
 } from '../src/clients/facility-geocode.util.js';
+import { boundaryVersionKey, servingBoundaryVersion } from '../src/external/census-geocoder/geographic-boundary.js';
 import { hasGeocodableAddress, nextGeocodeAttempt } from '../src/clients/geocode-retry.js';
 import {
   persistFacilityGeocodeSnapshot,
@@ -77,10 +78,11 @@ async function main() {
       // written back after EVERY attempt (below) so address-less / no-match rows
       // can't perpetually re-select and starve the batch cap.
       const ADDR_HASH_SQL =
-        "md5(regexp_replace(lower(trim(coalesce(address_line,''))), '\\s+', ' ', 'g') || '|' || regexp_replace(lower(trim(coalesce(city,''))), '\\s+', ' ', 'g') || '|' || regexp_replace(lower(trim(coalesce(state,''))), '\\s+', ' ', 'g') || '|' || regexp_replace(lower(trim(coalesce(zip,''))), '\\s+', ' ', 'g'))";
+        "md5(regexp_replace(lower(trim(coalesce(address_line,''))), '\\s+', ' ', 'g') || '|' || regexp_replace(lower(trim(coalesce(city,''))), '\\s+', ' ', 'g') || '|' || regexp_replace(lower(trim(coalesce(state,''))), '\\s+', ' ', 'g') || '|' || regexp_replace(lower(trim(coalesce(zip,''))), '\\s+', ' ', 'g') || '|' || lower(trim(coalesce(country,'US'))) || '|' || coalesce(verified_point_jsonb->>'latitude','') || '|' || coalesce(verified_point_jsonb->>'longitude','') || '|' || coalesce(verified_point_jsonb->>'verifiedAt','') || '|' || $2)";
       const rows = await bypassRls(prisma, (tx) =>
         tx.$queryRawUnsafe<Array<FacilityCandidateSnapshot & { currentHash: string }>>(
-          `SELECT id, tenant_id AS "tenantId", client_id AS "clientId", address_line AS "addressLine", city, state, zip,
+          `SELECT id, tenant_id AS "tenantId", client_id AS "clientId", address_line AS "addressLine", city, state, zip, country,
+                verified_point_jsonb AS "verifiedPoint", geographic_resolution_jsonb AS "geographicResolution", geographic_history_jsonb AS "geographicHistory",
                 congressional_district AS "congressionalDistrict",
                 congressional_district_congress AS "congressionalDistrictCongress",
                 district_source AS "districtSource",
@@ -106,6 +108,7 @@ async function main() {
           ORDER BY (geocode_input_hash IS NOT NULL), updated_at ASC
           LIMIT $1`,
           BATCH_CAP,
+          boundaryVersionKey(servingBoundaryVersion()),
         ),
       );
 

@@ -1,3 +1,4 @@
+jest.mock('./profile-extraction-context.js',()=>({governProfileExtraction:(_subject:unknown,instructions:string,prompt:string)=>({instructions,prompt})}));
 import { BadRequestException } from '@nestjs/common';
 import { ClientProfileFillService } from './client-profile-fill.service.js';
 
@@ -16,7 +17,7 @@ function gate(service: unknown): Gatherer {
  *   - malformed non-array `capabilities` → BadRequest (was: normalized to []
  *     and the run completed with zero findings);
  *   - capabilities whose `type` is outside product/service/platform/
- *     technology → BadRequest when NONE can persist (was: silent continue);
+ *     program/component → BadRequest when NONE can persist (was: silent continue);
  *   - a genuine empty capabilities array → valid, zero findings, no throw;
  *   - mixed output keeps the valid rows and does not throw.
  */
@@ -28,13 +29,14 @@ function makeService(llmText: string) {
   const prisma = {
     withTenant: async (_t: string, run: (tx: unknown) => Promise<unknown>) =>
       run({
+        $queryRawUnsafe:async()=>[{id:attachmentId,prospectId:null}],
         engagementAttachment: {
           findFirst: async () => ({ id: attachmentId, fileName: 'cap.docx' }),
         },
       }),
   };
   const credentials = {
-    resolveOrder: async () => [{ provider: 'anthropic', apiKey: 'k', model: 'm' }],
+    extract: async () => ({data:JSON.parse(llmText),audit:{}}),
   };
   const capabilities = { listCapabilities: async () => [] as Array<{ id: string; name: string }> };
   const service = new ClientProfileFillService(
@@ -53,7 +55,6 @@ function makeService(llmText: string) {
   );
   // Stub the extraction boundary: getClientSnapshot + the provider JSON call.
   (service as never as Record<string, unknown>).getClientSnapshot = async () => ({ id: clientId, name: 'Orchid Kite' });
-  (service as never as Record<string, unknown>).callAnthropicJson = async () => llmText;
   // addFinding records what would persist.
   const persisted: unknown[] = [];
   (service as never as Record<string, unknown>).addFinding = async (...args: unknown[]) => {
@@ -82,8 +83,7 @@ describe('ClientProfileFillService — document capability extraction gate', () 
 
   test('a genuine empty capabilities array completes with zero findings, no throw', async () => {
     const { service, persisted } = makeService(JSON.stringify({ capabilities: [] }));
-    const count = await gate(service)({ tenantId: 't', userId: 'u' }, clientId, 'run-1', attachmentId, 'text');
-    expect(count).toBe(0);
+    expect(await gate(service)({ tenantId: 't', userId: 'u' }, clientId, 'run-1', attachmentId, 'text')).toBe(0);
     expect(persisted).toHaveLength(0);
   });
 
@@ -100,7 +100,7 @@ describe('ClientProfileFillService — document capability extraction gate', () 
     expect(persisted).toHaveLength(0);
   });
 
-  test('an invalid type on an already-existent capability is a duplicate no-op, not an error', async () => {
+  test('an invalid type cannot update an already-existing capability', async () => {
     const { service, persisted } = makeService(JSON.stringify({
       capabilities: [{ name: 'Ground robotics platform', type: 'software platform', description: null, sector: null, tags: [], keywords: [] }],
     }));
@@ -110,8 +110,22 @@ describe('ClientProfileFillService — document capability extraction gate', () 
       listCapabilities: () => Promise<Array<{ id: string; name: string }>>;
     };
     caps.listCapabilities = async () => [{ id: 'existing', name: 'Ground robotics platform' }];
-    const count = await gate(service)({ tenantId: 't', userId: 'u' }, clientId, 'run-1', attachmentId, 'text');
-    expect(count).toBe(0);
+    await expect(gate(service)({ tenantId: 't', userId: 'u' }, clientId, 'run-1', attachmentId, 'text')).rejects.toBeInstanceOf(BadRequestException);
     expect(persisted).toHaveLength(0);
   });
 });
+
+test('keeps actual document support and lifecycle on a valid capability proposal',async()=>{
+ const {service,persisted}=makeService(JSON.stringify({capabilities:[{name:'Planned system',type:'program',lifecycle:'planned',description:'A planned system',sector:null,tags:[],keywords:[]}]}));
+ await gate(service)({tenantId:'t',userId:'u'},clientId,'run-1',attachmentId,'The company announced Planned system for development.');
+ expect(persisted).toHaveLength(1);
+ expect((persisted[0] as unknown[])[3]).toMatchObject({proposedValue:{lifecycle:'planned'},evidence:[expect.objectContaining({excerpt:'The company announced Planned system for development.'})]});
+});
+
+ test('existing capability document stages a version-bound update instead of dropping its name',async()=>{
+ const {service,persisted}=makeService(JSON.stringify({capabilities:[{name:'Ground robotics platform',type:'platform',lifecycle:'in_service',description:'Improved source description',sector:null,tags:[],keywords:[]}]}));
+ (service as unknown as {capabilities:{listCapabilities:()=>Promise<unknown[]>}}).capabilities.listCapabilities=async()=>[{id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',name:'Ground robotics platform',version:4}];
+ await gate(service)({tenantId:'t',userId:'u'},clientId,'run-1',attachmentId,'Ground robotics platform has improved sensors.');
+ expect(persisted).toHaveLength(1);
+ expect((persisted[0] as unknown[])[3]).toMatchObject({proposedValue:{capabilityId:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',expectedCapabilityVersion:4,description:'Improved source description'}});
+ });

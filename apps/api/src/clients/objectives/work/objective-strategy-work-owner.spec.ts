@@ -1,4 +1,4 @@
-import { ObjectiveStrategyWorkOwner } from './objective-strategy-work-owner.js';
+import { ObjectiveStrategyWorkOwner, objectiveGenerationLedgerId } from './objective-strategy-work-owner.js';
 import { objectiveStrategyRequestCodec, parseObjectiveStrategySelection } from './objective-strategy-selection.js';
 import type { WorkAuthority, WorkState } from './objective-work-command.js';
 
@@ -106,6 +106,47 @@ describe('initial native selected Strategy owner', () => {
       f.h.jobs = [{ id: id(60), clientId: a.clientId, strategyId: null, input }];
       expect((await f.owner.reconcileWithinTx(f.tx, a, 'objective.strategy.draft', f.s)).state).toBe('outcome_unconfirmed');
     });
+  describe('API-Strategy per-job generation ledger', () => {
+    const owner = 'user_other_owner', job = id(70);
+    const otherCanonical = { canonicalPlanId: id(71), objectiveId: id(62), canonicalStrategyId: id(72), canonicalProjectId: id(73) };
+    const kinds = ['objective_canonical_generation_acceptance', 'objective_canonical_generation_normalization',
+      'objective_canonical_generation_request'];
+    function ledger(f: ReturnType<typeof fixture>, canonical: Record<string, string>, withAdmission = true) {
+      const request = { requestId: id(61), clientId: a.clientId, objective: { objectiveId: canonical.objectiveId!, objectiveVersion: 1 },
+        type: 'appropriations' as const };
+      const admissionId = objectiveGenerationLedgerId('objective_canonical_generation_admission', a.tenantId, owner, job);
+      f.h.jobs = [{ id: job, clientId: a.clientId, ownerUserId: owner, strategyId: null, input: {
+        objectiveGeneration: { request, fingerprint: objectiveStrategyRequestCodec.digest(request),
+          receipt: objectiveStrategyRequestCodec.pendingReceipt(request,
+            { clientId: a.clientId, objectiveId: canonical.objectiveId!, objectiveVersion: 1, objectiveRevisionId: id(63) }) },
+        canonicalGeneration: { admissionId } } }];
+      f.h.resources = [
+        ...(withAdmission ? [{ id: admissionId, kind: 'objective_canonical_generation_admission', data: { canonical } }] : []),
+        { id: objectiveGenerationLedgerId('objective_canonical_generation_producer', a.tenantId, owner, job),
+          kind: 'objective_canonical_generation_producer', data: { sourceAdmission: { canonical } } },
+        ...kinds.map(kind => ({ id: objectiveGenerationLedgerId(kind, a.tenantId, owner, job), kind,
+          data: { schemaVersion: 1, sourceAdmissionSha256: 'b'.repeat(64) } })),
+      ];
+    }
+    test('an unrelated Objective generation does not block a new initial Strategy', async () => {
+      const f = fixture(); await f.lock(); ledger(f, otherCanonical);
+      expect((await f.owner.reconcileWithinTx(f.tx, a, 'objective.strategy.draft', f.s)).state).toBe('not_started');
+    });
+    test('this Objective prior generation remains uncertain', async () => {
+      const f = fixture(); await f.lock();
+      ledger(f, { ...otherCanonical, objectiveId: a.objectiveId, canonicalPlanId: f.s.source.canonicalPlanId });
+      expect((await f.owner.reconcileWithinTx(f.tx, a, 'objective.strategy.draft', f.s)).state).toBe('outcome_unconfirmed');
+    });
+    test('a linked row without its job admission remains uncertain', async () => {
+      const f = fixture(); await f.lock(); ledger(f, otherCanonical, false);
+      expect((await f.owner.reconcileWithinTx(f.tx, a, 'objective.strategy.draft', f.s)).state).toBe('outcome_unconfirmed');
+    });
+    test('a linked kind under a different job ID remains uncertain', async () => {
+      const f = fixture(); await f.lock(); ledger(f, otherCanonical);
+      f.h.resources.push({ id: id(99), kind: kinds[0], data: { schemaVersion: 1 } });
+      expect((await f.owner.reconcileWithinTx(f.tx, a, 'objective.strategy.draft', f.s)).state).toBe('outcome_unconfirmed');
+    });
+  });
   test.each([{}, { enabled: true, durationLimitMs: null }, { enabled: true, durationLimitMs: 1800001 }])(
     'requires explicit well-formed tenant opt-in %#', async p => {
       const f = fixture(); await f.lock(); await f.owner.reconcileWithinTx(f.tx, a, 'objective.strategy.draft', f.s);

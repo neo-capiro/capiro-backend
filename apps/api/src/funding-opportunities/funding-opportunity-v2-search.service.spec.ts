@@ -123,6 +123,17 @@ function makeService(
 const context = { tenantId: TENANT, userId: ACTOR };
 
 describe('FundingOpportunityV2SearchService', () => {
+  test.each([
+    ['Parkinson&rsquo;s research &amp; care', 'Parkinson’s research & care'],
+    ['Research &#8217; &#x2014; &quot;award&quot;', 'Research ’ — "award"'],
+    ['<img src=x onerror=alert(1)> &lt;script&gt; &amp;lt;', '<img src=x onerror=alert(1)> <script> &lt;'],
+  ])('returns entity-normalized plain title text for %s', async (title, expected) => {
+    const service = makeService([adapter('grants_gov', [record('grants_gov', 'encoded-title', { title })])]);
+    const result = await service.search(context, criteria());
+    expect(result.opportunities[0]!.title).toBe(expected);
+    expect(result.opportunities[0]!.sourceRecordId).toBe('encoded-title');
+  });
+
   test('searches the complete multi-source catalog before stable cross-source pagination', async () => {
     const grants = Array.from({ length: 101 }, (_, i) =>
       record('grants_gov', `grant-${String(i).padStart(3, '0')}`, {

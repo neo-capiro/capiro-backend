@@ -886,12 +886,16 @@ async function main() {
   let closure;
   const graphGate = await check('production-dependency-closure', () => {
     closure = contract.verifyInstalledClosure();
+    // Do not rely on inspectArtifact discovering the required bare executable.
+    // A script/text replacement must fail before inventory or any native load.
+    const requiredSdkMember = closure.owners.some(owner => owner.metadata.name === '@anthropic-ai/claude-agent-sdk')
+      ? contract.requiredPortfolioSdkMember(closure) : null;
     const summarize = owner => ({ root: owner.root, manifest: owner.manifest, manifestSHA256: owner.manifestSHA256,
       name: owner.metadata.name, version: owner.metadata.version, snapshot: owner.snapshot,
       integrity: owner.integrity || null, declaredPlatform: owner.declaredPlatform || null, platformAdmission: owner.platformAdmission || null, generatedBy: owner.generatedBy || null });
     report.productionClosure = { status: closure.status, contractSHA256: closure.contractSHA256, target: closure.target,
       visitedNodes: closure.visitedNodes, owners: closure.owners.map(summarize), generated: closure.generated.map(summarize),
-      edges: closure.edges, missingOptional: closure.missingOptional, integrityScope: closure.integrityScope,
+      edges: closure.edges, missingOptional: closure.missingOptional, integrityScope: closure.integrityScope, requiredSdkMember,
       traversal: { files: closure.traversal.files.length, directories: closure.traversal.directories, symbolicLinks: closure.traversal.symbolicLinks } };
     emit('production-closure', report.productionClosure); return report.productionClosure;
   });

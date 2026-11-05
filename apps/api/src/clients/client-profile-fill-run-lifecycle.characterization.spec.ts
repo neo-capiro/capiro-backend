@@ -171,7 +171,7 @@ describe('Completion run lifecycle — extension seeding', () => {
   test('rejects an absent or old-version run before any task or setup write', async () => {
     const h = harness({ seedFound: false });
     await expect(h.internal.ensureCompletionTasks(ctx, clientId, runId)).rejects.toThrow(
-      'Agentic Fill with Meri run not found',
+      'Profile research run not found',
     );
     expect(h.tx.$executeRawUnsafe).not.toHaveBeenCalled();
     expect(h.events).toEqual(['1:seed-run', '1:rollback']);

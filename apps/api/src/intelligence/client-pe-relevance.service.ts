@@ -12,6 +12,7 @@ import {
   type PathResult,
 } from './client-pe-relevance.scoring.js';
 import { expandTerms, isKnownAcronym, MIN_KEYWORD_TOKEN_LENGTH } from './term-expansion.js';
+import { scorePeCandidateBatch } from './client-pe-relevance-batch.js';
 import {
   createPeRelevanceBudget, enumeratePeCandidates, facilityDistrictKey, peKeywordMatchesSql,
   type CandidateCoverage, type PeQuery, type PeRead,
@@ -423,12 +424,9 @@ export class ClientPeRelevanceService {
 
         const candidates = await enumeratePeCandidates(query, signals,
           KEYWORD_SIMILARITY_FLOOR, NAME_SIMILARITY_FLOOR);
-        const results: Array<{ peCode: string; score: number; paths: PathResult[] }> = [];
-        for (const peCode of candidates.codes) {
-          budget.remaining();
-          const { score, paths } = await this.scoreClientPe(signals, peCode, query);
-          if (score >= minScore) results.push({ peCode, score, paths });
-        }
+        const scored = await scorePeCandidateBatch(query, signals, candidates.codes,
+          KEYWORD_SIMILARITY_FLOOR, NAME_SIMILARITY_FLOOR);
+        const results = scored.filter((result) => result.score >= minScore);
         results.sort((a, b) => b.score - a.score || a.peCode.localeCompare(b.peCode));
         const total = results.length;
         const pageRows = results.slice((page - 1) * limit, (page - 1) * limit + limit);

@@ -235,6 +235,16 @@ describe('geocodeAddress ArcGIS fallback', () => {
         ),
       );
 
+    fetchMock.mockImplementation(async (url) => {
+      if (!String(url).includes('/query?')) return new Response(JSON.stringify({ layers: [
+        { id: 40, name: 'BAS 2026' }, { id: 41, parentLayerId: 40, name: '119th Congressional Districts' },
+        { id: 42, parentLayerId: 40, name: '2024 State Legislative Districts - Lower' },
+        { id: 43, parentLayerId: 40, name: '2024 State Legislative Districts - Upper' },
+      ] }));
+      const attributes = String(url).includes('/41/') ? { CD119: '02', STATE: '12', GEOID: '1202' }
+        : String(url).includes('/42/') ? { BASENAME: '9', SLDL: '009', STATE: '12' } : { BASENAME: '3', SLDU: '003', STATE: '12' };
+      return new Response(JSON.stringify({ features: [{ attributes, geometry: { rings: [[[-81, 27], [-79, 27], [-79, 30], [-81, 30], [-81, 27]]] } }] }));
+    });
     await expect(
       geocodeAddress('1025 W NASA Boulevard', 'Palm Bay', 'FL', '32919'),
     ).resolves.toEqual(
@@ -249,7 +259,7 @@ describe('geocodeAddress ArcGIS fallback', () => {
         matchedAddress: '1025 W Nasa Blvd, Melbourne, Florida, 32919',
       }),
     );
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(7);
   });
 
   it('does not accept a low-confidence postal-only fallback', async () => {

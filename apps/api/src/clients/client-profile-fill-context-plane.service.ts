@@ -108,7 +108,7 @@ interface SecurityEnvelope {
 }
 
 /**
- * Phase 23's single CRM / Fill with Meri adoption seam.
+ * Phase 23's single CRM / Profile research adoption seam.
  *
  * The server resolves an exact canonical Client row first, derives the actor's
  * client/mailbox security envelope, and then calls the shared Context Plane. It

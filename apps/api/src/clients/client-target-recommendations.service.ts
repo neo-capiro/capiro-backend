@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -44,7 +45,7 @@ export class ClientTargetRecommendationsService {
   async getRecommendations(
     ctx: TenantContext,
     clientId: string,
-    opts: { refresh?: boolean } = {},
+    opts: { refresh?: boolean; beforeWrite?: (tx: Prisma.TransactionClient) => Promise<void> } = {},
   ): Promise<OfficeRecommendationsResult> {
     await this.assertClient(ctx, clientId);
 
@@ -66,8 +67,9 @@ export class ClientTargetRecommendationsService {
       clientId,
       ctx.tenantId,
     );
-    const saved = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clientTargetRecommendation.upsert({
+    const saved = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await opts.beforeWrite?.(tx);
+      const updated = await tx.clientTargetRecommendation.upsert({
         where: { clientId },
         create: {
           tenantId: ctx.tenantId,
@@ -79,8 +81,10 @@ export class ClientTargetRecommendationsService {
           recommendations: recommendations as unknown as object[],
           computedAt: new Date(),
         },
-      }),
-    );
+      });
+      await opts.beforeWrite?.(tx);
+      return updated;
+    });
 
     return { recommendations, computedAt: saved.computedAt.toISOString() };
   }

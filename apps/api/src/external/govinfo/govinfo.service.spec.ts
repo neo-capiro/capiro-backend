@@ -20,6 +20,7 @@ function jsonResponse(body: unknown, ok = true, status = 200) {
 
 function textResponse(text: string) {
   return {
+    body: new Response(text).body,
     ok: true,
     status: 200,
     statusText: 'OK',
@@ -117,6 +118,20 @@ describe('GovInfoService', () => {
       utf8RoundTrip: true,
     });
     expect(fetchMock.mock.calls[1]?.[1]?.redirect).toBe('error');
+  });
+  test('the deployed default still refuses unsupported encoding instead of opting into bill retention', async () => {
+    const { svc } = makeService();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ download: { xmlLink: 'https://www.govinfo.gov/content/synthetic.xml' } }))
+      .mockResolvedValueOnce(new Response(Buffer.from([255, 254, 253]), {
+        headers: { 'content-type': 'application/xml; charset=windows-1252' },
+      }));
+    await expect(svc.getFederalPackageText('BILLS-119hr1ih')).rejects.toThrow('FEDERAL_SOURCE_CAPTURE_INVALID');
+  });
+  test('the deployed default still treats PDF-only packages as lacking qualified text', async () => {
+    const { svc } = makeService();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ download: { pdfLink: 'https://www.govinfo.gov/content/synthetic.pdf' } }));
+    await expect(svc.getFederalPackageText('BILLS-119hr1ih')).rejects.toThrow('No qualified text available');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
   test('failed federal fetch cancels its body and releases no capture', async () => {
     const { svc } = makeService();
@@ -351,5 +366,68 @@ describe('GovInfoService', () => {
 
     expect(result.pdfBuffer.equals(pdf)).toBe(true);
     expect(sendMock).toHaveBeenCalledTimes(2); // GetObject (miss) + PutObject (write)
+  });
+  test('federal snapshot retains exact UTF8 original bytes independently of decoded content', async () => {
+    const { svc } = makeService();
+    const original = Buffer.concat([
+      Buffer.from([239, 187, 191]),
+      Buffer.from('<bill>Exact original</bill>'),
+    ]);
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          packageId: 'BILLS-119hr1ih',
+          download: { xmlLink: 'https://www.govinfo.gov/content/pkg/test.xml' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(original, { headers: { 'content-type': 'application/xml; charset=utf-8' } }),
+      );
+    const result = await svc.getFederalPackageText('BILLS-119hr1ih', { retainOriginalBytes: true });
+    expect(result.raw).toBe('<bill>Exact original</bill>');
+    expect(Buffer.from(result.originalBytes!.base64, 'base64')).toEqual(original);
+    expect(result.originalBytes!.sha256).toMatch(/^[a-f0-9]{64}$/);
+  });
+  test('federal source preserves unsupported declared encoding as explicit unreadable evidence', async () => {
+    const { svc } = makeService();
+    const original = Buffer.from([255, 254, 253]);
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          packageId: 'BILLS-119hr2ih',
+          download: { xmlLink: 'https://www.govinfo.gov/content/pkg/test2.xml' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(original, {
+          headers: { 'content-type': 'application/xml; charset=windows-1252' },
+        }),
+      );
+    const result = await svc.getFederalPackageText('BILLS-119hr2ih', { retainOriginalBytes: true });
+    expect(result.completeness).toBe('unreadable');
+    expect(result.raw).toBe('');
+    expect(result.text).toBe('');
+    expect(result.originalBytes?.encoding).toBe('unsupported');
+    expect(result.originalBytes?.base64).toBe(original.toString('base64'));
+    expect(result.extractionWarnings).toContain('FEDERAL_DOCUMENT_CHARSET_UNSUPPORTED');
+  });
+  test('PDF-only federal source retains original payload even when native extraction is unavailable', async () => {
+    const { svc } = makeService();
+    const original = Buffer.from('Unusable declared PDF original');
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          packageId: 'BILLS-119hr3ih',
+          download: { pdfLink: 'https://www.govinfo.gov/content/pkg/test3.pdf' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(original, { headers: { 'content-type': 'application/pdf' } }),
+      );
+    const result = await svc.getFederalPackageText('BILLS-119hr3ih', { retainOriginalBytes: true });
+    expect(result.format).toBe('pdf');
+    expect(result.completeness).toBe('unreadable');
+    expect(result.originalBytes?.base64).toBe(original.toString('base64'));
+    expect(result.raw).toBe(original.toString('base64'));
   });
 });

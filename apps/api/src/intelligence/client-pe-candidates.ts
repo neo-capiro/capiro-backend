@@ -60,7 +60,7 @@ export type PeRead = <T>(work: () => Promise<T>) => Promise<T>;
  * Ordering was previously unspecified. Stable IDs now select the same snippets
  * for both readers. Projects remain untruncated, as in the existing scorer.
  */
-export function peKeywordMatchesSql(terms: string[], floor: number, peCode?: string): Prisma.Sql {
+export function peKeywordMatchesSql(terms: string[], floor: number, peCode?: string | string[]): Prisma.Sql {
   return Prisma.sql`
     WITH pe_keyword_corpus AS (
       SELECT pe.pe_code,
@@ -77,7 +77,9 @@ export function peKeywordMatchesSql(terms: string[], floor: number, peCode?: str
         FROM (SELECT id, snippet FROM program_element_source
           WHERE pe_code = pe.pe_code ORDER BY id LIMIT 50) s
       ) sources ON true
-      ${peCode === undefined ? Prisma.empty : Prisma.sql`WHERE pe.pe_code = ${peCode}`}
+      ${peCode === undefined ? Prisma.empty : Array.isArray(peCode)
+        ? Prisma.sql`WHERE pe.pe_code = ANY(${peCode}::text[])`
+        : Prisma.sql`WHERE pe.pe_code = ${peCode}`}
     )
     SELECT pe.pe_code AS "peCode", t.term AS "term", similarity(pe.corpus, t.term)::float8 AS "sim"
     FROM pe_keyword_corpus pe CROSS JOIN unnest(${terms}::text[]) AS t(term)

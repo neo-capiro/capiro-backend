@@ -17,6 +17,11 @@ import {
   toUsaSpendingDistrictCode,
 } from '../common/district-code.util.js';
 import { computeFacilityGeocode, facilityAddressHash } from './facility-geocode.util.js';
+import { facilityProfileFields, type FacilityProfileFields } from './facility-profile-fields.js';
+import { preserveFacilityImpactHistory, preserveUnavailableFacilityEvidence, visibleFacilitySources } from './facility-source-access.js';
+import { assertSharedProfileEvidence } from './profile-shared-evidence.js';
+import { requireOwnerClient } from './client-ordered-owner.access.js';
+import { boundaryVersionKey, servingBoundaryVersion, isVerifiedFacilityPoint } from '../external/census-geocoder/geographic-boundary.js';
 import { nextGeocodeAttempt } from './geocode-retry.js';
 import {
   facilityGeocodeCandidateGuard,
@@ -89,7 +94,7 @@ export function normalizeDistrictForStorage(
   return canonical;
 }
 
-export interface CreateFacilityInput {
+export interface CreateFacilityInput extends FacilityProfileFields {
   name: string;
   addressLine?: string;
   city?: string;
@@ -182,22 +187,28 @@ export class ClientFacilitiesService {
   /** Read-only research preview. Reuses the canonical Census calculation without
    * changing a facility, retry state, geocode candidates or retrieval index. */
   async previewFacilityDistrict(ctx: TenantContext, clientId: string, id: string) {
-    const facility = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clientFacility.findFirst({ where: { id, tenantId: ctx.tenantId, clientId } }),
-    );
+    const facility = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      await requireOwnerClient(tx, ctx, clientId, false, false, 'share');
+      return tx.clientFacility.findFirst({ where: { id, tenantId: ctx.tenantId, clientId } });
+    });
     if (!facility) throw new NotFoundException('Facility not found');
     const outcome = await computeFacilityGeocode(facility);
-    return {
+    return this.facilityResponse(ctx, {
       ...facility,
       ...(outcome.update ?? {}),
       geocodeStatus: outcome.status,
       geocodeMatchedAddress: outcome.matchedAddress,
-    };
+      // Provider DTOs have named fields; serialize the preview through the same
+      // JSON representation used by persisted facility snapshots.
+      geocodeCandidates: JSON.parse(JSON.stringify(outcome.candidates)) as Prisma.JsonValue,
+      geographicResolution: JSON.parse(JSON.stringify(outcome.resolution ?? facility.geographicResolution ?? null)) as Prisma.JsonValue,
+    });
   }
 
   /** Run the deterministic Census resolver immediately for an explicit retry. */
   async resolveFacilityDistrict(ctx: TenantContext, clientId: string, id: string) {
-    const facility = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const facility = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      await requireOwnerClient(tx, ctx, clientId, false, false, 'update');
       const existing = await tx.clientFacility.findFirst({
         where: { id, tenantId: ctx.tenantId, clientId },
       });
@@ -213,12 +224,13 @@ export class ClientFacilitiesService {
       });
     });
     await this.geocodeFacility(ctx.tenantId, facility.id);
-    const resolved = await this.prisma.withTenant(ctx.tenantId, async (tx) =>
-      tx.clientFacility.findFirst({ where: { id, tenantId: ctx.tenantId, clientId } }),
-    );
+    const resolved = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      await requireOwnerClient(tx, ctx, clientId, false, false, 'share');
+      return tx.clientFacility.findFirst({ where: { id, tenantId: ctx.tenantId, clientId } });
+    });
     if (!resolved) throw new NotFoundException('Facility not found');
     this.clientKb.indexFacilityFireAndForget(ctx.tenantId, id);
-    return facilityWithCandidateRevision(resolved);
+    return this.facilityResponse(ctx, resolved);
   }
 
   private validateStateDistricts(input: Partial<CreateFacilityInput>) {
@@ -232,36 +244,83 @@ export class ClientFacilitiesService {
     }
   }
 
+  private facilityView<T extends Parameters<typeof facilityWithCandidateRevision>[0] & { geographicResolution?: unknown; capabilityLinks?: Array<{ capabilityId: string }> }>(facility: T) {
+    const view = facilityWithCandidateRevision(facility);
+    const resolution = facility.geographicResolution as { version?: ReturnType<typeof servingBoundaryVersion> } | null;
+    return { ...view, capabilityIds: facility.capabilityLinks?.map((link) => link.capabilityId) ?? [],
+      ...(resolution?.version && boundaryVersionKey(resolution.version) !== boundaryVersionKey(servingBoundaryVersion())
+        ? { geographicResolution: { ...resolution, status: 'stale_boundary', requiresReview: true } } : {}) };
+  }
+
+  private async validateFacilityCapabilities(tx: Prisma.TransactionClient, tenantId: string, clientId: string, ids?: string[]) {
+    if (!ids?.length) return;
+    const count = await tx.clientCapability.count({ where: { tenantId, clientId, id: { in: [...new Set(ids)] } } });
+    if (count !== new Set(ids).size) throw new BadRequestException('Capability does not belong to this client');
+  }
+
+  private async validateFacilityAttachments(tx: Prisma.TransactionClient, ctx: TenantContext, clientId: string, input: FacilityProfileFields) {
+    const impactEvidence = input.economicImpact?.evidence;
+    await assertSharedProfileEvidence(tx, ctx.tenantId, { kind: 'client', id: clientId }, [
+      ...(input.sourceEvidence ?? []),
+      ...(Array.isArray(impactEvidence) ? impactEvidence : []),
+    ], ctx);
+  }
+
+  private async facilityResponse<T extends Parameters<typeof facilityWithCandidateRevision>[0] & { sourceEvidence?: unknown; economicImpact?: unknown }>(ctx: TenantContext, facility: T & { clientId: string }) {
+    const visible = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async tx => {
+      await requireOwnerClient(tx, ctx, facility.clientId, false, false, 'share');
+      return visibleFacilitySources(tx, ctx, facility.clientId, facility);
+    });
+    return this.facilityView(visible);
+  }
+
+  private async replaceFacilityCapabilities(tx: Prisma.TransactionClient, tenantId: string, clientId: string, facilityId: string, ids?: string[]) {
+    if (ids === undefined) return;
+    await tx.clientFacilityCapability.deleteMany({ where: { tenantId, clientId, facilityId } });
+    if (ids.length) await tx.clientFacilityCapability.createMany({ data: [...new Set(ids)].map((capabilityId) => ({ tenantId, clientId, facilityId, capabilityId })) });
+  }
+
   async listFacilities(ctx: TenantContext, clientId: string) {
-    const facilities = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const facilities = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      await requireOwnerClient(tx, ctx, clientId, false, false, 'share');
       const client = await tx.client.findFirst({
         where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
         select: { id: true },
       });
       if (!client) throw new NotFoundException('Client not found');
-      return tx.clientFacility.findMany({
+      const rows = await tx.clientFacility.findMany({
         where: { tenantId: ctx.tenantId, clientId },
         orderBy: { createdAt: 'asc' },
+        include: { capabilityLinks: { select: { capabilityId: true } } },
       });
+      return Promise.all(rows.map(row => visibleFacilitySources(tx, ctx, clientId, row)));
     });
-    return facilities.map(facilityWithCandidateRevision);
+    return facilities.map((facility) => this.facilityView(facility));
   }
 
   async createFacility(ctx: TenantContext, clientId: string, input: CreateFacilityInput) {
-    const facility = await this.prisma.withTenant(ctx.tenantId,
+    const facility = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId,
       tx => this.createFacilityInTransaction(tx, ctx, clientId, input));
     return this.afterFacilityCreated(ctx, facility);
   }
 
   async createFacilityInTransaction(tx: Prisma.TransactionClient, ctx: TenantContext, clientId: string, input: CreateFacilityInput) {
+    await requireOwnerClient(tx, ctx, clientId, false, false, 'update');
     this.validateStateDistricts(input);
     const client = await tx.client.findFirst({
       where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
       select: { id: true },
     });
     if (!client) throw new NotFoundException('Client not found');
-    return tx.clientFacility.create({
+    const metadata = facilityProfileFields(input);
+    await this.validateFacilityCapabilities(tx, ctx.tenantId, clientId, input.capabilityIds);
+    await this.validateFacilityAttachments(tx, ctx, clientId, input);
+    if (input.economicImpact != null) {
+      metadata.economicImpact = await preserveFacilityImpactHistory(tx, ctx, clientId, null, input.economicImpact);
+    }
+    const facility = await tx.clientFacility.create({
       data: {
+        ...metadata as Prisma.ClientFacilityUncheckedCreateInput,
         tenantId: ctx.tenantId,
         clientId,
         name: input.name,
@@ -285,6 +344,8 @@ export class ClientFacilitiesService {
         geocodeInputHash: null,
       },
     });
+    await this.replaceFacilityCapabilities(tx, ctx.tenantId, clientId, facility.id, input.capabilityIds);
+    return facility;
   }
 
   /** Invoke only after the owning transaction commits. */
@@ -292,7 +353,7 @@ export class ClientFacilitiesService {
     // Client KB (F5): keep retrieval in sync with the Facilities tab.
     this.clientKb.indexFacilityFireAndForget(ctx.tenantId, facility.id);
     this.geocodeFacilityFireAndForget(ctx.tenantId, facility.id);
-    return facilityWithCandidateRevision(facility);
+    return this.facilityResponse(ctx, facility);
   }
 
   async updateFacility(
@@ -301,137 +362,175 @@ export class ClientFacilitiesService {
     id: string,
     input: UpdateFacilityInput,
   ) {
+    const result = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+      this.updateFacilityInTransaction(tx, ctx, clientId, id, input));
+    return this.afterFacilityUpdated(ctx, result);
+  }
+
+  /** Reused by provenance application so address invalidation is atomic with the fact write. */
+  async updateFacilityInTransaction(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    clientId: string,
+    id: string,
+    input: UpdateFacilityInput,
+  ) {
+    await requireOwnerClient(tx, ctx, clientId, false, false, 'update');
     this.validateStateDistricts(input);
-    const facility = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const existing = await tx.clientFacility.findFirst({
-        where: { id, tenantId: ctx.tenantId, clientId },
-        select: {
-          id: true,
-          state: true,
-          congressionalDistrict: true,
-          addressLine: true,
-          city: true,
-          zip: true,
-          stateHouseDistrict: true,
-          stateSenateDistrict: true,
-          districtSource: true,
-        },
-      });
-      if (!existing) throw new NotFoundException('Facility not found');
-      const addressChanged = (['addressLine', 'city', 'state', 'zip'] as const).some(
-        (key) => key in input && (input[key] ?? null) !== existing[key],
-      );
-      const districtChanged = (
-        [
-          'congressionalDistrict',
-          'stateHouseDistrict',
-          'stateSenateDistrict',
-          'districtSource',
-        ] as const
-      ).some((key) => key in input && (input[key] ?? null) !== existing[key]);
-      // The DTO's cross-field check only sees fields present in the PATCH
-      // body, so a single-field update (state-only or district-only) pairs
-      // with a stored sibling it was never validated against. Re-check the
-      // EFFECTIVE pair — stored values merged with the incoming change —
-      // before writing, so e.g. district "52" can't land on a WY row. Only
-      // when the PATCH touches one of the pair: a legacy row whose STORED
-      // pair predates validation must stay editable on unrelated fields.
-      // Also the state used to NORMALIZE the district below: a district-only PATCH
-      // still needs the stored state to know whether this is a single-seat
-      // jurisdiction (which must store '00', not '01').
-      let effectiveState = existing.state;
-      if ('state' in input || 'congressionalDistrict' in input) {
-        effectiveState = 'state' in input ? (input.state ?? null) : existing.state;
-        const effectiveDistrict =
-          addressChanged && existing.districtSource === 'geocoded' && !districtChanged
-            ? null
-            : 'congressionalDistrict' in input
-              ? (input.congressionalDistrict ?? null)
-              : existing.congressionalDistrict;
-        if (!isValidDistrictForState(effectiveState, effectiveDistrict)) {
-          throw new BadRequestException(
-            `congressionalDistrict "${effectiveDistrict}" is not a valid district for state ${effectiveState}`,
-          );
-        }
-      }
-      return tx.clientFacility.update({
-        where: { id },
-        data: {
-          ...('name' in input ? { name: input.name } : {}),
-          ...('addressLine' in input ? { addressLine: input.addressLine ?? null } : {}),
-          ...('city' in input ? { city: input.city ?? null } : {}),
-          ...('state' in input ? { state: input.state ?? null } : {}),
-          ...('zip' in input ? { zip: input.zip ?? null } : {}),
-          ...('congressionalDistrict' in input
-            ? {
-                congressionalDistrict:
-                  normalizeDistrictForStorage(effectiveState, input.congressionalDistrict) ?? null,
-              }
-            : {}),
-          // A hand-edited district is always manual. The public API cannot forge
-          // automatic provenance; only the deterministic resolver can write it.
-          ...('districtSource' in input
-            ? {
-                districtSource:
-                  input.districtSource === 'geocoded' ? 'user' : (input.districtSource ?? null),
-              }
-            : 'congressionalDistrict' in input &&
-                normalizeDistrictForStorage(effectiveState, input.congressionalDistrict) !==
-                  existing.congressionalDistrict
-              ? { districtSource: 'user' }
-              : {}),
-          ...('stateHouseDistrict' in input
-            ? { stateHouseDistrict: input.stateHouseDistrict ?? null }
-            : {}),
-          ...('stateSenateDistrict' in input
-            ? { stateSenateDistrict: input.stateSenateDistrict ?? null }
-            : {}),
-          ...('employeeCount' in input ? { employeeCount: input.employeeCount ?? null } : {}),
-          ...('notes' in input ? { notes: input.notes ?? null } : {}),
-          ...(addressChanged
-            ? {
-                geocodeStatus: 'pending',
-                geocodeInputHash: null,
-                geocodedAt: null,
-                latitude: null,
-                longitude: null,
-                geocodeAttemptCount: 0,
-                geocodeNextAttemptAt: null,
-                geocodeLastError: null,
-                geocodeMatchedAddress: null,
-                geocodeCandidates: Prisma.JsonNull,
-                // Automatically derived districts describe the old address.
-                // Retain only an explicit manual choice or a new override.
-                ...(existing.districtSource === 'geocoded' && !districtChanged
-                  ? {
-                      congressionalDistrict: null,
-                      congressionalDistrictCongress: null,
-                      districtSource: null,
-                    }
-                  : {}),
-                ...(!('stateHouseDistrict' in input) ? { stateHouseDistrict: null } : {}),
-                ...(!('stateSenateDistrict' in input) ? { stateSenateDistrict: null } : {}),
-              }
-            : districtChanged
-              ? { geocodeStatus: 'manual_review', districtSource: 'user', geocodedAt: null }
-              : {}),
-        },
-      });
+    const metadata = facilityProfileFields(input);
+    const existing = await tx.clientFacility.findFirst({
+      where: { id, tenantId: ctx.tenantId, clientId },
+      select: {
+        id: true,
+        state: true,
+        congressionalDistrict: true,
+        addressLine: true,
+        city: true,
+        zip: true,
+        stateHouseDistrict: true,
+        stateSenateDistrict: true,
+        districtSource: true,
+        country: true,
+        verifiedPoint: true,
+        geographicResolution: true,
+        geographicHistory: true,
+        sourceEvidence: true,
+        economicImpact: true,
+      },
     });
+    if (!existing) throw new NotFoundException('Facility not found');
+    await this.validateFacilityCapabilities(tx, ctx.tenantId, clientId, input.capabilityIds);
+    await this.validateFacilityAttachments(tx, ctx, clientId, input);
+    if (input.sourceEvidence !== undefined) {
+      metadata.sourceEvidence = await preserveUnavailableFacilityEvidence(tx, ctx, clientId, existing.sourceEvidence, input.sourceEvidence);
+    }
+    if (input.economicImpact != null) {
+      metadata.economicImpact = await preserveFacilityImpactHistory(tx, ctx, clientId, existing.economicImpact, input.economicImpact);
+    }
+    const addressChanged = (['addressLine', 'city', 'state', 'zip', 'country'] as const).some(
+      (key) => key in input && (input[key] ?? null) !== existing[key],
+    ) || ('verifiedPoint' in input && JSON.stringify(input.verifiedPoint ?? null) !== JSON.stringify(existing.verifiedPoint));
+    const districtChanged = (
+      [
+        'congressionalDistrict',
+        'stateHouseDistrict',
+        'stateSenateDistrict',
+        'districtSource',
+      ] as const
+    ).some((key) => key in input && (input[key] ?? null) !== existing[key]);
+    // The DTO's cross-field check only sees fields present in the PATCH
+    // body, so a single-field update (state-only or district-only) pairs
+    // with a stored sibling it was never validated against. Re-check the
+    // EFFECTIVE pair — stored values merged with the incoming change —
+    // before writing, so e.g. district "52" can't land on a WY row. Only
+    // when the PATCH touches one of the pair: a legacy row whose STORED
+    // pair predates validation must stay editable on unrelated fields.
+    // Also the state used to NORMALIZE the district below: a district-only PATCH
+    // still needs the stored state to know whether this is a single-seat
+    // jurisdiction (which must store '00', not '01').
+    let effectiveState = existing.state;
+    if ('state' in input || 'congressionalDistrict' in input) {
+      effectiveState = 'state' in input ? (input.state ?? null) : existing.state;
+      const effectiveDistrict =
+        addressChanged && existing.districtSource === 'geocoded' && !districtChanged
+          ? null
+          : 'congressionalDistrict' in input
+            ? (input.congressionalDistrict ?? null)
+            : existing.congressionalDistrict;
+      if (!isValidDistrictForState(effectiveState, effectiveDistrict)) {
+        throw new BadRequestException(
+          `congressionalDistrict "${effectiveDistrict}" is not a valid district for state ${effectiveState}`,
+        );
+      }
+    }
+    const updated = await tx.clientFacility.update({
+      where: { id },
+      data: {
+        ...metadata,
+        ...('name' in input ? { name: input.name } : {}),
+        ...('addressLine' in input ? { addressLine: input.addressLine ?? null } : {}),
+        ...('city' in input ? { city: input.city ?? null } : {}),
+        ...('state' in input ? { state: input.state ?? null } : {}),
+        ...('zip' in input ? { zip: input.zip ?? null } : {}),
+        ...('congressionalDistrict' in input
+          ? {
+              congressionalDistrict:
+                normalizeDistrictForStorage(effectiveState, input.congressionalDistrict) ?? null,
+            }
+          : {}),
+        // A hand-edited district is always manual. The public API cannot forge
+        // automatic provenance; only the deterministic resolver can write it.
+        ...('districtSource' in input
+          ? {
+              districtSource:
+                input.districtSource === 'geocoded' ? 'user' : (input.districtSource ?? null),
+            }
+          : 'congressionalDistrict' in input &&
+              normalizeDistrictForStorage(effectiveState, input.congressionalDistrict) !==
+                existing.congressionalDistrict
+            ? { districtSource: 'user' }
+            : {}),
+        ...('stateHouseDistrict' in input
+          ? { stateHouseDistrict: input.stateHouseDistrict ?? null }
+          : {}),
+        ...('stateSenateDistrict' in input
+          ? { stateSenateDistrict: input.stateSenateDistrict ?? null }
+          : {}),
+        ...('employeeCount' in input ? { employeeCount: input.employeeCount ?? null } : {}),
+        ...('notes' in input ? { notes: input.notes ?? null } : {}),
+        ...(addressChanged
+          ? {
+              geocodeStatus: 'pending',
+              ...(!('verifiedPoint' in input) ? { verifiedPoint: Prisma.JsonNull } : {}),
+              geographicResolution: existing.geographicResolution && typeof existing.geographicResolution === 'object' && !Array.isArray(existing.geographicResolution)
+                ? { ...existing.geographicResolution, status: 'stale_boundary', requiresReview: true } as Prisma.InputJsonValue : Prisma.JsonNull,
+              geographicHistory: [...(Array.isArray(existing.geographicHistory) ? existing.geographicHistory : []), ...(existing.geographicResolution ? [existing.geographicResolution] : [])] as Prisma.InputJsonValue,
+              geocodeInputHash: null,
+              geocodedAt: null,
+              latitude: null,
+              longitude: null,
+              geocodeAttemptCount: 0,
+              geocodeNextAttemptAt: null,
+              geocodeLastError: null,
+              geocodeMatchedAddress: null,
+              geocodeCandidates: Prisma.JsonNull,
+              // Automatically derived districts describe the old address.
+              // Retain only an explicit manual choice or a new override.
+              ...(existing.districtSource === 'geocoded' && !districtChanged
+                ? {
+                    congressionalDistrict: null,
+                    congressionalDistrictCongress: null,
+                    districtSource: null,
+                  }
+                : {}),
+              ...(!('stateHouseDistrict' in input) ? { stateHouseDistrict: null } : {}),
+              ...(!('stateSenateDistrict' in input) ? { stateSenateDistrict: null } : {}),
+            }
+          : districtChanged
+            ? { geocodeStatus: 'manual_review', districtSource: 'user', geocodedAt: null }
+            : {}),
+      },
+    });
+    await this.replaceFacilityCapabilities(tx, ctx.tenantId, clientId, id, input.capabilityIds);
+    return { facility: updated, addressChanged };
+  }
+
+  /** Schedule provider work and indexing only after the owning transaction commits. */
+  afterFacilityUpdated(
+    ctx: TenantContext,
+    result: Awaited<ReturnType<ClientFacilitiesService['updateFacilityInTransaction']>>,
+  ) {
+    const { facility, addressChanged } = result;
     this.clientKb.indexFacilityFireAndForget(ctx.tenantId, facility.id);
-    // Only re-geocode when the address itself changed — an unrelated field
-    // edit (notes, employeeCount) shouldn't fire a Census API call.
-    if (
-      facility.geocodeStatus === 'pending' &&
-      ('addressLine' in input || 'city' in input || 'state' in input || 'zip' in input)
-    ) {
+    if (addressChanged && facility.geocodeStatus === 'pending') {
       this.geocodeFacilityFireAndForget(ctx.tenantId, facility.id);
     }
-    return facilityWithCandidateRevision(facility);
+    return this.facilityResponse(ctx, facility);
   }
 
   async deleteFacility(ctx: TenantContext, clientId: string, id: string) {
-    const result = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const result = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      await requireOwnerClient(tx, ctx, clientId, false, false, 'update');
       const existing = await tx.clientFacility.findFirst({
         where: { id, tenantId: ctx.tenantId, clientId },
         select: { id: true },
@@ -457,7 +556,8 @@ export class ClientFacilitiesService {
     if (review !== undefined && !isFacilityCandidateRevision(review.expectedRevision)) {
       throw new BadRequestException('expectedRevision must be a v1 facility candidate revision');
     }
-    const facility = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const facility = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      await requireOwnerClient(tx, ctx, clientId, false, false, 'update');
       const existing = await tx.clientFacility.findFirst({
         where: { id, tenantId: ctx.tenantId, clientId },
       });
@@ -481,6 +581,13 @@ export class ClientFacilitiesService {
       ) {
         throw new BadRequestException('Geocode candidate is no longer available');
       }
+      const resolution = candidate.resolution && typeof candidate.resolution === 'object' && !Array.isArray(candidate.resolution)
+        ? candidate.resolution as unknown as import('../external/census-geocoder/geographic-boundary.js').GeographicResolution : null;
+      if (!resolution?.version || resolution.status !== 'resolved' ||
+        boundaryVersionKey(resolution.version) !== boundaryVersionKey(servingBoundaryVersion()) ||
+        candidate.congressionalDistrictCongress !== resolution.version.congress) {
+        throw new ConflictException('Candidate boundaries need re-resolution before approval');
+      }
       const address = {
         addressLine:
           typeof candidate.addressLine === 'string'
@@ -495,6 +602,9 @@ export class ClientFacilitiesService {
         where: facilityGeocodeCandidateGuard(existing),
         data: {
           ...address,
+          verifiedPoint: Prisma.JsonNull,
+          geographicResolution: { ...resolution, requiresReview: false, providerEvidence: { ...resolution.providerEvidence, manuallyReviewedAt: new Date().toISOString() } } as unknown as Prisma.InputJsonValue,
+          geographicHistory: [...(Array.isArray(existing.geographicHistory) ? existing.geographicHistory : []), ...(existing.geographicResolution ? [existing.geographicResolution] : [])] as Prisma.InputJsonValue,
           latitude: typeof candidate.latitude === 'number' ? candidate.latitude : null,
           longitude: typeof candidate.longitude === 'number' ? candidate.longitude : null,
           congressionalDistrict:
@@ -519,7 +629,7 @@ export class ClientFacilitiesService {
           geocodeCandidates: Prisma.JsonNull,
           geocodeStatus: 'matched',
           // A deliberate choice resolves this exact address; do not queue it again as changed input.
-          geocodeInputHash: facilityAddressHash(address),
+          geocodeInputHash: facilityAddressHash({ ...address, country: existing.country, verifiedPoint: null }),
           geocodeNextAttemptAt: null,
           geocodeLastError: null,
           geocodedAt: new Date(),
@@ -539,11 +649,12 @@ export class ClientFacilitiesService {
       return selected;
     });
     this.clientKb.indexFacilityFireAndForget(ctx.tenantId, id);
-    return facilityWithCandidateRevision(facility);
+    return this.facilityResponse(ctx, facility);
   }
 
   async retryGeocode(ctx: TenantContext, clientId: string, id: string) {
-    const facility = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const facility = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      await requireOwnerClient(tx, ctx, clientId, false, false, 'update');
       const existing = await tx.clientFacility.findFirst({
         where: { id, tenantId: ctx.tenantId, clientId },
       });
@@ -558,6 +669,6 @@ export class ClientFacilitiesService {
       });
     });
     this.geocodeFacilityFireAndForget(ctx.tenantId, facility.id);
-    return facilityWithCandidateRevision(facility);
+    return this.facilityResponse(ctx, facility);
   }
 }

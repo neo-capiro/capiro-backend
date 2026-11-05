@@ -200,8 +200,10 @@ export class StrategyContextPlaneService {
       const observed = objective!;
       const coverage = context.retrieval?.coverage;
       const records = filterCurrentStrategyProjection(context.retrieval?.records ?? [], null);
-      const complete = coverage?.complete === true && coverage.paginationComplete &&
-        coverage.sources.every(s => s.coverageComplete && s.paginationComplete && !s.truncated && s.sourceStatus === 'healthy');
+      // Same policy as ObjectiveGenerationContextService.bind: supplementary retrieval
+      // may be partial (disclosed and digest-bound); it must have actually run.
+      // The caller still compares historyDigest exactly against the admission.
+      const complete = !!coverage && Array.isArray(coverage.sources);
       return { tenantId: input.tenantId, clerkUserId: input.clerkUserId, requestId: input.generationRequestId,
         source: observed.source, sourceDigest: observed.sourceDigest, localDigest: observed.localDigest,
         externalDigest: observed.externalDigest, historyDigest: historyDigest(records, security, observed.background.digest, observed.calendars),
@@ -904,6 +906,9 @@ function buildStrategyPrompt(input: {
         : '',
     input.kind === 'release_switch_rollback'
       ? 'RELEASE SWITCH: packet compilation is in rollback compatibility mode; grounding health is degraded.'
+      : '',
+    input.objectiveIntentText && !coverage.complete
+      ? 'OBJECTIVE COVERAGE: the saved Objective, client profile, facilities and government targets below are complete. Supplementary relationship history is partial (see COVERAGE): treat missing or partial domains and unreturned records as unseen, say so where it matters, and never describe that history as complete.'
       : '',
     '',
     'COVERAGE:',

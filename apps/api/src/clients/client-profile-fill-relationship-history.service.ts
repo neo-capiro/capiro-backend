@@ -1,3 +1,5 @@
+import type { Prisma } from '@prisma/client';
+import type { ReviewTransaction } from './client-profile-fill-review-store.js';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { AssociationEntityType } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
@@ -64,6 +66,7 @@ interface RelationshipCandidate {
   entityId: string;
   title: string;
   occurredAt: Date;
+  sourceRevision:Date;
   emails: string[];
 }
 
@@ -80,6 +83,7 @@ interface RelationshipLinkProposal {
   entityId: string;
   title: string;
   occurredAt: string;
+  sourceRevision:string;
   matchedEmails: string[];
   matchedDomains: string[];
   matchReason: RelationshipMatch['matchReason'];
@@ -129,7 +133,7 @@ export class ClientProfileFillRelationshipHistoryService {
         entityType: 'meeting' as const,
         entityId: meeting.id,
         title: safeTitle(meeting.subject, 'Meeting'),
-        occurredAt: meeting.startsAt,
+        occurredAt: meeting.startsAt,sourceRevision:meeting.updatedAt,
         emails: uniqueEmails([
           meeting.organizerEmail,
           ...meeting.attendees.map((attendee) => attendee.email),
@@ -139,7 +143,7 @@ export class ClientProfileFillRelationshipHistoryService {
         entityType: 'mail_thread' as const,
         entityId: thread.id,
         title: safeTitle(thread.subject, 'Email thread'),
-        occurredAt: thread.lastMessageAt ?? thread.createdAt,
+        occurredAt: thread.lastMessageAt ?? thread.createdAt,sourceRevision:thread.updatedAt,
         emails: extractEmailsFromUnknown(thread.participants),
       })),
     ];
@@ -153,7 +157,7 @@ export class ClientProfileFillRelationshipHistoryService {
         entityType: candidate.entityType,
         entityId: candidate.entityId,
         title: candidate.title,
-        occurredAt: candidate.occurredAt.toISOString(),
+        occurredAt: candidate.occurredAt.toISOString(),sourceRevision:candidate.sourceRevision.toISOString(),
         matchedEmails: match.matchedEmails,
         matchedDomains: match.matchedDomains,
         matchReason: match.matchReason,
@@ -191,35 +195,38 @@ export class ClientProfileFillRelationshipHistoryService {
     return count;
   }
 
-  async apply(
-    ctx: TenantContext,
-    clientId: string,
-    finding: RelationshipHistoryFindingLike,
-  ): Promise<void> {
+  async apply(ctx:TenantContext,clientId:string,finding:RelationshipHistoryFindingLike):Promise<void>{
+    const effects:ReviewTransaction['afterCommit']=[];
+    await this.prisma.withTenantUser(ctx.tenantId,ctx.userId,tx=>this.applyInTransaction({tx,afterCommit:effects},ctx,clientId,finding));
+    for(const effect of effects)await effect();
+  }
+
+  async applyInTransaction(scope:ReviewTransaction,ctx:TenantContext,clientId:string,finding:RelationshipHistoryFindingLike):Promise<void>{
     const proposal = parseProposal(finding.proposedValue);
     const entityType =
       proposal.entityType === 'meeting'
         ? AssociationEntityType.meeting
         : AssociationEntityType.mail_thread;
 
-    const source = await this.loadSourceForApply(ctx, proposal.entityType, proposal.entityId);
+    const source = await this.loadSourceForApply(scope.tx,ctx, proposal.entityType, proposal.entityId);
     if (source.clientId && source.clientId !== clientId) {
       throw new BadRequestException(
-        'This relationship event is already associated with a different client. Refresh Fill with Meri before applying it.',
+        'This relationship event is already associated with a different client. Refresh Profile research before applying it.',
       );
     }
 
+    if(source.updatedAt.toISOString()!==proposal.sourceRevision)throw new BadRequestException('The relationship source changed. Refresh research before applying it.');
     if (source.clientId !== clientId) {
-      await this.engagement.overrideAssociation(ctx, {
+      const outcome=await this.engagement.overrideAssociationInTransaction(scope.tx,ctx, {
         entityType,
         entityId: proposal.entityId,
         clientId,
-        reason: 'Fill with Meri relationship-history review',
+        reason: 'Profile research relationship-history review',expectedRevision:proposal.sourceRevision,
       });
+      scope.afterCommit.push(()=>this.engagement.afterAssociationOverride(ctx,outcome));
     }
 
-    await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.auditLog.create({
+    await scope.tx.auditLog.create({
         data: {
           tenantId: ctx.tenantId,
           actorUserId: ctx.userId,
@@ -243,8 +250,7 @@ export class ClientProfileFillRelationshipHistoryService {
             deduplicated: source.clientId === clientId,
           } as any,
         },
-      }),
-    );
+      });
   }
 
   private async loadSnapshot(ctx: TenantContext, clientId: string) {
@@ -283,7 +289,7 @@ export class ClientProfileFillRelationshipHistoryService {
           select: {
             id: true,
             subject: true,
-            startsAt: true,
+            startsAt: true,updatedAt:true,
             organizerEmail: true,
             attendees: { select: { email: true } },
           },
@@ -300,7 +306,7 @@ export class ClientProfileFillRelationshipHistoryService {
             id: true,
             subject: true,
             participants: true,
-            lastMessageAt: true,
+            lastMessageAt: true,updatedAt:true,
             createdAt: true,
           },
           orderBy: [{ lastMessageAt: 'desc' }, { id: 'desc' }],
@@ -312,35 +318,33 @@ export class ClientProfileFillRelationshipHistoryService {
   }
 
   private async loadSourceForApply(
-    ctx: TenantContext,
+    tx:Prisma.TransactionClient,ctx: TenantContext,
     entityType: ClientProfileRelationshipEntityType,
     entityId: string,
-  ): Promise<{ clientId: string | null }> {
+  ): Promise<{ clientId: string | null;updatedAt:Date }> {
+    const table=entityType==='meeting'?'meetings':'mail_threads';
+    await tx.$queryRawUnsafe(`SELECT id FROM ${table} WHERE tenant_id=$1::uuid AND id=$2::uuid FOR UPDATE`,ctx.tenantId,entityId);
     if (entityType === 'meeting') {
-      const meeting = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
-        tx.meeting.findFirst({
+      const meeting = await tx.meeting.findFirst({
           where: {
             id: entityId,
             tenantId: ctx.tenantId,
             ...ownMeetingWhere(ctx.userId),
           },
-          select: { clientId: true },
-        }),
-      );
+          select: { clientId: true,updatedAt:true },
+        });
       if (!meeting) throw new NotFoundException('Meeting is no longer available');
       return meeting;
     }
 
-    const thread = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
-      tx.mailThread.findFirst({
+    const thread = await tx.mailThread.findFirst({
         where: {
           id: entityId,
           tenantId: ctx.tenantId,
           ...ownMailThreadWhere(ctx.userId),
         },
-        select: { clientId: true },
-      }),
-    );
+        select: { clientId: true,updatedAt:true },
+      });
     if (!thread) throw new NotFoundException('Email thread is no longer available');
     return thread;
   }
@@ -431,6 +435,7 @@ function parseProposal(value: unknown): RelationshipLinkProposal {
     entityId,
     title: typeof input.title === 'string' ? input.title : '',
     occurredAt: typeof input.occurredAt === 'string' ? input.occurredAt : '',
+    sourceRevision:typeof input.sourceRevision==='string'?input.sourceRevision:'',
     matchedEmails: stringArray(input.matchedEmails),
     matchedDomains: stringArray(input.matchedDomains),
     matchReason:

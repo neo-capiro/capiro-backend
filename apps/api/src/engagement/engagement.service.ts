@@ -1,4 +1,6 @@
 import { lockMeetingAssociation, hasBoundMeetingRecords } from './meeting-automatic-association.js';
+import { capabilityDocumentId, requireCapabilityDocumentOwner, linkCapabilityDocument } from './attachments/capability-document.js';
+import { PROFILE_IDENTITY_SOURCE, readIdentityUpload, sameIdentityUpload, linkIdentityUpload } from './attachments/profile-identity-upload.js';
 import { readAttachmentCitation, listAttachmentCitationIds } from './attachments/attachment-citation.js';
 import { readMeetingDebriefContext } from './meeting-debrief-context-read.js';
 import { outreachAudienceWhere, type OutreachDirection } from './outreach-audience.js';
@@ -6,7 +8,7 @@ import { forwardedMessageHtml } from './mail-forward-source.js';
 import { readClassicOutreachMetrics } from './classic-outreach-metrics.js';
 import { assertSingleMailAuthority, assertSingleMailIntentReadAuthority, resolveSingleMailReply } from './single-mail-authority.js';
 import { REPLY_UNAVAILABLE, type PreparedMailReply } from './single-mail-reply.js';
-import { requireOwnerClient } from '../clients/client-ordered-owner.access.js';
+import { requireOwnerActor, requireOwnerClient } from '../clients/client-ordered-owner.access.js';
 import { assertFileKeyNotDeleted, deleteClientFile, readClientFileDelete, type ClientFileDeleteOwner } from './attachments/client-file-delete.js';
 import { copyProspectFile, readProspectFileCopy } from './attachments/prospect-file-copy.js';
 import { prospectCopyPrefix } from './attachments/prospect-file-copy.input.js';
@@ -7139,8 +7141,14 @@ export class EngagementService {
   }
 
   async overrideAssociation(ctx: TenantContext, input: AssociationOverrideInput) {
-    const attachmentIds: string[] = [];
-    const result = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const outcome=await this.prisma.withTenant(ctx.tenantId,tx=>this.overrideAssociationInTransaction(tx,ctx,input));
+    this.afterAssociationOverride(ctx,outcome);return outcome.result;
+  }
+
+  /** Compose canonical association writes with an owning review/command transaction. */
+  async overrideAssociationInTransaction(tx:Prisma.TransactionClient,ctx:TenantContext,input:AssociationOverrideInput){
+    const attachmentIds:string[]=[];
+    const result=await(async()=>{
       if (input.entityType === AssociationEntityType.meeting) {
         ctx = await currentMeetingActor(tx, ctx);
         await this.lockMeetingClientAssignment(tx, ctx, input.entityId);
@@ -7176,6 +7184,7 @@ export class EngagementService {
       await ensureExists(tx.client.findFirst({ where: { id: clientId, tenantId: ctx.tenantId }, select: { id: true } }), 'Client not found');
 
       if (input.entityType === AssociationEntityType.mail_thread) {
+        await tx.$queryRawUnsafe('SELECT id FROM mail_threads WHERE tenant_id=$1::uuid AND id=$2::uuid FOR UPDATE',ctx.tenantId,input.entityId);
         const existing = await tx.mailThread.findFirst({
           where: {
             id: input.entityId,
@@ -7184,6 +7193,7 @@ export class EngagementService {
           },
         });
         if (!existing) throw new NotFoundException('Mail thread not found');
+        if(input.expectedRevision)assertExpectedRevision(input.expectedRevision,existing.updatedAt,'mail_thread',existing.id,{clientId:existing.clientId});
         await tx.mailThread.update({
           where: { id: input.entityId },
           data: { clientId },
@@ -7203,11 +7213,12 @@ export class EngagementService {
       }
 
       throw new BadRequestException('Only meeting and mail_thread overrides are supported now');
-    });
-    for (const attachmentId of attachmentIds) {
-      this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, attachmentId);
-    }
-    return result;
+    })();
+    return {result,attachmentIds};
+  }
+
+  afterAssociationOverride(ctx:TenantContext,outcome:{attachmentIds:string[]}){
+    for(const attachmentId of outcome.attachmentIds)this.clientKb.indexAttachmentFireAndForget(ctx.tenantId,attachmentId);
   }
 
   async clientContext(ctx: TenantContext, clientId: string) {
@@ -7492,6 +7503,11 @@ export class EngagementService {
   }
 
   async confirmAttachment(ctx: TenantContext, input: ConfirmAttachmentInput) {
+    const capabilityId = capabilityDocumentId(input.source);
+    if (capabilityId && input.prospectId)
+      throw new BadRequestException('Capability documents require a client');
+    if (input.source === PROFILE_IDENTITY_SOURCE && (input.clientId || input.prospectId || input.meetingId || input.mailMessageId))
+      throw new BadRequestException('Identity documents are uploaded privately before selecting a profile');
     if (input.folder != null && (typeof input.folder !== 'string' || input.folder.length > 120))
       throw new BadRequestException('Folder name must be at most 120 characters');
     const folder = input.folder?.trim() || null;
@@ -7569,7 +7585,8 @@ export class EngagementService {
     const initialScan = await this.scanner.getStatus(this.bucket!, input.s3Key);
     const scanClean = initialScan === 'clean';
 
-    const attachment = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const attachment = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      if (input.source === PROFILE_IDENTITY_SOURCE) await requireOwnerActor(tx, ctx, false, true);
       // Confirm is a retry boundary. Serialize by the opaque S3 key, then
       // return the caller's existing row for an exact replay instead of
       // duplicating one uploaded object into several attachment records.
@@ -7580,6 +7597,7 @@ export class EngagementService {
       const clientId = await this.attachmentClientAtWrite(tx, ctx, input);
       if (clientId && !input.prospectId)
         await requireOwnerClient(tx, ctx, clientId, false, false, 'share');
+      await requireCapabilityDocumentOwner(tx, ctx, clientId, capabilityId);
       const replay = await tx.engagementAttachment.findFirst({
         where: { tenantId: ctx.tenantId, s3Key: input.s3Key },
       });
@@ -7592,6 +7610,7 @@ export class EngagementService {
           replay.mailMessageId === (input.mailMessageId ?? null) &&
           replay.fileName === input.fileName &&
           replay.contentType === input.contentType &&
+          (replay.source ?? 'manual') === (input.source ?? 'manual') &&
           (replay.folder ?? null) === folder;
         if (!exactReplay) {
           throw new HttpException(
@@ -7604,6 +7623,7 @@ export class EngagementService {
             HttpStatus.CONFLICT,
           );
         }
+        await linkCapabilityDocument(tx, ctx, clientId, capabilityId, replay.id);
         return replay;
       }
       const created = await tx.engagementAttachment.create({
@@ -7621,8 +7641,9 @@ export class EngagementService {
           s3Key: input.s3Key,
           checksumSha256: input.checksumSha256 ?? null,
           source: input.source ?? 'manual',
+          ...(input.source === PROFILE_IDENTITY_SOURCE ? { viewerMode: 'restricted', viewerUserIds: [ctx.userId] } : {}),
           uploadedByUserId: ctx.userId,
-          lifecycleStatus: scanClean ? 'ready' : 'quarantined',
+          lifecycleStatus: scanClean && (input.source !== PROFILE_IDENTITY_SOURCE || calculatedSha256) ? 'ready' : 'quarantined',
           verifiedContentType,
           calculatedSha256,
           scanProvider: this.scanner.providerName,
@@ -7636,6 +7657,7 @@ export class EngagementService {
           where: { id: bound.intent.id },
           data: { confirmedAttachmentId: created.id },
         });
+      await linkCapabilityDocument(tx, ctx, clientId, capabilityId, created.id);
       return created;
     });
     await assertProspectAttachmentAccess(this.prisma, ctx, attachment);
@@ -7951,11 +7973,31 @@ export class EngagementService {
     await assertHearingRecordDocumentAccess(this.prisma, ctx, row);
   }
 
+  async extractIdentityUploadText(ctx: TenantContext, id: string, signal?: AbortSignal) {
+    const source = await readIdentityUpload(this.prisma, ctx, id);
+    const result = await this.extractAttachmentText(ctx, id, {
+      profileIdentitySource: true, readOnly: true, allowPaidExtraction: false, signal,
+    });
+    const current = await readIdentityUpload(this.prisma, ctx, id);
+    sameIdentityUpload(source, current);
+    if (!source.calculatedSha256 || result.contentHash !== source.calculatedSha256)
+      throw new ConflictException('Identity document contents changed; upload and review it again');
+    return { ...result, fileName: current.fileName };
+  }
+
+  async linkProfileIdentityUpload(ctx: TenantContext, id: string, raw: unknown) {
+    const saved = await linkIdentityUpload(this.prisma, ctx, id, raw);
+    if (saved.clientId && saved.viewerMode === 'all') this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, saved.id);
+    return saved;
+  }
+
   async extractAttachmentText(
     ctx: TenantContext,
     id: string,
     options: {
       clientId?: string;
+      /** Trusted profile-build subject; never inferred from an arbitrary attachment ID. */
+      prospectId?: string;
       section?: number;
       contextImport?: boolean;
       contextSourceOnly?: boolean;
@@ -7964,6 +8006,8 @@ export class EngagementService {
       allowPaidExtraction?: boolean;
       /** A repeatable local text read; never starts paid extraction or updates metadata. */
       readOnly?: boolean;
+      /** Trusted identity-upload owner only; never forwarded from a public extraction DTO. */
+      profileIdentitySource?: boolean;
     } = {},
   ) {
     options.signal?.throwIfAborted();
@@ -7982,7 +8026,7 @@ export class EngagementService {
         where: {
           id,
           tenantId: ctx.tenantId,
-          prospectId: null,
+          prospectId: options.prospectId ?? null,
           ...(options.clientId ? { clientId: options.clientId } : {}),
           supersededByAttachmentId: null,
           OR: attachmentViewerWhere(ctx.userId),
@@ -7992,11 +8036,15 @@ export class EngagementService {
     if (!attachment) throw new NotFoundException('Attachment not found');
     // Allow extraction for both meeting attachments (debrief sources) and
     // client-profile documents (used as outreach context).
-    if (!attachment.meetingId && !attachment.clientId) {
+    if (!attachment.meetingId && !attachment.clientId && !attachment.prospectId &&
+        !(options.profileIdentitySource === true && options.readOnly === true && options.allowPaidExtraction === false &&
+          attachment.source === PROFILE_IDENTITY_SOURCE && attachment.uploadedByUserId === ctx.userId &&
+          attachment.viewerMode === 'restricted' && attachment.viewerUserIds.every((viewer) => viewer === ctx.userId))) {
       throw new BadRequestException('Attachment is not linked to a meeting or client');
     }
 
     await this.validateAttachmentParents(ctx, {
+      prospectId: attachment.prospectId ?? undefined,
       clientId: attachment.clientId ?? undefined,
       meetingId: attachment.meetingId ?? undefined,
       ...(attachment.source === 'incoming_mail' ? { source: attachment.source, mailMessageId: attachment.mailMessageId } : {}),
@@ -8009,6 +8057,7 @@ export class EngagementService {
     options.signal?.throwIfAborted();
     const bytes = await this.readAttachmentBytes(attachment.s3Key, options.signal);
     if (attachment.source === 'incoming_mail') await this.validateAttachmentParents(ctx, attachment);
+    if(attachment.prospectId) await assertProspectAttachmentAccess(this.prisma,ctx,attachment);
     options.signal?.throwIfAborted();
     const contentHash = this.attachmentContent.sha256(bytes);
     const contentType = attachment.contentType || 'application/octet-stream';
