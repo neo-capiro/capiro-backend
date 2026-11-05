@@ -103,7 +103,7 @@ describe('Completion run finalization — terminal classification matrix', () =>
         "stage = CASE WHEN $3 = 'failed' THEN 'failed' ELSE 'review_ready' END",
       );
       expect(write.sql).toContain(
-        "error = CASE WHEN $3 = 'failed' THEN 'All Fill with Meri tasks failed' ELSE NULL END",
+        "error = CASE WHEN $3 = 'failed' THEN 'All Profile research tasks failed' ELSE NULL END",
       );
       expect(write.sql).toContain("status <> 'cancelled'");
       expect(h.events).toEqual([

@@ -17,6 +17,8 @@ export type CongressFetch = (
 
 export interface FetchCongressJsonOptions {
   fetchImpl?: CongressFetch;
+  /** Optional ingestion pacing/budget check before every HTTP attempt, including retries. */
+  beforeAttempt?: () => Promise<void>;
   sleep?: (ms: number) => Promise<void>;
   createDeadlineSignal?: (timeoutMs: number) => AbortSignal;
   requestTimeoutMs?: number;
@@ -74,6 +76,7 @@ export async function fetchCongressJson<T>(
   }
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    await options.beforeAttempt?.();
     let response: CongressHttpResponse;
     const signal = createDeadlineSignal(requestTimeoutMs);
 

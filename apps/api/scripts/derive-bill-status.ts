@@ -18,6 +18,7 @@ import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { deriveBillStatus, classifyVoteResult } from '@capiro/shared';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
+import { withFederalBillWriter } from '../src/ingestion/federal-bill-writer.js';
 dotenvConfig();
 
 
@@ -125,15 +126,9 @@ function isPassageActionText(text: string): boolean {
   );
 }
 
-async function main() {
-  if (!process.env.DATABASE_URL) {
-    console.error('Usage: apps/api/scripts/derive-bill-status.ts requires DATABASE_URL (database configuration is required)');
-    process.exit(2);
-  }
-
-  const prisma = new PrismaClient();
-  try {
-    await runWithSyncRun(prisma as never, 'derive-bill-status', async () => {
+export async function deriveFederalBillStatuses(database: PrismaClient) {
+  return withFederalBillWriter(database, async (prisma) => {
+    return runWithSyncRun(prisma as never, 'derive-bill-status', async () => {
     let updated = 0;
     let skipped = 0;
     let errors = 0;
@@ -245,6 +240,7 @@ async function main() {
         });
         updated++;
       } catch (err) {
+        if (err instanceof Error && err.message.startsWith('FEDERAL_WRITER_')) throw err;
         errors++;
         console.error(`[derive-bill-status] ${b.id} failed:`, err);
       }
@@ -254,7 +250,18 @@ async function main() {
     );
     return { inserted: 0, updated, skipped, errors };
   });
+  });
+}
 
+async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/derive-bill-status.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
+  const prisma = new PrismaClient();
+  try {
+    await deriveFederalBillStatuses(prisma);
   } finally {
     await prisma.$disconnect();
   }

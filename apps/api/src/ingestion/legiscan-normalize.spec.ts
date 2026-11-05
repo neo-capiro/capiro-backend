@@ -7,6 +7,8 @@ import {
   resolveCurrentCommittee,
   crosswalkLegiscanPerson,
   parseSineDieDate,
+  upsertNormalizedStateBill,
+  upsertStateBillVersions,
 } from './legiscan-normalize.js';
 import type { LegiscanBill } from '../external/legiscan/legiscan.client.js';
 import type { PrismaClient } from '@prisma/client';
@@ -604,5 +606,68 @@ describe('crosswalkLegiscanPerson (S2 people crosswalk DB wrapper)', () => {
     expect(ok).toBe(false);
     expect(updates).toHaveLength(0);
     expect(crosswalks).toHaveLength(0);
+  });
+});
+
+describe('historical bill hydration', () => {
+  it('inserts absent version identities but preserves current dates, URLs and UUIDs; foreign parents fail closed', async () => {
+    const version = {
+      legiscanDocId: 1,
+      versionType: 'Introduced',
+      date: new Date('2025-01-01'),
+      stateUrl: 'https://example.gov/old',
+      mime: 'text/plain',
+    };
+    const db: any = {
+      stateBillVersion: {
+        findUnique: jest.fn().mockResolvedValue({ billKey: 'tx-2025-hb1' }),
+        upsert: jest.fn(),
+      },
+    };
+    await upsertStateBillVersions(
+      db,
+      { billKey: 'tx-2025-hb1', versions: [version] },
+      { preserveExisting: true },
+    );
+    expect(db.stateBillVersion.upsert).not.toHaveBeenCalled();
+    db.stateBillVersion.findUnique.mockResolvedValue(null);
+    await upsertStateBillVersions(
+      db,
+      { billKey: 'tx-2025-hb1', versions: [version] },
+      { preserveExisting: true },
+    );
+    expect(db.stateBillVersion.upsert).toHaveBeenCalledWith({
+      where: { legiscanDocId: 1 },
+      create: { billKey: 'tx-2025-hb1', ...version },
+      update: {},
+    });
+    db.stateBillVersion.findUnique.mockResolvedValue({ billKey: 'tx-2025-hb2' });
+    await expect(
+      upsertStateBillVersions(
+        db,
+        { billKey: 'tx-2025-hb1', versions: [version] },
+        { preserveExisting: true },
+      ),
+    ).rejects.toThrow('DOCUMENT_BILL_MISMATCH');
+  });
+  it('preserves the current referral and does not update the current committee or calendar', async () => {
+    const normalized = normalizeLegiscanBill(
+      fixtureBill({ history: [], sponsors: [], texts: [], sasts: [], calendar: [] }),
+      'TX',
+    )!;
+    const db = {
+      stateBill: {
+        findUnique: jest.fn(async () => ({ id: normalized.billKey })),
+        upsert: jest.fn(),
+      },
+      stateBillSponsor: { findMany: jest.fn(async () => []) },
+      stateBillLink: { deleteMany: jest.fn() },
+      stateCommittee: { upsert: jest.fn() },
+    };
+    await upsertNormalizedStateBill(db as unknown as PrismaClient, normalized, {
+      historical: true,
+    });
+    expect(db.stateBill.upsert.mock.calls[0]?.[0].update.currentCommitteeId).toBeUndefined();
+    expect(db.stateCommittee.upsert).not.toHaveBeenCalled();
   });
 });

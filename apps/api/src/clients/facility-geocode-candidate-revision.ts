@@ -23,7 +23,7 @@ export type FacilityCandidateSnapshot = Pick<
   | 'stateSenateDistrict'
   | 'latitude'
   | 'longitude'
->;
+> & Partial<Pick<ClientFacility, 'country' | 'verifiedPoint' | 'geographicResolution'>>;
 
 function canonicalValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalValue);
@@ -58,6 +58,9 @@ export function facilityGeocodeCandidateRevision(facility: FacilityCandidateSnap
     stateSenateDistrict: facility.stateSenateDistrict,
     latitude: facility.latitude,
     longitude: facility.longitude,
+    ...(facility.country !== undefined ? { country: facility.country } : {}),
+    ...(facility.verifiedPoint !== undefined ? { verifiedPoint: facility.verifiedPoint } : {}),
+    ...(facility.geographicResolution !== undefined ? { geographicResolution: facility.geographicResolution } : {}),
   };
   return `v1:${createHash('sha256')
     .update(JSON.stringify(canonicalValue(snapshot)))
@@ -105,6 +108,9 @@ export function facilityGeocodeCandidateGuard(
     stateSenateDistrict: facility.stateSenateDistrict,
     latitude: facility.latitude,
     longitude: facility.longitude,
+    ...(facility.country !== undefined ? { country: facility.country } : {}),
+    ...(facility.verifiedPoint !== undefined ? { verifiedPoint: { equals: facility.verifiedPoint === null ? Prisma.AnyNull : facility.verifiedPoint } } : {}),
+    ...(facility.geographicResolution !== undefined ? { geographicResolution: { equals: facility.geographicResolution === null ? Prisma.AnyNull : facility.geographicResolution } } : {}),
   };
 }
 

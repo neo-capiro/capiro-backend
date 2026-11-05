@@ -18,7 +18,7 @@ import { createHash } from 'node:crypto';
  *      lobbying subject for that filing.
  *   4. Fallback: title-token overlap against the client's existing OPEN
  *      matters (deterministic — same title always normalizes to the same
- *      clue, so idempotent re-runs of Fill with Meri don't fragment one ask
+ *      clue, so idempotent re-runs of Profile research don't fragment one ask
  *      into duplicate Matters).
  */
 

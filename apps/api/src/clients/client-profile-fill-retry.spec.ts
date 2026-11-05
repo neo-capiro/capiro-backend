@@ -293,3 +293,21 @@ it('bounds the core attempt by remaining run time and aborts its local signal wi
     expect(jest.getTimerCount()).toBe(0);
   } finally { jest.useRealTimers(); }
 });
+
+it('aborts model work when the heartbeat no longer owns an active task', async () => {
+  const tx = { $executeRawUnsafe: jest.fn().mockResolvedValue(0) };
+  const service = new ClientProfileFillWorkflowService(
+    {withSystem: async (action: (value: typeof tx) => Promise<unknown>) => action(tx)} as never,
+    {} as never, {} as never, {} as never, {} as never, {} as never, {} as never,
+  ) as any;
+  const controller = new AbortController();
+  let observed: AbortSignal | undefined;
+  const pending = service.withTaskTimeout((signal: AbortSignal) => {
+    observed = signal;
+    return new Promise(() => undefined);
+  }, undefined, controller);
+  const assertion = expect(pending).rejects.toThrow('no longer active');
+  await service.heartbeat({id:'task',workerId:'lease',runId:'run',tenantId:'tenant'}, controller);
+  await assertion;
+  expect(observed?.aborted).toBe(true);
+});

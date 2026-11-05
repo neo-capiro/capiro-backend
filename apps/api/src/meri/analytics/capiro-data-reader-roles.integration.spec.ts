@@ -3,7 +3,7 @@ import { asRole, FIXTURE, prepareReaderFixture, type ReaderFixture } from './cap
 import { PrivateSqlDbService, type PrivateSqlExecutionContext } from './private-sql-db.service.js';
 import { createPrivateSqlQueries } from './private-sql-query.js';
 import { describeCapiroData, queryCapiroData } from './public-sql-query.js';
-import { CLASSIC_RELATION_NAMES, gateSqlStatement, PRIVATE_RELATION_NAMES, PUBLIC_RELATION_NAMES, RESEARCH_RELATION_NAMES } from './sql-statement-gate.js';
+import { gateSqlStatement, PRIVATE_RELATION_NAMES, PUBLIC_RELATION_NAMES, RESEARCH_RELATION_NAMES, CLASSIC_RELATION_NAMES } from './sql-statement-gate.js';
 
 /**
  * Proof that the database, not application code, enforces the properties the
@@ -311,6 +311,17 @@ describeDatabase('capiro data reader roles: database-enforced properties', () =>
       expect(capped).toMatchObject({ ok: true, rowCount: 2, rowLimitReached: true, coverage: { sqlLimit: null } });
       const own = await queryCapiroData({ sql: 'SELECT id FROM congress_bills ORDER BY id LIMIT 1', parameters: [], rowLimit: 2 }, analytics);
       expect(own).toMatchObject({ ok: true, rowCount: 1, rowLimitReached: false, coverage: { sqlLimit: 1 } });
+    });
+    it('private meetings preserve actor ownership, tenant isolation and current client walls', async () => {
+      const queries = createPrivateSqlQueries(privateDb);
+      const input = { sql: 'SELECT client_id, id FROM client_meetings ORDER BY id', parameters: [] };
+      expect(await queries.query(input, context())).toMatchObject({
+        ok: true, rows: [{ client_id: FIXTURE.clientA1, id: FIXTURE.meetingA1 }], relationsUsed: ['client_meetings'],
+      });
+      expect(await queries.query(input, context({ tenantId: FIXTURE.tenantB, actorId: FIXTURE.actorB }))).toMatchObject({
+        ok: true, rows: [{ client_id: FIXTURE.clientB1, id: FIXTURE.meetingB1 }],
+      });
+      expect(await queries.query(input, context({ scopeKind: 'client', clientId: FIXTURE.clientA2Walled }))).toMatchObject({ ok: true, rows: [] });
     });
     it('private describe and query run under the admitted context and the reader role', async () => {
       const queries = createPrivateSqlQueries(privateDb);

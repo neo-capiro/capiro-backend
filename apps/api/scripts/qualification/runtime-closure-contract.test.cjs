@@ -156,6 +156,45 @@ test('removed dependency must not resolve locally or through an ancestor lookup'
   }
 });
 
+test('unpdf optional peer resolves to the same exact canvas owner required by pdf-parse', t => {
+  const f = fixture(t);
+  const unpdf = 'unpdf@1.8.1(@napi-rs/canvas@0.1.80)', pdf = 'pdf-parse@2.4.5', canvas = '@napi-rs/canvas@0.1.80';
+  const specs = [
+    { key: unpdf, name: 'unpdf', version: '1.8.1', peerDependencies: { '@napi-rs/canvas': '^0.1.69 || ^1.0.0' }, peerDependenciesMeta: { '@napi-rs/canvas': { optional: true } } },
+    { key: pdf, name: 'pdf-parse', version: '2.4.5', dependencies: { '@napi-rs/canvas': '0.1.80' } },
+    { key: canvas, name: '@napi-rs/canvas', version: '0.1.80' },
+  ];
+  const owners = new Map();
+  for (const { key, ...metadata } of specs) {
+    const owner = path.join(f.imageRoot, 'node_modules/.pnpm', key.replaceAll('/', '+'), 'node_modules', metadata.name);
+    write(path.join(owner, 'package.json'), metadata);
+    owners.set(metadata.name, owner);
+    f.contract.nodes.push({ key, name: metadata.name, version: metadata.version, os: null, cpu: null, libc: null,
+      resolution: { integrity: 'sha512-synthetic-not-vendor-admission' },
+      ...(key === unpdf ? { peerDependencies: { '@napi-rs/canvas': '0.1.80' }, peerDependenciesMeta: metadata.peerDependenciesMeta } : {}) });
+  }
+  write(path.join(f.root, 'package.json'), { ...f.pkg, dependencies: { unpdf: '1.8.1', 'pdf-parse': '2.4.5' } });
+  f.contract.edges.push(
+    { from: f.contract.nodes[0].key, to: unpdf, dependencyName: 'unpdf', kind: 'dependencies' },
+    { from: f.contract.nodes[0].key, to: pdf, dependencyName: 'pdf-parse', kind: 'dependencies' },
+    { from: unpdf, to: canvas, dependencyName: '@napi-rs/canvas', kind: 'optionalDependencies' },
+    { from: pdf, to: canvas, dependencyName: '@napi-rs/canvas', kind: 'dependencies' },
+  );
+  const originalResolve = f.options.resolve;
+  f.options.resolve = (parent, name, ...rest) => owners.has(name) ? readPackage(owners.get(name)) : originalResolve(parent, name, ...rest);
+  f.seal();
+  const admitted = verifyInstalledClosure(f.options);
+  assert.equal(admitted.owners.filter(owner => owner.metadata.name === '@napi-rs/canvas').length, 1);
+  assert.equal(new Set(admitted.edges.filter(edge => edge.dependencyName === '@napi-rs/canvas').map(edge => edge.physicalOwner)).size, 1);
+  assert.deepEqual(admitted.removedDependencies, []);
+  const resolveInstalled = f.options.resolve;
+  f.options.resolve = (parent, name, ...rest) => name === '@napi-rs/canvas' ? null : resolveInstalled(parent, name, ...rest);
+  assert.throws(() => verifyInstalledClosure(f.options), /required or unproven missing dependency/);
+  write(path.join(owners.get('@napi-rs/canvas'), 'package.json'), { name: '@napi-rs/canvas', version: '1.0.9' });
+  f.options.resolve = resolveInstalled;
+  assert.throws(() => verifyInstalledClosure(f.options), /resolved exact package mismatch/);
+});
+
 test('missing, wrong, duplicate or graph-conflicting removal proof refuses', t => {
   for (const overrides of [{}, { 'pptxgenjs@3.12.1>image-size': '-' }, { 'pptxgenjs@*>image-size': '-' }, { 'pptxgenjs@3.12.0>image-size': '1.0.0' }]) {
     const f = removalFixture(t); f.setOverrides(overrides); f.seal();

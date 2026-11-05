@@ -303,7 +303,7 @@ describe('Schedule rearming and escaped failures', () => {
         false,
       ]);
       expect(h.warnings).toEqual([
-        'Scheduled Fill with Meri refresh failed for due-client: api_key=[redacted] start unavailable',
+        'Scheduled Profile research refresh failed for due-client: api_key=[redacted] start unavailable',
       ]);
     },
   );
@@ -376,6 +376,7 @@ describe('Schedule sweep exclusion and claim recovery', () => {
     expect(h.callsOf('workflow-read')).toHaveLength(1);
     await h.service.sweepSchedulesOnce();
     await h.service.sweepOnce();
+    expect(h.callsOf('empty-deadline-query')).toHaveLength(1);
     expect(h.callsOf('claim')).toHaveLength(1);
     expect(
       h.callsOf('task-write').some((call) => call.sql?.includes("error_code = 'stale_worker'")),

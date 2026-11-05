@@ -96,6 +96,7 @@ describe('computeFacilityGeocode', () => {
       latitude: 30.4,
       longitude: -84.28,
       geocodeStatus: 'matched',
+      geocodeInputHash: facilityAddressHash(BASE),
     };
     const out = await computeFacilityGeocode(already);
     expect(out.update).toBeNull();
@@ -113,6 +114,7 @@ describe('computeFacilityGeocode', () => {
       latitude: 30.4,
       longitude: -84.28,
       geocodeStatus: 'matched',
+      geocodeInputHash: facilityAddressHash(BASE),
     };
     const out = await computeFacilityGeocode(preRelease1);
     expect(out.update?.congressionalDistrictCongress).toBe(119);
@@ -188,6 +190,7 @@ describe('computeFacilityGeocode', () => {
       stateHouseDistrict: '9',
       stateSenateDistrict: '3',
       geocodeStatus: 'matched',
+      geocodeInputHash: facilityAddressHash(BASE),
     };
     const out = await computeFacilityGeocode(previouslyGood);
     expect(out.status).toBe('no_match');
@@ -216,7 +219,7 @@ describe('computeFacilityGeocode', () => {
     const alreadyNoMatch: FacilityGeocodeInput = {
       ...BASE,
       geocodeStatus: 'no_match',
-      geocodeInputHash: '81695fafda34cc10f93731f80b4faeaf',
+      geocodeInputHash: facilityAddressHash(BASE),
     };
     const out = await computeFacilityGeocode(alreadyNoMatch);
     expect(out.update).toBeNull();
@@ -228,6 +231,7 @@ describe('computeFacilityGeocode', () => {
     expect(geocodeAddress).not.toHaveBeenCalled();
     expect(out.update).toEqual(expect.objectContaining({ geocodeInputHash: expect.any(String) }));
     expect(out.status).toBe('no_match');
+    expect(out.resolution?.status).toBe('needs_address');
   });
 
   it('a network/API error never throws — resolves to status=error with no update', async () => {
@@ -290,6 +294,7 @@ describe('computeFacilityGeocode', () => {
         stateHouseDistrict: '8th Bristol',
         stateSenateDistrict: 'First Bristol and Plymouth',
         geocodeStatus: 'matched',
+        geocodeInputHash: facilityAddressHash(BASE),
       });
       expect(out.update).toBeNull();
     });
@@ -317,6 +322,7 @@ describe('computeFacilityGeocode', () => {
         stateHouseDistrict: '8th Bristol',
         stateSenateDistrict: overlong.slice(0, STATE_DISTRICT_MAX_LEN),
         geocodeStatus: 'matched',
+        geocodeInputHash: facilityAddressHash(BASE),
       });
       expect(out.update).toBeNull();
       jest.restoreAllMocks();

@@ -71,6 +71,28 @@ export class UniversalEntityResolutionOrchestratorService {
     private readonly providers: readonly EntityResolutionFallbackProvider[] = [],
   ) {}
 
+  /** Public source acquisition only: no resolution history, registration or legacy model path. */
+  async previewPublicSources(tenantId: string, input: ResolveEntityInput) {
+    const normalized = normalizeOrchestrationInput(input);
+    const provider = providerMap(this.providers).get('public_web');
+    if (!provider)
+      return { stage: 'public_web' as const, sourceStatus: 'unavailable' as const, candidates: [] };
+    const result = await provider.lookup({
+      tenantId,
+      actorUserId: normalized.actorUserId,
+      query: normalized.rawInput,
+      normalizedQuery: normalized.normalizedInput,
+      entityTypeHint: normalized.entityTypeHint,
+      identifiers: normalized.identifiers,
+      priorCandidates: [],
+    });
+    if (result.stage !== 'public_web') throw new BadRequestException('Unexpected public identity source');
+    return {
+      ...result,
+      candidates: normalizeProviderCandidates(tenantId, normalized.entityTypeHint, result.candidates),
+    };
+  }
+
   async resolveAcrossSources(
     tenantId: string,
     input: ResolveEntityAcrossSourcesInput,

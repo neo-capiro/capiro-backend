@@ -97,8 +97,11 @@ export function projectObjectiveTypedContext(raw: unknown, sourceEvidence: reado
   const r = read(raw, ['tenantId', 'clerkUserId', 'requestId', 'source', 'intent', 'snapshotSha256',
     'sourceDigest', 'packetId', 'compiledAt', 'coverageDigest', 'prompt', 'findings',
     'packetPersisted', 'packetDegraded', 'coverageComplete', 'paginationComplete', 'truncated']);
-  if (r.packetPersisted !== true || r.packetDegraded !== false || r.coverageComplete !== true ||
-      r.paginationComplete !== true || r.truncated !== false) return fail();
+  // Supplementary retrieval coverage (degraded/partial/truncated) is disclosed in
+  // the bound prompt and coverageDigest; only an untraceable packet refuses. The
+  // flags must still be exact booleans supplied by the Core owner.
+  if (r.packetPersisted !== true || typeof r.packetDegraded !== 'boolean' || typeof r.coverageComplete !== 'boolean' ||
+      typeof r.paginationComplete !== 'boolean' || typeof r.truncated !== 'boolean') return fail();
   const tenantId = uuid(r.tenantId), requestId = uuid(r.requestId), packetId = uuid(r.packetId);
   // Identity was resolved by the actual Core owner. Preserve the opaque
   // subject domain shared by the generation admission; do not infer lineage

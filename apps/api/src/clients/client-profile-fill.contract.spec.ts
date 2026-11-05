@@ -1,9 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-describe('Fill with Meri architecture contract', () => {
+describe('Profile research architecture contract', () => {
   const service = readFileSync(resolve(process.cwd(), 'src/clients/client-profile-fill.service.ts'), 'utf8');
   const controller = readFileSync(resolve(process.cwd(), 'src/clients/client-profile-fill.controller.ts'), 'utf8');
+  const workflow=readFileSync(resolve(process.cwd(),'src/clients/client-profile-fill-workflow.service.ts'),'utf8');
+  const factory=readFileSync(resolve(process.cwd(),'src/clients/governed-client-profile-fill.factory.ts'),'utf8');
+  const inputs=readFileSync(resolve(process.cwd(),'src/clients/client-profile-fill-research-inputs.ts'),'utf8');
   const migration = readFileSync(
     resolve(process.cwd(), 'prisma/migrations/20261015010000_client_profile_fill_with_meri/migration.sql'),
     'utf8',
@@ -13,7 +16,9 @@ describe('Fill with Meri architecture contract', () => {
     expect(service).not.toContain('setChatOpen');
     expect(service).not.toContain('clearChatSession');
     expect(service).not.toContain('ClioConversation');
-    expect(controller).toContain("@Controller('clients/:clientId/fill-with-meri')");
+    expect(controller).toContain("clients/:clientId/profile-build");
+    expect(controller).toContain("business-development/prospects/:prospectId/profile-build");
+    expect(workflow).toContain('createResearchRun');
   });
 
   it('keeps canonical writes behind an admin review action', () => {
@@ -52,11 +57,12 @@ describe('Fill with Meri architecture contract', () => {
     expect(service).toContain("This item is informational and is not applied to the client record");
   });
 
-  it('uses persisted synced mail participants when contact harvesting has no explicit client link', () => {
-    expect(service).toContain('tx.mailMessage.findMany');
-    expect(service).toContain('extractSyncedMailParticipants');
-    expect(service).toContain("notes: 'Extracted from synced email participants'");
-    expect(service).toContain("source: 'synced_email'");
+  it('uses authorized governed contacts and relationship sources in the durable mail specialist', () => {
+    expect(factory).toContain('projectClientProfileContactCandidates');
+    expect(factory).toContain('relationshipHistory.gather');
+    expect(factory).toContain("source: 'synced_email'");
+    expect(workflow).toContain('this.engine.gatherSyncedEmail');
+    expect(service).not.toContain('tx.mailMessage.findMany');
   });
 
   it('uses layered public-web queries and tolerates individual provider query failures', () => {
@@ -73,7 +79,8 @@ describe('Fill with Meri architecture contract', () => {
   it('keeps a drawer website seed with the run and crawls linked pages without a canonical seed writer', () => {
     expect(controller).toContain('website?: string');
     expect(service).toContain('seedWebsite');
-    expect(service).toContain('JSON.stringify({ researchInputVersion: 1, website })');
+    expect(inputs).toContain('researchInputVersion: 1, website');
+    expect(workflow).toContain('setup: setupSnapshot');
     expect(service).not.toContain('maybeSeedWebsite');
     expect(service).toContain('discoverSameOriginPageCandidates');
     expect(service).toContain('fetchPublicPages');

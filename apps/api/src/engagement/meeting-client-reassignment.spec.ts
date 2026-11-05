@@ -6,7 +6,8 @@ import { EngagementService } from './engagement.service.js';
 const ctx = { tenantId: 'tenant-1', userId: 'user-1', role: 'standard_user' } as TenantContext;
 type Row = Record<string, any>;
 
-function harness(options: { clientId?: string | null; isInternal?: boolean; failOn?: string; missingClient?: boolean; missingMeeting?: boolean } = {}) {
+function harness(options: { clientId?: string | null; isInternal?: boolean; failOn?: string; missingClient?: boolean; missingMeeting?: boolean } = {}, actor: TenantContext = ctx) {
+  const ctx = actor;
   const meeting = {
     id: 'm1', tenantId: ctx.tenantId, clientId: 'client-a', isInternal: false,
     associationScore: 0.9, visibility: 'shared', sharedAt: new Date(), sharedByUserId: 'user-1',
@@ -76,7 +77,9 @@ function harness(options: { clientId?: string | null; isInternal?: boolean; fail
   const index = jest.fn();
   const service = Object.create(EngagementService.prototype) as EngagementService;
   Object.assign(service, {
-    prisma: { withTenant },
+    prisma: { withTenant, withTenantUser: (tenantId: string, userId: string, fn: (tx: Row) => Promise<unknown>) => {
+      expect(userId).toBe(ctx.userId); return withTenant(tenantId, fn);
+    } },
     clientKb: { indexAttachmentFireAndForget: index },
     notesCrypto: { encrypt: () => ({ bodyCiphertext: 'ct', iv: 'iv', authTag: 'tag', keyVersion: 'v1' }) },
     decorateMeetings: async (_tx: unknown, _ctx: unknown, rows: unknown[]) => rows,
@@ -260,6 +263,62 @@ describe('meeting client reassignment', () => {
     await expect(
       h.service.confirmAttachment(ctx, { ...input, folder: 'Another folder' }),
     ).rejects.toMatchObject({ status: 409, response: expect.objectContaining({ code: 'attachment_confirm_conflict' }) });
+  });
+});
+
+describe('capability document confirmation', () => {
+  const ctx = { tenantId: '10000000-0000-4000-8000-000000000001', userId: '10000000-0000-4000-8000-000000000002', clerkUserId: 'synthetic-actor', role: 'standard_user' } as TenantContext;
+  const client = '10000000-0000-4000-8000-000000000003';
+  const capabilityId = '20000000-0000-4000-8000-000000000001';
+  const anotherCapability = '20000000-0000-4000-8000-000000000002';
+  function capabilityHarness() {
+    const h = harness({ clientId: client }, ctx);
+    h.state.capabilityDocuments = [];
+    h.tx.$queryRaw.mockImplementation(async (query: any) => {
+      const sql = Array.isArray(query) ? query.join('') : query.sql;
+      if (sql.includes('tenant_memberships')) return [{ role: ctx.role }];
+      if (sql.includes('client_file_deletions')) return [{ present: false }];
+      return [{ id: client }];
+    });
+    h.tx.clientCapability = { findFirst: jest.fn(async ({ where }: Row) =>
+      where.tenantId === ctx.tenantId && where.clientId === client ? { id: where.id } : null) };
+    h.tx.clientCapabilityDocument = { upsert: jest.fn(async ({ create }: Row) => {
+      if (!h.state.capabilityDocuments.some((row: Row) => row.attachmentId === create.attachmentId))
+        h.state.capabilityDocuments.push(create);
+      return create;
+    }) };
+    Object.assign(h.service, {
+      bucket: 'bucket', validateAttachmentParents: async () => undefined,
+      s3: { send: async () => ({ ContentLength: 4 }) },
+      readAttachmentBytes: async () => Buffer.from('test'),
+      attachmentContent: { sha256: () => 'digest', detectContentType: () => 'text/plain', contentTypeConflicts: () => false },
+      scanner: { getStatus: async () => 'pending', providerName: 'scanner' },
+    });
+    const input = { clientId: client, meetingId: 'm1', fileName: 'capability.txt', contentType: 'text/plain',
+      s3Key: `tenants/${ctx.tenantId}/engagement/file/capability.txt`, source: `capability:${capabilityId}` };
+    return { ...h, input };
+  }
+
+  test('confirmation and exact replay use one canonical association, including quarantined uploads', async () => {
+    const h = capabilityHarness();
+    const saved = await h.service.confirmAttachment(ctx, h.input);
+    expect(saved.lifecycleStatus).toBe('quarantined');
+    expect(h.state.capabilityDocuments).toEqual([{ tenantId: ctx.tenantId, clientId: client, capabilityId, attachmentId: saved.id }]);
+    expect((await h.service.confirmAttachment(ctx, h.input)).id).toBe(saved.id);
+    expect(h.state.capabilityDocuments).toHaveLength(1);
+    await expect(h.service.confirmAttachment(ctx, { ...h.input, source: `capability:${anotherCapability}` })).rejects.toMatchObject({ status: 409 });
+    expect(h.state.capabilityDocuments).toHaveLength(1);
+  });
+
+  test('foreign capability and a failed association cannot leave an orphaned attachment', async () => {
+    const h = capabilityHarness();
+    h.tx.clientCapability.findFirst.mockResolvedValueOnce(null);
+    await expect(h.service.confirmAttachment(ctx, h.input)).rejects.toMatchObject({ status: 404 });
+    expect(h.state.engagementAttachment).toHaveLength(1);
+    h.tx.clientCapabilityDocument.upsert.mockRejectedValueOnce(new Error('Association unavailable'));
+    await expect(h.service.confirmAttachment(ctx, h.input)).rejects.toThrow('Association unavailable');
+    expect(h.state.engagementAttachment).toHaveLength(1);
+    expect(h.index).not.toHaveBeenCalled();
   });
 });
 

@@ -35,7 +35,7 @@ function scanRow(hearingId: string, witnessText: string, syncedAt: string, simil
   };
 }
 
-describe('Fill with Meri completion workflow', () => {
+describe('Profile research completion workflow', () => {
 
   test('ADVOCACY_SOURCE_NAMES includes community_funding for CPF/CDS discovery health/backfill', () => {
     expect(ADVOCACY_SOURCE_NAMES).toContain('community_funding');

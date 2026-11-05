@@ -23,12 +23,15 @@ import {
   type ImportJobView,
 } from './firm-import-job.contracts.js';
 
+import { normalizeImportWebsites } from './firm-import-request.js';
+
 export const IMPORT_REQUEST_CONFLICT_CODE = 'IMPORT_REQUEST_CONFLICT';
 
 export interface StartImportJobInput {
   requestKey: string;
   ldaRegistrantId: number;
   ids: readonly number[];
+  websites?: unknown;
 }
 
 export interface ImportJobListOptions {
@@ -108,7 +111,8 @@ export class FirmImportJobStore {
     ctx: TenantContext,
     input: StartImportJobInput,
   ): Promise<{ job: ImportJobView; created: boolean }> {
-    const requestSha256 = importRequestSha256(input.ldaRegistrantId, input.ids);
+    const websites = normalizeImportWebsites(input.websites, input.ids);
+    const requestSha256 = importRequestSha256(input.ldaRegistrantId, input.ids, websites);
 
     try {
       return await this.prisma.withTenant(ctx.tenantId, async (tx) => {
@@ -127,6 +131,7 @@ export class FirmImportJobStore {
             requestSha256,
             ldaRegistrantId: input.ldaRegistrantId,
             requestedIds: [...input.ids],
+            ...(Object.keys(websites).length ? {requestJson: {schemaVersion: 1, websites}} : {}),
             status: 'queued',
           },
           select: { id: true },
@@ -361,7 +366,7 @@ export class FirmImportJobStore {
     if (storedSha256 !== requestSha256) {
       throw new ConflictException({
         code: IMPORT_REQUEST_CONFLICT_CODE,
-        message: 'This import request identity was already used for a different selection.',
+        message: 'This import request identity was already used for a different selection or company website.',
       });
     }
   }

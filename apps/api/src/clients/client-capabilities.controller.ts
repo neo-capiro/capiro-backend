@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@n
 import {
   IsArray,
   IsInt,
+  IsIn,
   IsOptional,
   IsString,
   Max,
@@ -20,6 +21,10 @@ class CreateCapabilityDto {
   @IsOptional()
   @IsString()
   type?: string;
+
+  @IsOptional()
+  @IsIn(['in_service', 'in_development', 'planned', 'unspecified'])
+  lifecycle?: 'in_service' | 'in_development' | 'planned' | 'unspecified';
 
   @IsOptional()
   @IsString()
@@ -121,6 +126,10 @@ class UpdateCapabilityDto {
   @IsOptional()
   @IsString()
   type?: string;
+
+  @IsOptional()
+  @IsIn(['in_service', 'in_development', 'planned', 'unspecified'])
+  lifecycle?: 'in_service' | 'in_development' | 'planned' | 'unspecified';
 
   @IsOptional()
   @IsString()

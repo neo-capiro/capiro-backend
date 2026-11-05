@@ -1,0 +1,13 @@
+# Manual registration suggestions
+
+`POST /clients/profile-build/registration-suggestions` is a read-only preview for an unsaved or existing manual profile. It requires current standard-user authority; existing subjects and documents also use their current canonical owner checks before and after acquisition. It creates no client, prospect, research run, or profile fact.
+
+The body accepts a UUID `requestId`, one `field` (`uei`, `cageCode`, `naicsCodes`, `pscCodes`, `issueCodes`), `identity` (`name`, optional `website` and `description`), optional `currentValue`, `existingIdentifiers`, `contextText`, and optional saved `subject` plus up to three `attachmentIds`. The response binds `requestId` and `field`, and returns `status` (`complete`, `empty`, `unavailable`), `message`, `suggestions`, and explicit `sourceGaps`.
+
+The bounded Claude Agent SDK receives typed context, a guarded read of the supplied website, authorized provider-free document text, and the applicable official classification catalog. The reader shares the hardened DNS, redirect, streaming size, and deadline owner. The SDK has no mutation tools. Limits are four turns, sixty seconds, and a half-dollar budget. Its content-free execution audit is retained in the existing audit log. No model or source service was called in verification.
+
+Every returned suggestion has a verbatim quote from supplied company context or its source. Classification codes must exist in the pinned official NAICS/PSC catalog or canonical LDA directory; labels and reference metadata come from those catalogs. UEI and CAGE require a complete literal identifier within the quote. Classification fit remains a suggestion, not a company registration claim. Already entered values are omitted. Sources and outputs are rechecked against current access before response.
+
+Explicit acceptance is saved through the existing profile PUT. `fieldEvidence` maps each supported field to `{code,evidence:[{label,url?,attachmentId?,excerpt,source?,observedAt?}]}` entries. The same request must submit the accepted code in `fields`. The parser rejects caller verification flags, and the save transaction rechecks document authority. The fact remains person-origin with `person_reviewed_suggestion` citations alongside server-computed reference metadata. This uses existing version, receipt, and transaction behavior; no automatic save occurs.
+
+Deterministic tests cover source/catalog validation, invented identifiers, mismatched quotes, current values, SDK/source failure, membership revocation, guarded reads, linked prospect document ownership, current attachment authority, and accepted-evidence validation. Production SDK/model behavior is deliberately not exercised.

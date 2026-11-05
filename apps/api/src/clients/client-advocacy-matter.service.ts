@@ -151,7 +151,7 @@ export interface AdvocacyTimelineEntry {
  * serves the read APIs the CRM surface renders.
  *
  * Clustering runs idempotently: `assignMatterForRecord` can be called every
- * time a record is applied (including on a re-run of Fill with Meri) and
+ * time a record is applied (including on a re-run of Profile research) and
  * will resolve to the SAME Matter for the same clue without creating
  * duplicates, because the clue's `key` is unique-constrained per client.
  */
@@ -172,7 +172,7 @@ export class ClientAdvocacyMatterService {
    *
    * Respects `matter_locked`: once a human has reassigned, detached, or
    * rejected ("not advocacy") a record via the correction UX, this method
-   * is a no-op for that record on every subsequent Fill with Meri re-run.
+   * is a no-op for that record on every subsequent Profile research re-run.
    * Human corrections are authoritative over automatic clustering (product
    * spec section 6) — without this check, re-running the same finding would
    * silently undo the correction the next time the external_key upserts.
@@ -1708,7 +1708,7 @@ export class ClientAdvocacyMatterService {
 
   /**
    * Reassign a single advocacy record to a different (existing) Matter.
-   * Locks the record so a later Fill with Meri re-run cannot silently move
+   * Locks the record so a later Profile research re-run cannot silently move
    * it back — see `assignMatterForRecord`'s `matter_locked` check.
    */
   async reassignRecord(
@@ -1785,7 +1785,7 @@ export class ClientAdvocacyMatterService {
    * what it originally claimed) but is excluded from Matter rollups and
    * detail record lists (see `listMatters`/`getMatter` filtering) and from
    * the Timeline. Also detaches it from any Matter and locks it, so a later
-   * identical finding from Fill with Meri is not resurrected as a duplicate
+   * identical finding from Profile research is not resurrected as a duplicate
    * (product spec section 26).
    */
   async markRecordNotAdvocacy(
