@@ -490,6 +490,12 @@ describe('funding opportunity source health SQL shape and semantics', () => {
   });
 });
 
+test('DIBBS display falls back to the provider UUID while its number stays nullable in source facts', () => {
+  const sql = sourceBase('dibbs').strings.join(' ');
+  expect(sql).toContain('coalesce(d.nomenclature, d.solicitation, d.tango_dibbs_id) title');
+  expect(sql).toContain("'solicitation', d.solicitation");
+});
+
 describe('sbir_sttr active semantics', () => {
   // Active is the provider's OWN word. A missing or unrecognized activity must
   // never be treated as open, and an explicit unknown/withdrawn value must not

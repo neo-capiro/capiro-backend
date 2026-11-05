@@ -757,6 +757,17 @@ describe('Tango tracked opportunity lifecycle', () => {
     expect((await run(off.fake)).evaluated).toBe(0);
     expect(off.pages).toHaveLength(0);
   });
+  test('an untitled pending RFP uses its provider UUID in lifecycle alerts', async () => {
+    const uuid = '00000000-0000-4000-8000-000000000123';
+    const f = lifecycleFake({
+      rows: [row({ id: 'wf1', source: 'dibbs', sourceRecordKey: uuid, samOpportunityId: null })],
+      dibbs: { tangoDibbsId: uuid, solicitation: null, nomenclature: null, isOpen: true,
+        statusCode: 'Open', closesDate: new Date('2026-08-05') },
+    });
+    expect((await run(f.fake)).errors).toBe(0);
+    expect(f.alerts.map(alert => alert.data.title)).toContain(`Closing soon: ${uuid}`);
+  });
+
   test('DIBBS and SBIR resolve by their generic identities and detect real response deadlines', async () => {
     for (const source of ['dibbs', 'sbir_sttr']) {
       const f = lifecycleFake({

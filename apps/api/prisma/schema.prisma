@@ -10388,7 +10388,8 @@ model TangoDibbsSolicitation {
   /// 'rfq' | 'rfp'. Bounded by tango_dibbs_solicitation_document_type_chk.
   documentType String @map("document_type")
 
-  solicitation          String
+  /// Pending RFPs may have a provider UUID before a number is assigned.
+  solicitation          String?
   /// RFQ detail only. The provider's own display spelling - never parsed.
   solicitationFormatted String? @map("solicitation_formatted")
   /// RFQ only.

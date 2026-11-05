@@ -107,6 +107,24 @@ describe('active endpoint walk', () => {
     expect(h.writes[0]).toMatchObject({ resourceType: 'sbir_topic' });
     expect((h.persisted[0] as { description?: string }).description).toContain('UAS');
   });
+
+  test('an RFP page with a pending posting checkpoints only after every row maps and persists', async () => {
+    const uuid = '00000000-0000-4000-8000-000000000123';
+    const pending = { uuid, is_open: true, solicitation: null };
+    const endpoint = ACTIVE_SOURCE_LANES.dibbs.endpoints.find(item => item.endpoint === 'rfp')!;
+    const run = (h: ReturnType<typeof harness>) => walkActiveEndpoint(endpoint, 'sync-tango-dibbs', {
+      client: h.client as never, store: h.store as never, commit: true, maxPages: 1,
+    });
+    const failed = harness([pending, { is_open: true, solicitation: null }]);
+    await expect(run(failed)).rejects.toThrow(/no provider identity/);
+    expect(failed.persisted).toHaveLength(1);
+    expect(failed.writes).toHaveLength(0);
+
+    const valid = harness([pending, { ...pending, uuid: '00000000-0000-4000-8000-000000000456', solicitation: 'RFP-456' }]);
+    await expect(run(valid)).resolves.toMatchObject({ processed: 2, written: 2, complete: true });
+    expect(valid.persisted[0]).toMatchObject({ documentType: 'rfp', tangoDibbsId: uuid, solicitation: null });
+    expect(valid.writes).toHaveLength(1);
+  });
 });
 
 describe('closure re-check (exact ids, never absence)', () => {

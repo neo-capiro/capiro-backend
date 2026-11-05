@@ -610,6 +610,7 @@ export async function processLifecycle(
             forecast?.title ??
             dibbsRecord?.nomenclature ??
             dibbsRecord?.solicitation ??
+            dibbsRecord?.tangoDibbsId ??
             topic?.title ??
             topic?.topicNumber ??
             'SBIR/STTR topic';
