@@ -88,3 +88,45 @@ export interface ProcurementMoneyFlow {
 export type ProcurementHubSummary = Omit<ProcurementMoneyFlow, 'groups' | 'actionDetails'> & {
   groupCount: number;
 };
+
+/** Independently reported File C observations; never added to SAM action measures. */
+export type ProcurementAccountScopeRequest = Pick<ProcurementScopeRequest, 'awardIdentityKeys' | 'knownAt'>;
+export interface ProcurementAccountReportRow {
+  /** Zero-based position in the original single-page API results, not a transaction identity. */
+  sourceRowIndex: number;
+  federalAccount: string | null;
+  accountTitle: string | null;
+  /** The funding endpoint does not supply a full Treasury Account Symbol. */
+  treasuryAccountSymbol: null;
+  programActivityCode: string | null;
+  programActivityName: string | null;
+  objectClass: string | null;
+  objectClassName: string | null;
+  disasterEmergencyFundCode: string | null;
+  fundingAgencyName: string | null;
+  awardingAgencyName: string | null;
+  reportingFiscalYear: number | null;
+  reportingFiscalQuarter: number | null;
+  reportingFiscalMonth: number | null;
+  isQuarterlySubmission: boolean | null;
+  reportedObligationUsd: string | null;
+  reportedGrossOutlayUsd: string | null;
+}
+export interface ProcurementAccountReport {
+  awardIdentityKey: string;
+  state: 'reported' | 'unavailable' | 'conflict';
+  snapshotId: string | null;
+  sourceObservedAt: string | null;
+  recordedAt: string | null;
+  sourcePayloadSha256: string | null;
+  sourceUrl: string;
+  /** Preserve source rows, including apparent duplicates. No period or account aggregation. */
+  rows: readonly ProcurementAccountReportRow[];
+}
+export interface ProcurementAccountReports {
+  contract: 'defproc-account-reports/v1';
+  knownAt: string;
+  scope: { awardIdentityKeys: readonly string[]; includesDescendants: false };
+  coverage: 'source_reported_rows_only';
+  reports: readonly ProcurementAccountReport[];
+}
