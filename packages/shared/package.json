@@ -1,6 +1,6 @@
 {
   "name": "@capiro/shared",
-  "version": "0.0.0",
+  "version": "0.0.1-defproc-release1.0",
   "private": true,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -86,6 +86,9 @@
       ],
       "strategy-intake": [
         "dist/strategy-intake.d.ts"
+      ],
+      "defense-procurement": [
+        "dist/defense-procurement.d.ts"
       ]
     }
   },
@@ -256,6 +259,12 @@
       "require": "./dist/strategy-intake.js",
       "import": "./dist/strategy-intake.js",
       "default": "./dist/strategy-intake.js"
+    },
+    "./defense-procurement": {
+      "types": "./dist/defense-procurement.d.ts",
+      "require": "./dist/defense-procurement.js",
+      "import": "./dist/defense-procurement.js",
+      "default": "./dist/defense-procurement.js"
     }
   },
   "scripts": {
