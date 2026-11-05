@@ -653,6 +653,8 @@ export async function searchSourceSql(
     ${eligibilityState(profile, source)} eligibility_state,
     ${eligibilityReason(profile, source)} eligibility_reason`
     : Prisma.sql`false naics_match, NULL::text naics_match_on, false psc_match, NULL::text psc_match_on, false agency_match, NULL::text capability_match, NULL::text topical_match, NULL::text eligibility_state, NULL::text eligibility_reason`;
+  // Count and page branches must not materialize every matching row's full
+  // source payload; independent plans can prune fields unused by the count.
   const query = Prisma.sql`
     WITH normalized AS (${sourceBase(source)}), flagged AS (
       SELECT normalized.*, ${matchFlags}
@@ -660,7 +662,7 @@ export async function searchSourceSql(
     ), scored AS (
       SELECT flagged.*, CASE WHEN flagged.naics_match OR flagged.psc_match THEN 85 WHEN flagged.agency_match THEN 45 WHEN flagged.capability_match IS NOT NULL THEN 30 WHEN flagged.topical_match IS NOT NULL THEN 10 ELSE NULL END::double precision relevance_score
       FROM flagged
-    ), filtered AS (SELECT * FROM scored ${commonWhere(source, criteria, profile, exactSourceRecordId)}), stats AS (
+    ), filtered AS NOT MATERIALIZED (SELECT * FROM scored ${commonWhere(source, criteria, profile, exactSourceRecordId)}), stats AS (
       SELECT count(*) total_count, count(*) FILTER (WHERE type = ANY(${list(GRANT_TYPES)})) grants_count,
         count(*) FILTER (WHERE type = ANY(${list(CONTRACT_TYPES)})) contracts_count,
         count(*) FILTER (WHERE lifecycle = 'active') active_count, count(*) FILTER (WHERE lifecycle = 'closed') closed_count,

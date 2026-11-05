@@ -82,19 +82,27 @@ function makePrisma(opts: {
   const mappings = opts.client?.mappings ?? [];
 
   // Global $queryRaw dispatcher (this.prisma.$queryRaw) — inspect the SQL fragments.
-  const globalQueryRaw = jest.fn(async (sql: { strings?: string[]; sql?: string }) => {
+  const globalQueryRaw = jest.fn(async (sql: { strings?: string[]; sql?: string; values?: unknown[] }) => {
     const text = sqlText(sql);
     if (text.includes('keyword_candidate_matches')) return opts.candidateKeywordPes ?? [];
     if (text.includes('ecosystem_candidates')) return opts.candidateEcosystemPes ?? [];
+    // Batch fact reads add their PE key. Keep the same fixture facts per PE
+    // that the original per-PE reader returned; dispatch by SQL, not call order.
+    const batchCodes = text.includes('ANY(')
+      ? sql.values?.find((value): value is string[] => Array.isArray(value)) ?? []
+      : [];
+    const keyed = <T extends object>(rows: T[]) => batchCodes.length
+      ? batchCodes.flatMap((peCode) => rows.map((row) => ({ peCode, ...row })))
+      : rows;
     if (text.includes('similarity(') && text.includes('unnest(') && text.includes('t(term)')) {
-      return opts.keywordRows ?? [];
+      return keyed(opts.keywordRows ?? []);
     }
     if (text.includes('COALESCE(SUM(amount)')) {
       const a = opts.priorAward ?? { cnt: 0, total: 0 };
-      return [{ cnt: a.cnt, total: a.total }];
+      return keyed([{ cnt: a.cnt, total: a.total }]);
     }
     if (text.includes('program_element_performer') && text.includes('ecosystem')) {
-      return opts.ecosystem ?? [];
+      return keyed(opts.ecosystem ?? []);
     }
     // Candidate-facility PE enumeration (JOIN unnest over the client's districts) — must be
     // matched BEFORE the per-PE award-district read, which also references pop_state.
@@ -107,7 +115,7 @@ function makePrisma(opts: {
     }
     // Per-PE award-district read for the facility path: DISTINCT pop_state AS "state".
     if (text.includes('pop_state AS "state"')) {
-      return opts.awardDistricts ?? [];
+      return keyed(opts.awardDistricts ?? []);
     }
     return [];
   });
@@ -158,6 +166,20 @@ function sqlText(sql: { strings?: string[]; sql?: string; values?: unknown[] }):
 }
 
 describe('all-path bounded PE discovery', () => {
+  test('scores a large candidate set with a fixed number of fact reads inside the same tenant budget', async () => {
+    const peCodes = Array.from({ length: 200 }, (_, index) => `${String(600000 + index).padStart(7, '0')}F`);
+    const prisma = makePrisma({
+      client: { capabilities: [{ peNumbers: peCodes, keywords: ['radar'] }],
+        facilities: [{ state: 'VA', congressionalDistrict: '1' }] },
+    });
+    const result = await new ClientPeRelevanceService(prisma as never).getRelevantPesForClient(ctx, 'client-1');
+    expect(result.total).toBe(200);
+    expect(result.candidateCoverage).toMatchObject({ complete: true, evaluated: 200 });
+    // The 15-second request budget cannot afford hundreds of serial round trips.
+    expect(prisma.__tx.$queryRaw.mock.calls.length).toBeLessThanOrEqual(8);
+    expect(prisma.withTenant).toHaveBeenCalledTimes(1);
+  });
+
   test('discovers a keyword-only PE without direct, award or facility candidates', async () => {
     const prisma = makePrisma({
       client: { capabilities: [{ keywords: ['hypersonics'] }] },
@@ -269,7 +291,9 @@ describe('facility discovery/scorer normalization parity', () => {
         return states.some((s, index) => s === state && districts[index]!.replace(/^0+/, '') === district)
           ? [{ peCode: code }] : [];
       }
-      if (sql.sql.includes('pop_state AS "state"')) return [award];
+      if (sql.sql.includes('pop_state AS "state"')) {
+        return [sql.sql.includes('ANY(') ? { peCode: code, ...award } : award];
+      }
       return [];
     };
     tx.$queryRaw = raw;
