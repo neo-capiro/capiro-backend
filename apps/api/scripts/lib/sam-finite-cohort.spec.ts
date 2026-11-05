@@ -77,6 +77,16 @@ describe('finite SAM configuration', () => {
 });
 
 describe('one finite staged population, canonical writer only', () => {
+  it('writes observed provenance for a naive publisher label through the actual finite path', async () => {
+    const item = record(); item.awardDetails!.transactionData!.lastModifiedDate = '2026-08-13 15:30:52';
+    const h = harness(setup(undefined, ['--commit', '--revision-basis', 'latest_observed']).config, [item]);
+    const receipt = await runFiniteSamCohort(h.config, h.ports);
+    expect(receipt.state).toBe('COMPLETED_BOUNDED'); expect(h.writes).toHaveLength(1);
+    expect(h.writes[0]!.raw).toMatchObject({ acquisitionProvenance: {
+      contract: 'sam-contract-action/observed-v1', revisionBasis: 'latest_observed', sourceRevisionLabel: '2026-08-13 15:30:52',
+    } });
+    expect(JSON.stringify(h.writes[0])).not.toContain('sourceRevisionOrder');
+  });
   it('retains exact raw numeric bytes and resolves all pages before any append', async () => {
     const h = harness(setup([candidate().identityKey], ['--commit']).config);
     const body = JSON.stringify({ awardSummary: [record()], totalRecords: 1 }).replace('"-1.23"', '70368744177664.01');
