@@ -1108,6 +1108,19 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
 
   private async heartbeat(task: WorkflowTaskRow, taskAbort?: AbortController): Promise<void> {
     await this.prisma.withSystem(async (tx) => {
+      // Match execution/cancellation lock order: run before task. Otherwise a
+      // context writer holding the run can wait on our task while we wait on it.
+      const runs = await tx.$queryRawUnsafe<Array<{ id: string }>>(
+        `SELECT id FROM client_profile_fill_run
+          WHERE id = $1::uuid AND tenant_id = $2::uuid AND status = 'running'
+            AND ${fillRunBeforeDeadline()} FOR UPDATE`,
+        task.runId,
+        task.tenantId,
+      );
+      if (!runs.length) {
+        taskAbort?.abort(new Error('Research attempt is no longer active'));
+        return;
+      }
       const changed = await tx.$executeRawUnsafe(
         `UPDATE client_profile_fill_task
             SET heartbeat_at = now(), updated_at = now()
