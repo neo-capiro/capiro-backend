@@ -1,12 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { requireOwnerClient } from '../clients/client-ordered-owner.access.js';
 jest.setTimeout(60_000);
-import {
-  BillImpactService,
-  IMPACT_CLIENT_SQL,
-  IMPACT_STATE_SQL,
-  IMPACT_FEDERAL_SQL,
-} from './bill-impact.service.js';
+import { BillImpactService, IMPACT_STATE_SQL, IMPACT_FEDERAL_SQL } from './bill-impact.service.js';
 
 // Full production API + Intel migration chains, disposable native PostgreSQL only.
 const describeDb =
@@ -64,14 +60,27 @@ describeDb('bill impact native PostgreSQL scope and source contracts', () => {
   it('denies foreign tenants, inactive memberships, archived and ungranted memory-wall clients', async () => {
     await isolated(async (tx, id) => {
       const read = (tenant = id.tenant) =>
-        tx.$queryRawUnsafe(IMPACT_CLIENT_SQL, tenant, id.user, id.client);
-      expect(await read()).toHaveLength(1);
-      expect(await read(id.other)).toHaveLength(0);
+        requireOwnerClient(
+          tx,
+          {
+            tenantId: tenant,
+            userId: id.user,
+            clerkUserId: id.user,
+            tenantSlug: 'fixture',
+            role: 'standard_user',
+          },
+          id.client,
+          false,
+          false,
+          'share',
+        );
+      await expect(read()).resolves.toBeDefined();
+      await expect(read(id.other)).rejects.toThrow('Account owner access denied');
       await tx.$executeRawUnsafe(
         `UPDATE clients SET memory_wall=true WHERE id=$1::uuid`,
         id.client,
       );
-      expect(await read()).toHaveLength(0);
+      await expect(read()).rejects.toThrow('Client not found');
       await tx.$executeRawUnsafe(
         `INSERT INTO client_memory_access(id,tenant_id,client_id,user_id) VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid)`,
         randomUUID(),
@@ -79,18 +88,18 @@ describeDb('bill impact native PostgreSQL scope and source contracts', () => {
         id.client,
         id.user,
       );
-      expect(await read()).toHaveLength(1);
+      await expect(read()).resolves.toBeDefined();
       await tx.$executeRawUnsafe(
         `UPDATE clients SET status='archived' WHERE id=$1::uuid`,
         id.client,
       );
-      expect(await read()).toHaveLength(0);
+      await expect(read()).rejects.toThrow('Client not found');
       await tx.$executeRawUnsafe(`UPDATE clients SET status='active' WHERE id=$1::uuid`, id.client);
       await tx.$executeRawUnsafe(
         `UPDATE tenant_memberships SET status='invited' WHERE tenant_id=$1::uuid`,
         id.tenant,
       );
-      expect(await read()).toHaveLength(0);
+      await expect(read()).rejects.toThrow('Account owner access denied');
     });
   });
   it('reads complete Florida text through the actual immutable source view and rejects wrong session/bill', async () => {
@@ -140,14 +149,22 @@ describeDb('bill impact native PostgreSQL scope and source contracts', () => {
       expect(await tx.$queryRawUnsafe(IMPACT_STATE_SQL, `${bill}other`, '2026')).toHaveLength(0);
       const service = new BillImpactService(
         {
-          withTenant: async (_: string, fn: any) => fn(tx),
+          withTenantUser: async (_: string, userId: string, fn: any) => {
+            await tx.$executeRawUnsafe(`SELECT set_config('app.current_user',$1,true)`, userId);
+            return fn(tx);
+          },
           $queryRawUnsafe: tx.$queryRawUnsafe.bind(tx),
         } as never,
         {} as never,
-        {} as never,
       );
       const resultOptions = await service.options(
-        { tenantId: id.tenant, userId: id.user } as never,
+        {
+          tenantId: id.tenant,
+          userId: id.user,
+          clerkUserId: id.user,
+          tenantSlug: 'fixture',
+          role: 'standard_user',
+        },
         bill,
         id.client,
       );

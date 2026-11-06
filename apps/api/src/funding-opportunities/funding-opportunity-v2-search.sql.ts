@@ -463,7 +463,7 @@ export function sourceBase(source: OpportunitySourceV2): Prisma.Sql {
         FROM tango_procurement_forecast f`;
     case 'dibbs':
       return Prisma.sql`SELECT 'dibbs'::text source, d.tango_dibbs_id source_record_id, 'dibbs:' || d.tango_dibbs_id id,
-        coalesce(d.nomenclature, d.solicitation) title, 'Defense Logistics Agency'::text agency, d.document_url source_url,
+        coalesce(d.nomenclature, d.solicitation, d.tango_dibbs_id) title, 'Defense Logistics Agency'::text agency, d.document_url source_url,
         'solicitation' type,
         CASE WHEN d.closes_date IS NOT NULL AND d.closes_date < CURRENT_DATE THEN 'closed' WHEN d.is_open IS TRUE THEN 'active' ELSE 'closed' END lifecycle,
         d.issued_date posted_date, d.closes_date deadline, d.closes_date close_date,

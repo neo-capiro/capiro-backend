@@ -295,8 +295,8 @@ export class TrackerBoardService {
     return trackerBoardQueries.getSummary(this, tenantId, clientId);
   }
 
-  async getPortfolioCounts(tenantId: string): Promise<{ counts: Record<string, number> }> {
-    return trackerBoardQueries.getPortfolioCounts(this, tenantId);
+  async getPortfolioCounts(tenantId: string, clientIds?: string[]): Promise<{ counts: Record<string, number> }> {
+    return trackerBoardQueries.getPortfolioCounts(this, tenantId, clientIds);
   }
 
   async searchBills(

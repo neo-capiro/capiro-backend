@@ -45,6 +45,8 @@ export type TangoDibbsSolicitationRow = Omit<
   'id' | 'firstSyncedAt' | 'lastSyncedAt' | 'createdAt' | 'updatedAt'
 >;
 
+export const DIBBS_PROVIDER_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export type TangoDibbsAwardRow = Omit<
   Prisma.TangoDibbsAwardCreateInput,
   'id' | 'firstSyncedAt' | 'lastSyncedAt' | 'createdAt' | 'updatedAt'
@@ -143,7 +145,7 @@ export function reconcileQuantity(
  * `/api/dibbs/rfqs/` — a request for quote.
  *
  * Returns null when the record has no provider `uuid` or no `solicitation`:
- * the first is the upsert key and the second is NOT NULL on the table, so a
+ * the first is the upsert key and the second is required for RFQs, so a
  * record missing either cannot be stored without inventing one. Dropped and
  * counted, never half-mapped.
  */
@@ -182,9 +184,15 @@ export function mapDibbsRfq(raw: Record<string, unknown>): TangoDibbsSolicitatio
 
 /** `/api/dibbs/rfps/` — a request for proposal / invitation for bid. */
 export function mapDibbsRfp(raw: Record<string, unknown>): TangoDibbsSolicitationRow | null {
-  const tangoDibbsId = str(raw['uuid']);
+  const uuid = raw['uuid'];
+  if (typeof uuid !== 'string') return null;
+  const tangoDibbsId = str(uuid);
   const common = commonSolicitationFields(raw);
-  if (tangoDibbsId == null || common.solicitation == null) return null;
+  if (tangoDibbsId == null) return null;
+  if (common.solicitation == null) {
+    // Tango can publish a NEW posting keyed by UUID before assigning a number.
+    if (raw['solicitation'] != null || !DIBBS_PROVIDER_UUID.test(uuid)) return null;
+  }
 
   return {
     tangoDibbsId,

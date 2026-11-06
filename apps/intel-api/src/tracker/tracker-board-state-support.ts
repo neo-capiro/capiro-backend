@@ -219,7 +219,7 @@ export class TrackerBoardStateSupport {
     // Candidate ids = tracked (tenant[+client]) ∩ existing billId.in.
     const trackedRows = await host['prisma'].withTenant(tenantId, (tx) =>
       tx.trackedBill.findMany({
-        where: { tenantId, ...(clientId ? { clientId } : {}) },
+        where: { tenantId, ...(clientId ? { clientId } : baseWhere['clientId'] ? { clientId: baseWhere['clientId'] as { in: string[] } } : {}) },
         select: { billId: true },
         distinct: ['billId'],
       }),

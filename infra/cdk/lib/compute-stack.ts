@@ -20,7 +20,7 @@ import * as rds from 'aws-cdk-lib/aws-rds';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as eventsTargets from 'aws-cdk-lib/aws-events-targets';
-import { commonTags, type EnvConfig } from './config';
+import { commonTags, completeExternalSecretArn, legiwatchAgentEnvironment, type EnvConfig } from './config';
 import { ScheduledIngestionJobs } from './constructs/scheduled-ingestion-jobs';
 import { INGESTION_JOBS } from './ingestion-schedule';
 import type { SecretsStack } from './secrets-stack';
@@ -184,7 +184,7 @@ export class ComputeStack extends cdk.Stack {
       'ImportedLegistormApiKey',
       `capiro/${cfg.envName}/legistorm-api-key`,
     );
-    // LegiScan key for Meri's live state-bill lookup (serve task, #2098):
+    // LegiScan key for Meri's live state-bill lookup and scheduled state ingestion:
     // capiro/<env>/legiscan_api_key, provisioned out-of-band for the state
     // sync jobs. Wired onto capiro-dev-api by a 2026-10-06 configuration
     // revision (Neo's OK); see DRIFT-FINDINGS.md.
@@ -204,6 +204,18 @@ export class ComputeStack extends cdk.Stack {
       'ImportedCensusApiKey',
       `capiro/${cfg.envName}/census_api_key`,
     );
+    const legiwatchEnv = legiwatchAgentEnvironment(cfg);
+    const sourceApiSecrets: Record<string, ecs.Secret> = {};
+    for (const [name, arn] of [
+      ['CONGRESS_API_KEY', cfg.externalSecretArns?.congressApiKey],
+      ['REGULATIONS_GOV_API_KEY', cfg.externalSecretArns?.regulationsGovApiKey],
+    ] as const) {
+      if (arn === undefined) continue;
+      const secret = secretsmanager.Secret.fromSecretCompleteArn(
+        this, `Imported${name}`, completeExternalSecretArn(arn, cfg, name),
+      );
+      sourceApiSecrets[name] = ecs.Secret.fromSecretsManager(secret);
+    }
 
     // Microsoft 365 Graph OAuth + token-at-rest crypto. These secrets are
     // provisioned out-of-band and imported by complete ARN when available. ECS
@@ -690,7 +702,8 @@ export class ComputeStack extends cdk.Stack {
         ? { TYPESAFE_API_KEY: ecs.Secret.fromSecretsManager(typeSafeApiKeySecret) }
         : {}),
       GOVINFO_API_KEY: ecs.Secret.fromSecretsManager(govInfoApiKeyImported),
-      // Meri live state-bill lookup (serve only; see the import above).
+      ...sourceApiSecrets,
+      // Meri live state-bill lookup and scheduled state ingestion share this key.
       LEGISCAN_API_KEY: ecs.Secret.fromSecretsManager(legiscanApiKeyImported),
       // Meeting notetaker (serve only — see the import above for the gating).
       RECALL_API_KEY: ecs.Secret.fromSecretsManager(recallApiKeySecret),
@@ -722,8 +735,8 @@ export class ComputeStack extends cdk.Stack {
       // Step 33 SAM.gov personnel sync (sync-sam-personnel) also runs here.
       SAM_GOV_API_KEY: ecs.Secret.fromSecretsManager(samGovApiKeySecret),
     };
-    // Scheduled sync task secrets = migrate bundle + the LegiStorm key + the
-    // Census key. Kept separate from apiServeSecrets so the long-lived
+    // Scheduled sync task secrets extend the migrate bundle with source keys
+    // and the directory/Census credentials. Kept separate so the long-lived
     // API/web tasks never receive LEGISTORM_API_KEY/CENSUS_API_KEY (only the
     // ephemeral sync task does).
     //
@@ -733,6 +746,11 @@ export class ComputeStack extends cdk.Stack {
     // not add an `undefined` value to the secrets map, which ECS would reject.
     const apiSyncSecrets = {
       ...apiMigrateSecrets,
+      ...sourceApiSecrets,
+      LEGISCAN_API_KEY: ecs.Secret.fromSecretsManager(legiscanApiKeyImported),
+      ...(cfg.legiwatchAgentProvider === 'anthropic'
+        ? { ANTHROPIC_API_KEY: ecs.Secret.fromSecretsManager(anthropicApiKeySecret) }
+        : {}),
       LEGISTORM_API_KEY: ecs.Secret.fromSecretsManager(legistormApiKeyImported),
       CENSUS_API_KEY: ecs.Secret.fromSecretsManager(censusApiKeyImported),
       ...(tangoApiKeySecret
@@ -995,7 +1013,7 @@ export class ComputeStack extends cdk.Stack {
         logGroup: apiLogGroup,
         streamPrefix: 'api',
       }),
-      environment: apiSharedEnv,
+      environment: { ...apiSharedEnv, ...legiwatchEnv },
       secrets: apiServeSecrets,
       readonlyRootFilesystem: true,
       // Container exposes 4000; ALB target group hits /health.
@@ -1945,9 +1963,9 @@ export class ComputeStack extends cdk.Stack {
       // Default is a no-op help command; every scheduled rule overrides this
       // with its own job command (e.g. ['sync-congress']).
       command: ['serve'],
-      environment: apiSharedEnv,
-      // apiSyncSecrets adds LEGISTORM_API_KEY for sync-legistorm-directory; every
-      // other injected secret matches the migrate bundle.
+      environment: { ...apiSharedEnv, ...legiwatchEnv },
+      // New source credentials stay off migration tasks. The Claude key is only
+      // added for an explicit LegiWatch Anthropic provider selection.
       secrets: apiSyncSecrets,
       readonlyRootFilesystem: false,
     });

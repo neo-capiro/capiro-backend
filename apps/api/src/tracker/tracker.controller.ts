@@ -4,6 +4,7 @@ import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { TrackerService } from './tracker.service.js';
+import { TrackerClientAccessGuard } from './tracker-client-access.guard.js';
 import { TrackerAlertService } from './notifications/tracker-alert.service.js';
 import { SmsVerificationService } from './sms/sms-verification.service.js';
 import {
@@ -23,7 +24,7 @@ import {
  * endpoints. Tenant-guarded; standard_user and up.
  */
 @Controller('intelligence')
-@UseGuards(RolesGuard)
+@UseGuards(RolesGuard, TrackerClientAccessGuard)
 @Roles('standard_user')
 export class TrackerController {
   constructor(

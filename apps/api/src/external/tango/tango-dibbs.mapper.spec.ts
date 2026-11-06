@@ -165,8 +165,9 @@ describe('mapDibbsRfq', () => {
     expect(mapDibbsRfq({ ...rfq, uuid: null })).toBeNull();
   });
 
-  it('RETURNS NULL when there is no solicitation — the column is NOT NULL', () => {
+  it('requires a solicitation number on RFQs', () => {
     expect(mapDibbsRfq({ ...rfq, solicitation: '  ' })).toBeNull();
+    expect(mapDibbsRfq({ ...rfq, solicitation: null })).toBeNull();
   });
 
   it('treats a missing is_open as UNKNOWN, never as closed', () => {
@@ -231,9 +232,23 @@ describe('mapDibbsRfp', () => {
     expect(row?.closesDate).toBeNull();
   });
 
-  it('RETURNS NULL with no uuid or no solicitation', () => {
-    expect(mapDibbsRfp({ ...rfp, uuid: '' })).toBeNull();
-    expect(mapDibbsRfp({ ...rfp, solicitation: null })).toBeNull();
+  const uuid = '00000000-0000-4000-8000-000000000123';
+
+  it('keeps the provider UUID and a genuine null for pending or omitted numbers', () => {
+    for (const raw of [{ uuid, is_open: true }, { uuid, is_open: true, solicitation: null }]) {
+      expect(mapDibbsRfp(raw)).toMatchObject({ tangoDibbsId: uuid, solicitation: null, documentType: 'rfp' });
+    }
+  });
+
+  it.each([null, undefined, '', ' ', false, 123])('rejects an unusable UUID %p', (value) => {
+    expect(mapDibbsRfp({ ...rfp, uuid: value })).toBeNull();
+    expect(mapDibbsRfp({ uuid: value, solicitation: null })).toBeNull();
+  });
+
+  it('rejects malformed pending records without broadening the numbered-record mapper', () => {
+    expect(mapDibbsRfp({ uuid: 'opaque-key', solicitation: null })).toBeNull();
+    expect(mapDibbsRfp({ uuid, solicitation: '  ' })).toBeNull();
+    expect(mapDibbsRfp({ uuid, solicitation: {} })).toBeNull();
   });
 });
 

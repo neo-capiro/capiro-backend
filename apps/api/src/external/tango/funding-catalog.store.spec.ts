@@ -1,5 +1,6 @@
 import { walk } from '../../../scripts/sync-tango-funding.js';
 import { FundingCatalogStore } from './funding-catalog.store.js';
+import { mapDibbsRfp } from './tango-dibbs.mapper.js';
 
 /**
  * A provider opportunity family can legitimately arrive without a SAM URL and
@@ -9,6 +10,23 @@ import { FundingCatalogStore } from './funding-catalog.store.js';
  * so no live database or provider call is involved.
  */
 const key = (c: string) => c.repeat(32);
+
+test('a pending RFP acquires its number on the same provider UUID across repeated writes', async () => {
+  const uuid = '00000000-0000-4000-8000-000000000123';
+  const pending = mapDibbsRfp({ uuid, is_open: true, solicitation: null })!;
+  const numbered = mapDibbsRfp({ uuid, is_open: true, solicitation: 'RFP-123' })!;
+  const upsert = jest.fn().mockResolvedValue({});
+  const tx = { tangoDibbsSolicitation: { upsert }, $queryRaw: jest.fn().mockResolvedValue([]) };
+  const store = new FundingCatalogStore({ $transaction: (work: (client: typeof tx) => unknown) => work(tx) } as never);
+  for (const row of [pending, numbered, numbered, pending]) await store.dibbsSolicitation(row, true);
+
+  const calls = upsert.mock.calls.map(([args]) => args);
+  expect(calls.map(args => args.where)).toEqual(Array(4).fill({ tangoDibbsId: uuid }));
+  expect(calls[0].create.solicitation).toBeNull();
+  expect(calls[1].update.solicitation).toBe('RFP-123');
+  expect(calls[2].update.solicitation).toBe('RFP-123');
+  expect(calls[3].update.solicitation).toBeUndefined();
+});
 
 function harness(options: { localNoticeId?: string; snapshotFailsFor?: string } = {}) {
   const snapshots: any[] = [];

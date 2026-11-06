@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Header, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { TrackerOwnerGuard } from './tracker-owner.guard.js';
+import { TrackerClientAccessGuard, type TrackerClientRequest } from './tracker-client-access.guard.js';
 import { TrackerBoardService } from './tracker-board.service.js';
 import type { BillStage } from './bill-stage.util.js';
 import {
@@ -34,7 +35,7 @@ import {
  * reaches it; apps/api stays source of truth (D6).
  */
 @Controller('clients')
-@UseGuards(TenantGuard, TrackerOwnerGuard)
+@UseGuards(TenantGuard, TrackerOwnerGuard, TrackerClientAccessGuard)
 export class TrackerBoardController {
   constructor(private readonly svc: TrackerBoardService) {}
 
@@ -45,8 +46,8 @@ export class TrackerBoardController {
   }
 
   @Get('_all/tracker/counts')
-  getPortfolioCounts(@CurrentTenant() ctx: WorkspaceTenantContext) {
-    return this.svc.getPortfolioCounts(ctx.tenantId);
+  getPortfolioCounts(@CurrentTenant() ctx: WorkspaceTenantContext, @Req() req: TrackerClientRequest) {
+    return this.svc.getPortfolioCounts(ctx.tenantId, req.trackerClientIds ?? []);
   }
 
   @Get(':clientId/recommendations')
@@ -73,6 +74,7 @@ export class TrackerBoardController {
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Param('clientId') clientId: string,
     @Query() query: BoardQueryDto,
+    @Req() req: TrackerClientRequest,
   ) {
     const opts = {
       limit: query.limit,
@@ -84,8 +86,10 @@ export class TrackerBoardController {
         clientIds: query.clientIds,
       },
     };
+    const allowed = req.trackerClientIds ?? [];
+    const scopedIds = query.clientIds?.length ? allowed.filter(id => query.clientIds!.includes(id)) : allowed;
     return clientId === '_all'
-      ? this.svc.getTenantBoard(ctx.tenantId, opts)
+      ? this.svc.getTenantBoard(ctx.tenantId, { ...opts, filters: { ...opts.filters, clientIds: scopedIds } })
       : this.svc.getBoard(ctx.tenantId, clientId, opts);
   }
 

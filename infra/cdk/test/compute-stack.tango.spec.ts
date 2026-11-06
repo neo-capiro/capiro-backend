@@ -168,6 +168,53 @@ function synthComputeStack(cfg: EnvConfig): Template {
   return Template.fromStack(stack);
 }
 
+describe('LegiWatch task credentials and provider configuration', () => {
+  test('source keys reach serving and ingestion tasks, preserving migration and Census isolation', () => {
+    const template = synthComputeStack(baseConfig({
+      congressApiKey: 'arn:aws:secretsmanager:us-east-1:123456789012:secret:synthetic/congress-ABC123',
+      regulationsGovApiKey: 'arn:aws:secretsmanager:us-east-1:123456789012:secret:synthetic/regulations-ABC123',
+    }));
+    const families: Record<string, string[]> = {};
+    for (const resource of Object.values(template.findResources('AWS::ECS::TaskDefinition')) as any[]) {
+      for (const container of resource.Properties.ContainerDefinitions) {
+        families[resource.Properties.Family] = (container.Secrets ?? []).map((secret: { Name: string }) => secret.Name);
+        if (families[resource.Properties.Family]!.includes('CONGRESS_API_KEY')) {
+          expect(resource.Properties.Family).toMatch(/^capiro-dev-api(?:-sync-jobs)?$/);
+        }
+      }
+    }
+    for (const family of ['capiro-dev-api', 'capiro-dev-api-sync-jobs']) {
+      expect(families[family]).toEqual(expect.arrayContaining(['CONGRESS_API_KEY', 'REGULATIONS_GOV_API_KEY', 'LEGISCAN_API_KEY', 'GOVINFO_API_KEY']));
+    }
+    expect(families['capiro-dev-api-sync-jobs']).not.toContain('ANTHROPIC_API_KEY');
+    expect(families['capiro-dev-api']).not.toContain('CENSUS_API_KEY');
+    expect(families['capiro-dev-api-migrate']).not.toContain('CONGRESS_API_KEY');
+  });
+
+  test('explicit Anthropic selection mounts the existing credential only on the new worker consumer', () => {
+    const cfg = baseConfig();
+    cfg.legiwatchAgentProvider = 'anthropic';
+    cfg.legiwatchAgentModel = 'synthetic-reviewed-model';
+    const template = synthComputeStack(cfg);
+    for (const family of ['capiro-dev-api', 'capiro-dev-api-sync-jobs']) {
+      template.hasResourceProperties('AWS::ECS::TaskDefinition', {
+        Family: family,
+        ContainerDefinitions: Match.arrayWith([Match.objectLike({
+          Environment: Match.arrayWith([
+            { Name: 'LEGIWATCH_AGENT_PROVIDER', Value: 'anthropic' },
+            { Name: 'LEGIWATCH_AGENT_MODEL', Value: 'synthetic-reviewed-model' },
+          ]),
+          Secrets: Match.arrayWith([Match.objectLike({ Name: 'ANTHROPIC_API_KEY' })]),
+        })]),
+      });
+    }
+    const migrate = Object.values(template.findResources('AWS::ECS::TaskDefinition'))
+      .find((resource: any) => resource.Properties.Family === 'capiro-dev-api-migrate') as any;
+    expect(migrate.Properties.ContainerDefinitions[0].Environment)
+      .not.toEqual(expect.arrayContaining([expect.objectContaining({ Name: 'LEGIWATCH_AGENT_PROVIDER' })]));
+  });
+});
+
 describe('MakeGov/Tango secret wiring (P16)', () => {
   test('with NO tangoApiKey ARN configured, TANGO_API_KEY appears on NO task definition', () => {
     const template = synthComputeStack(baseConfig());

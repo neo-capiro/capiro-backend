@@ -49,6 +49,7 @@ import { DistrictBriefModule } from './intelligence/alert-memo/district-brief.mo
 import { ChokepointModule } from './intelligence/chokepoint/chokepoint.module.js';
 import { AgenticModule } from './agentic/agentic.module.js';
 import { TrackerModule } from './tracker/tracker.module.js';
+import { ImpactModule } from './legiwatch-impact/impact.module.js';
 import { WorkspaceCollabModule } from './workspace-collab/workspace-collab.module.js';
 import { WorkspaceAssistantModule } from './workspace-assistant/workspace-assistant.module.js';
 import { QualityTelemetryModule } from './quality-telemetry/quality-telemetry.module.js';
@@ -138,6 +139,7 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
     ChokepointModule,
     AgenticModule,
     TrackerModule,
+    ImpactModule,
     WorkspaceCollabModule,
     WorkspaceAssistantModule,
     QualityTelemetryModule,

@@ -1,15 +1,11 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module.js';
-import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module.js';
-import { LlmCompletionService } from '../engagement/llm-completion.service.js';
+import { PortfolioAgentService } from '../clients/portfolio-agent.service.js';
 import { BillImpactController } from './bill-impact.controller.js';
 import { BillImpactService } from './bill-impact.service.js';
 @Module({
-  imports: [PrismaModule, AiCredentialsModule],
+  imports: [PrismaModule],
   controllers: [BillImpactController],
-  providers: [
-    BillImpactService,
-    { provide: LlmCompletionService, useFactory: () => new LlmCompletionService() },
-  ],
+  providers: [BillImpactService, PortfolioAgentService],
 })
 export class BillImpactModule {}
