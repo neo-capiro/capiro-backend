@@ -30,10 +30,7 @@ import { StrategyContextPlaneClient } from '../src/meri/strategy-context-plane.c
 import { GENERATION_ADMISSION, GENERATION_REQUEST, canonicalGenerationAdmissionSha256 } from '../src/meri/objective-canonical-generation.js';
 import { readGenerationLedger } from '../src/meri/objective-canonical-producer-ledger.js';
 import { digest, type ObjectiveAdmission } from '../src/meri/objective-generation.types.js';
-import { createCanonicalRequestPublication } from '../src/meri/objective-canonical-request.js';
-import type { DraftJobInput } from '../src/meri/draft-job.types.js';
-import { buildObjectivePlannerNativeFixture, seedObjectivePlannerNativeReadyWithinTx,
-  type ObjectivePlannerNativeFixture } from './objective-planner-native-fixture.js';
+import { buildObjectivePlannerNativeFixture, seedObjectivePlannerNativeReadyWithinTx } from './objective-planner-native-fixture.js';
 
 /** Bounded qualification of the existing owners, on a separately provisioned
  * task-owned Docker PG16 only. This does not repoint the historical port56455
@@ -55,6 +52,7 @@ native('canonical Objective context failure on the owned PG16 target', () => {
     postmasterStartedAtSeconds: string; expiresAtMs: number };
   const handlers = new Map<string, (path: string) => Promise<{ status: number; body: unknown }>>();
   const serverErrors: unknown[] = [];
+  const originalFetch = global.fetch;
 
   async function catalog(db: PrismaService | CorePrismaService) {
     const rows = await db.$queryRaw<Array<{ name: string; oid: number; comment: string; started: string;
@@ -108,7 +106,17 @@ native('canonical Objective context failure on the owned PG16 target', () => {
     });
     await new Promise<void>(done => server.listen(0, '127.0.0.1', done));
     const address = server.address(); if (!address || typeof address === 'string') throw Error('fixture listener unavailable');
-    config = new ConfigService({ INTERNAL_SERVICE_SECRET: secret, API_INTERNAL_URL: `http://127.0.0.1:${address.port}` });
+    const origin = `http://127.0.0.1:${address.port}`;
+    // Node's fetch JSON decoder runs outside Jest's VM. Decode the actual HTTP
+    // bytes in this VM so strict plain-object codecs see the production realm.
+    // Status, headers, transport and cancellation remain the native fetch path.
+    global.fetch = async (input, init) => {
+      expect(new URL(String(input)).origin).toBe(origin);
+      const result = await originalFetch(input, init);
+      result.json = async () => JSON.parse(await result.text());
+      return result;
+    };
+    config = new ConfigService({ INTERNAL_SERVICE_SECRET: secret, API_INTERNAL_URL: origin });
     transport = { headers: { 'x-internal-service-secret': secret } } as unknown as Request;
     const execution = { switchToHttp: () => ({ getRequest: () => transport }) } as unknown as ExecutionContext;
     expect(new InternalServiceGuard(config).canActivate(execution)).toBe(true);
@@ -116,6 +124,7 @@ native('canonical Objective context failure on the owned PG16 target', () => {
     contextPlane = new StrategyContextPlaneClient(config);
   }, 30_000);
   afterAll(async () => {
+    global.fetch = originalFetch;
     await core?.$disconnect(); await prisma?.$disconnect();
     if (server) await new Promise<void>((done, reject) => server.close(error => error ? reject(error) : done()));
     expect(serverErrors).toEqual([]);
@@ -224,7 +233,7 @@ native('canonical Objective context failure on the owned PG16 target', () => {
 
   function successPacket(s: Selected) {
     const prompt = 'Synthetic current Objective context for native publication contention.\n';
-    const compiled: ObjectiveAdmission = structuredClone(s.f.compiled);
+    const compiled: ObjectiveAdmission = JSON.parse(JSON.stringify(s.f.compiled));
     compiled.requestId = s.requestId; compiled.type = 'coalition';
     const coverage = { complete: true, truncated: false };
     compiled.context.coverageDigest = digest({ manifest: compiled.coverage, history: coverage, policy: 'objective-v1-required-lossless' });
@@ -245,10 +254,6 @@ native('canonical Objective context failure on the owned PG16 target', () => {
 
   test.each(['publication', 'failure'] as const)('concurrent publication and failure preserve the first committed %s', async winner => {
     const s = await selected(), packets = successPacket(s);
-    const input = (await audit(s)).job.input as unknown as DraftJobInput;
-    createCanonicalRequestPublication({ admission: s.admission, dto: input.dto, context: packets.compile.body.objectiveTypedContext,
-      prompt: packets.compile.body.governedContext.prompt, owners: [{ ownerRef: s.f.clerkUserId, clerkUserId: s.f.clerkUserId }],
-      requestedAtMs: Date.now(), effectExpiresAtMs: s.admission.effectExpiresAtMs });
     let release!: () => void, entered!: () => void, compileCalls = 0;
     const blocked = new Promise<void>(done => { release = done; }), waiting = new Promise<void>(done => { entered = done; });
     handlers.set(s.requestId, async path => {
