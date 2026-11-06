@@ -111,6 +111,44 @@ export async function reviewDatabase(url: string) {
           'utf8',
         ),
       );
+    // Current claim/retry/heartbeat SQL joins both subject columns. This fixture
+    // intentionally admits only clients: retain client_id NOT NULL and project
+    // the real owner column/check without inventing a prospect owner or access.
+    const subjectMigration = readFileSync(
+      join(
+        __dirname,
+        '../../prisma/migrations/20290110010000_portfolio_subject_facts/migration.sql',
+      ),
+      'utf8',
+    );
+    const subjectColumn = subjectMigration.match(
+      /ALTER TABLE client_profile_fill_run ADD COLUMN prospect_id uuid;/,
+    )?.[0];
+    const subjectCheck = subjectMigration.match(
+      /ALTER TABLE client_profile_fill_run ADD CONSTRAINT profile_run_subject CHECK \(num_nonnulls\(client_id,prospect_id\)=1\);/,
+    )?.[0];
+    if (!subjectColumn || !subjectCheck) throw Error('Missing fill subject owner definitions');
+    await admin.query('BEGIN');
+    for (const table of [
+      'client_profile_fill_run',
+      'client_profile_fill_task',
+      'client_profile_fill_extension_task',
+      'client_profile_fill_finding',
+    ]) {
+      const present = await admin.query(
+        "SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name=$1 AND column_name='prospect_id'",
+        [table],
+      );
+      if (!present.rowCount) {
+        await admin.query(subjectColumn.replace('client_profile_fill_run', table));
+        await admin.query(
+          subjectCheck
+            .replace('client_profile_fill_run', table)
+            .replace('profile_run_subject', table + '_subject'),
+        );
+      }
+    }
+    await admin.query('COMMIT');
   } catch (error) {
     await admin.query('ROLLBACK');
     await store.db.$disconnect();
