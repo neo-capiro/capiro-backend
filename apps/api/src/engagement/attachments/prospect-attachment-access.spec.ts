@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
+import { Readable } from 'node:stream';
 import { EngagementService } from '../engagement.service.js';
 import type { TenantContext } from '@capiro/shared';
 jest.mock('@aws-sdk/s3-presigned-post', () => ({
@@ -116,7 +117,7 @@ function harness() {
       send: jest.fn(async (command: any) => {
         if (command.constructor.name === 'DeleteObjectCommand' && state.failDelete)
           throw Error('synthetic delete unavailable');
-        return { ContentLength: bytes.length };
+        return { ContentLength: bytes.length, Body: Readable.from([bytes]), VersionId: 'synthetic-version' };
       }),
     },
     readAttachmentBytes: jest.fn(async () => bytes),
@@ -459,6 +460,10 @@ describe('ordinary client attachment upload access (synthetic only)', () => {
     Object.assign(service, {
       prisma: { withTenant: jest.fn(async (tenant: string, work: (db: typeof tx) => unknown) => {
         expect(tenant).toBe(ctx.tenantId);
+        return work(tx);
+      }), withTenantUser: jest.fn(async (tenant: string, user: string, work: (db: typeof tx) => unknown) => {
+        expect(tenant).toBe(ctx.tenantId);
+        expect(user).toBe(ctx.userId);
         return work(tx);
       }) },
       bucket: 'synthetic-bucket', s3: { send }, readAttachmentBytes: read,

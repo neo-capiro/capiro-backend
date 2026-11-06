@@ -1,4 +1,5 @@
 import { singleMailTestState } from '../__fixtures__/single-mail-ledger.js';
+import { createHash } from 'node:crypto';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import type { EngagementAttachment } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
@@ -72,6 +73,8 @@ function row(overrides: Partial<EngagementAttachment> = {}) {
     byteSize: bytes.length,
     lifecycleStatus: 'ready',
     scanStatus: 'clean',
+    calculatedSha256: createHash('sha256').update(bytes).digest('hex'),
+    source: 'upload',
     verifiedContentType: null,
     s3Key: 'synthetic-key',
     ...overrides,
@@ -132,6 +135,15 @@ const hearingAccess = jest.mocked(assertHearingRecordDocumentAccess);
 beforeEach(() => hearingAccess.mockReset().mockResolvedValue(undefined));
 
 describe('outbound attachment viewer and current-version boundary', () => {
+  it('refuses overwritten clean bytes before any mail provider call', async () => {
+    const h = harness();
+    h.readAttachmentBytes.mockResolvedValue(Buffer.from('Unscanned replacement'));
+    await expect(h.service.sendSingleMail(ctx, input)).rejects.toMatchObject({
+      response: { code: 'ATTACHMENT_CONTENT_CHANGED' },
+    });
+    expect(h.sendMail).not.toHaveBeenCalled();
+  });
+
   it('shares the exact ordinary viewer predicate without an administrator bypass', () => {
     expect(attachmentViewerWhere(ctx.userId)).toEqual([
       { viewerMode: 'all' },

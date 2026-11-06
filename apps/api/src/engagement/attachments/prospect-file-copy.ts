@@ -263,7 +263,7 @@ export async function copyProspectFile(
     key: receipt.key,
     payloadDigest: digest,
   });
-  const scan = await owner.scanner.getStatus(receipt.bucket, receipt.key);
+  const scan = await owner.scanner.getStatus(receipt.bucket, receipt.key, receipt.source.checksumSha256);
   const ready =
     scan === 'clean' || (scan === 'scanner_not_required' && !owner.scanner.scanRequired);
   await owner.prisma.withTenantUser(

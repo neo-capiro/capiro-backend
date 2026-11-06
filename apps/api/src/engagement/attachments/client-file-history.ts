@@ -5,9 +5,9 @@
  * Canonical inputs only. A "version" is one engagement attachment row, and its
  * exact attachment UUID is the only version identity this surface releases:
  *
- *  - it is NOT an S3 object VersionId — the attachment owner addresses objects by
- *    bucket + s3Key and never pins a storage version, so no storage version or
- *    locator is accepted, derived or returned here;
+ *  - it is NOT an S3 object VersionId — storage versions are private to the
+ *    attachment owner's verified signing path; this history accepts attachment
+ *    identities only;
  *  - it is NOT a generated-artifact id — a different namespace, which simply does
  *    not resolve against `engagement_attachments`.
  *
@@ -570,15 +570,15 @@ export async function readClientFileHistory(
   // the readiness verdict says may be used. A version that is suppressed, revoked,
   // quarantined, blocked or being deleted therefore keeps the established no-link state
   // instead of a working URL, and each URL addresses that version's OWN object.
-  const versions = await Promise.all(
-    page.map(async (row, index) => {
-      const readiness = owner.readiness(row);
-      const links = readiness.usable
-        ? await owner.links(row)
-        : { downloadUrl: null, previewUrl: null };
-      return projectVersion(row, offset + index + 1, headId, names, readiness, links);
-    }),
-  );
+  const versions = [];
+  // The signing owner verifies protected bytes. Keep only one bounded read active.
+  for (const [index, row] of page.entries()) {
+    const readiness = owner.readiness(row);
+    const links = readiness.usable
+      ? await owner.links(row)
+      : { downloadUrl: null, previewUrl: null };
+    versions.push(projectVersion(row, offset + index + 1, headId, names, readiness, links));
+  }
 
   // FINAL recheck, after every awaited signing call has completed. A signed URL is a bearer
   // capability, so the page is released only if each row is STILL currently readable through
