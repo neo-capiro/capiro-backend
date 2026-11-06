@@ -382,6 +382,31 @@ export const configSchema = z.object({
     .default('false')
     .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
 
+  // Attachment scanner provider selection (Phase 1 §6.1 — ClamAV sidecar).
+  //
+  // ENGAGEMENT_ATTACHMENT_SCANNER_PROVIDER: which scanner adapter to activate.
+  //   'none'   (default) — NullAttachmentScanner, existing behavior unchanged.
+  //            When ENGAGEMENT_ATTACHMENT_SCAN_REQUIRED=false: reports
+  //            scanner_not_required. When true: reports failed (fail-closed).
+  //   'clamav' — streams S3 bytes to a ClamAV clamd sidecar on 127.0.0.1:3310
+  //            via the INSTREAM protocol. The ECS task must have clamd running
+  //            in the same awsvpc task; provisioned independently by the parent.
+  //
+  // Default 'none' is unchanged — this value is NEVER activated by a code
+  // deploy. Set 'clamav' out-of-band ONLY after the sidecar is provisioned and
+  // the health probe passes.
+  ENGAGEMENT_ATTACHMENT_SCANNER_PROVIDER: z
+    .enum(['none', 'clamav'])
+    .default('none'),
+
+  // ClamAV scanner tunables. Only read when
+  // ENGAGEMENT_ATTACHMENT_SCANNER_PROVIDER=clamav.
+  //
+  // ENGAGEMENT_CLAMAV_PORT: clamd TCP port (loopback only; default 3310).
+  // ENGAGEMENT_CLAMAV_TIMEOUT_MS: whole-operation timeout in ms (default 15 000, maximum 20 000).
+  ENGAGEMENT_CLAMAV_PORT: z.coerce.number().int().min(1).max(65535).default(3310),
+  ENGAGEMENT_CLAMAV_TIMEOUT_MS: z.coerce.number().int().positive().max(20_000).default(15_000),
+
   // Engagement Phase 2 — per-artifact approval + sharing (plan §d).
   //
   // ENGAGEMENT_ARTIFACT_SHARING_V2: when ON, sharing moves from whole-meeting

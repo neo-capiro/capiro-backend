@@ -7582,7 +7582,9 @@ export class EngagementService {
     // New uploads start QUARANTINED with a pending scan. The DB default is
     // 'legacy_ready' precisely so the migration cannot retroactively quarantine
     // historical rows; the quarantine decision lives here, at the point of upload.
-    const initialScan = await this.scanner.getStatus(this.bucket!, input.s3Key);
+    const initialScan = calculatedSha256
+      ? await this.scanner.getStatus(this.bucket!, input.s3Key, calculatedSha256)
+      : 'failed';
     const scanClean = initialScan === 'clean';
 
     const attachment = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
@@ -8522,7 +8524,7 @@ export class EngagementService {
     if (internal) await internal.beforeWrite();
     if (incomingMail) await incomingMail.beforeWrite();
     const initialScan = input.untrustedUpload
-      ? await this.scanner.getStatus(this.bucket, s3Key)
+      ? await this.scanner.getStatus(this.bucket, s3Key, byteHash)
       : null;
     if (internal) await internal.beforeWrite();
     const scanReady =
