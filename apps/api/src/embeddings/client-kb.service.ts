@@ -1,7 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
-import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { S3Client } from '@aws-sdk/client-s3';
+import {
+  assertAttachmentByteIntegrity,
+  readAttachmentObject,
+  type AttachmentByteIdentity,
+} from '../engagement/attachments/attachment-object-read.js';
 import mammoth from 'mammoth';
 import type { Prisma } from '@prisma/client';
 import type { AppConfig } from '../config/config.schema.js';
@@ -35,7 +40,7 @@ import {
   type KbSourceType,
 } from './client-kb.helpers.js';
 
-type AttachmentIndexSnapshot = {
+type AttachmentIndexSnapshot = AttachmentByteIdentity & {
   id: string;
   clientId: string | null;
   meetingId: string | null;
@@ -388,6 +393,8 @@ export class ClientKbService {
           viewerMode: true,
           lifecycleStatus: true,
           scanStatus: true,
+          calculatedSha256: true,
+          source: true,
           supersededByAttachmentId: true,
           indexClaimToken: true,
           indexSourceGeneration: true,
@@ -698,6 +705,7 @@ export class ClientKbService {
       `SELECT id, client_id AS "clientId", meeting_id AS "meetingId", s3_key AS "s3Key",
               viewer_mode AS "viewerMode", lifecycle_status AS "lifecycleStatus",
               scan_status AS "scanStatus", superseded_by_attachment_id AS "supersededByAttachmentId",
+              calculated_sha256 AS "calculatedSha256", source,
               file_name AS "fileName", content_type AS "contentType",
               index_claim_token AS "indexClaimToken",
               index_source_generation AS "indexSourceGeneration"
@@ -747,7 +755,10 @@ export class ClientKbService {
       this.canIndexDocument(current) &&
       current.clientId === snapshot.clientId &&
       current.meetingId === snapshot.meetingId &&
-      current.s3Key === snapshot.s3Key
+      current.s3Key === snapshot.s3Key &&
+      current.calculatedSha256 === snapshot.calculatedSha256 &&
+      current.scanStatus === snapshot.scanStatus &&
+      current.source === snapshot.source
     ))
       return false;
     if (!claim) return true;
@@ -931,7 +942,7 @@ export class ClientKbService {
   }
 
   /** S3 download + text extraction; null for image/unsupported kinds. */
-  private async extractAttachmentTextForKb(attachment: {
+  private async extractAttachmentTextForKb(attachment: AttachmentByteIdentity & {
     fileName: string;
     contentType: string | null;
     s3Key: string;
@@ -949,10 +960,8 @@ export class ClientKbService {
       name.endsWith('.md') ||
       name.endsWith('.csv');
     if (!isPdf && !isDocx && !isText) return null;
-    const res = await this.s3.send(
-      new GetObjectCommand({ Bucket: this.bucket, Key: attachment.s3Key }),
-    );
-    const bytes = Buffer.from(await res.Body!.transformToByteArray());
+    const { bytes } = await readAttachmentObject(this.s3, this.bucket, attachment.s3Key);
+    assertAttachmentByteIntegrity(attachment, bytes);
     if (isText) return { text: bytes.toString('utf8'), truncated: false };
     if (isDocx)
       return { text: (await mammoth.extractRawText({ buffer: bytes })).value, truncated: false };

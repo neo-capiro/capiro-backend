@@ -1,0 +1,12 @@
+{
+  "status": "SOURCE_PROPOSAL_NOT_IMAGE_SBOM",
+  "components": [
+    {"name":"ClamAV","version":"1.5.4","url":"https://github.com/Cisco-Talos/clamav/releases/download/clamav-1.5.4/clamav-1.5.4.tar.gz","sourceSha256":"1af1117a228f1b5bc7fa91a0dabc37848a99e7d25188e9be8043332ce721dfd3","securitySource":"https://github.com/Cisco-Talos/clamav/releases/tag/clamav-1.5.4"},
+    {"name":"curl","version":"8.23.0","url":"https://curl.se/download/curl-8.23.0.tar.xz","sourceSha256":"8dadd7d2536a314f982ad05a651b713f426bf7d02cc2c76cffb9796f2218e6c5","securitySource":"https://curl.se/docs/vuln-8.23.0.html"}
+  ],
+  "runtimeOs":"Ubuntu 26.04 arm64",
+  "runtimeBaseManifest":"sha256:86eb1bc1059720a19a777ba5a109e9ee3690d5dfe3e319871a6d6beb86fb7f85",
+  "signatureDataDonor":"clamav/clamav-debian@sha256:9118103d533f1313a9bd83bc6a6859fd1ad28b8df2423d35ce212e16831e8588",
+  "signatureDonorRuntimeFilesCopied":false,
+  "requiresFreshImageSbomAndUpstreamAdvisoryReview":true
+}
