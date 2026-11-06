@@ -361,6 +361,7 @@ export class MeriFederalLegislationTools {
         congress: true,
         status: true,
         statusAt: true,
+        lastSyncedAt: true,
         latestActionText: true,
         latestActionDate: true,
         sponsorName: true,
@@ -454,6 +455,13 @@ export class MeriFederalLegislationTools {
         'The rule governing this bill FAILED — the bill did NOT advance to the floor under that rule; it is stalled, not pending passage.',
       );
     }
+    const lastSyncedAt = bill.lastSyncedAt?.toISOString() ?? null;
+    notes.push(
+      (lastSyncedAt
+        ? `Stored bill snapshot last synced at ${lastSyncedAt}.`
+        : 'The stored bill snapshot sync time is unknown.') +
+      ' Live status has not been checked; the response time and action dates do not establish current status.',
+    );
 
     return {
       tool: 'get_bill_status',
@@ -467,6 +475,7 @@ export class MeriFederalLegislationTools {
       status: bill.status,
       statusLabel: billStatusLabel(bill.status),
       statusAt: bill.statusAt,
+      lastSyncedAt,
       latestAction: { text: bill.latestActionText, date: bill.latestActionDate },
       sponsor: { name: bill.sponsorName, bioguideId: bill.sponsorBioguideId },
       cosponsorsCount: bill.cosponsorsCount,
@@ -478,11 +487,27 @@ export class MeriFederalLegislationTools {
   }
 
   public async searchFloorVotes(input: Record<string, unknown>) {
-    const billId = this.resolveBillId(optionalString(input, 'billId', 60) ?? undefined);
+    // Resolve the entire selected designation before any truncation, and never
+    // turn an invalid exact selector into an unscoped roll-call search.
+    if (typeof input.billId === 'string' && input.billId.length > 60)
+      throw new BadRequestException('Invalid bill designation or conflicting Congress');
+    const rawBillId = typeof input.billId === 'string' ? input.billId.trim() : input.billId;
+    if (rawBillId !== undefined && rawBillId !== null && typeof rawBillId !== 'string')
+      throw new BadRequestException('Invalid bill designation or conflicting Congress');
+    if (input.congress !== undefined && input.congress !== null &&
+        typeof input.congress !== 'number' && typeof input.congress !== 'string')
+      throw new BadRequestException('Congress must be a positive integer at most 999');
+    const congress = input.congress === undefined || input.congress === null || input.congress === ''
+      ? undefined : Number(input.congress);
+    if (congress !== undefined && (!Number.isInteger(congress) || congress < 1 || congress > 999))
+      throw new BadRequestException('Congress must be a positive integer at most 999');
+    const billId = typeof rawBillId === 'string'
+      ? this.resolveBillId(rawBillId, congress) : null;
+    if (rawBillId && !billId)
+      throw new BadRequestException('Invalid bill designation or conflicting Congress');
     const query = optionalString(input, 'query', 200);
     const memberRaw = optionalString(input, 'member', 80);
     const chamber = optionalString(input, 'chamber', 10)?.toLowerCase();
-    const congress = input.congress ? Number(input.congress) : undefined;
     const limit = clampInt(input.limit, 1, 25, 10);
 
     const where: Record<string, unknown> = {};

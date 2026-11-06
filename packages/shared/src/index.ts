@@ -943,7 +943,7 @@ export type BillType = (typeof BILL_TYPES)[number];
 
 const PATTERNS: Record<CanonicalIdType, RegExp> = {
   bioguide: /^[A-Z][0-9]{6}$/,
-  billId: new RegExp(`^[0-9]{2,3}-(${BILL_TYPES.join('|')})-[0-9]{1,5}$`),
+  billId: new RegExp(`^[0-9]{1,3}-(${BILL_TYPES.join('|')})-[0-9]{1,5}$`),
   committee: /^[hsj][sc][a-z]{2}[0-9]{2}$/,
   cik: /^[0-9]{1,10}$/,
   uei: /^[A-HJ-NP-Z0-9]{12}$/,
@@ -963,7 +963,13 @@ const PATTERNS: Record<CanonicalIdType, RegExp> = {
 
 /** True iff `value` (after normalizeCanonicalId) is a well-formed id of `type`. */
 export function isValidCanonicalId(type: CanonicalIdType, value: string): boolean {
-  return PATTERNS[type].test(normalizeCanonicalId(type, value));
+  const normalized = normalizeCanonicalId(type, value);
+  if (!PATTERNS[type].test(normalized)) return false;
+  if (type === 'billId') {
+    const [congress, , number] = normalized.split('-');
+    return Number(congress) > 0 && Number(number) > 0;
+  }
+  return true;
 }
 
 /**
@@ -1085,7 +1091,7 @@ export interface ParsedBillId {
 /** Parse OUR bill-id house format ("119-hr-8800"). Null when malformed. */
 export function parseBillId(billId: string): ParsedBillId | null {
   const v = normalizeCanonicalId('billId', billId);
-  if (!PATTERNS.billId.test(v)) return null;
+  if (!isValidCanonicalId('billId', v)) return null;
   const [congress, type, number] = v.split('-');
   return { congress: Number(congress), type: type as BillType, number: Number(number) };
 }
@@ -1094,7 +1100,7 @@ export function parseBillId(billId: string): ParsedBillId | null {
 export function formatBillId(congress: number, type: string, number: number): string | null {
   const t = type.toLowerCase().replace(/[^a-z]/g, '');
   if (!(BILL_TYPES as readonly string[]).includes(t)) return null;
-  if (!Number.isInteger(congress) || congress < 1 || !Number.isInteger(number) || number < 1) {
+  if (!Number.isInteger(congress) || congress < 1 || congress > 999 || !Number.isInteger(number) || number < 1) {
     return null;
   }
   return `${congress}-${t}-${number}`;
@@ -1108,7 +1114,7 @@ export function formatBillId(congress: number, type: string, number: number): st
  */
 export function parseBillDesignation(text: string, defaultCongress: number): ParsedBillId | null {
   const cleaned = (text ?? '').trim();
-  const congressMatch = cleaned.match(/\((\d{2,3})(?:st|nd|rd|th)?\)\s*$/);
+  const congressMatch = cleaned.match(/\((\d{1,3})(?:st|nd|rd|th)?\)\s*$/);
   const congress = congressMatch ? Number(congressMatch[1]) : defaultCongress;
   const body = congressMatch ? cleaned.slice(0, congressMatch.index).trim() : cleaned;
   const m = body.match(
@@ -3209,11 +3215,11 @@ function congressOrdinal(congress: number): string {
 
 /** The public congress.gov page for a Capiro bill id, or null when the id is not canonical. */
 export function congressGovBillUrl(billId: string): string | null {
-  const match = /^(\d{2,3})-([a-z]+)-(\d{1,5})$/i.exec(billId.trim());
-  if (!match) return null;
-  const segment = CONGRESS_GOV_BILL_TYPES[match[2]!.toLowerCase()];
+  const parsed = parseBillId(billId);
+  if (!parsed) return null;
+  const segment = CONGRESS_GOV_BILL_TYPES[parsed.type];
   if (!segment) return null;
-  return `https://www.congress.gov/bill/${congressOrdinal(Number(match[1]))}-congress/${segment}/${Number(match[3])}`;
+  return `https://www.congress.gov/bill/${congressOrdinal(parsed.congress)}-congress/${segment}/${parsed.number}`;
 }
 
 function fundingClaimSnippet(claim: Record<string, unknown>): string | undefined {

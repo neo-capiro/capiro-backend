@@ -33,7 +33,8 @@ const FUNDING_READS = [
 
 type FundingReadOperation = (typeof FUNDING_READS)[number];
 const KB_READ = 'search_client_knowledge' as const;
-type ClockReadOperation = FundingReadOperation | typeof KB_READ;
+const NEWS_READ = 'search_legiwatch_news' as const;
+type ClockReadOperation = FundingReadOperation | typeof KB_READ | typeof NEWS_READ;
 const SECOND_PACKAGE_READS = [
   'get_certification_status', 'get_state_rule_status', 'search_sam_opportunities',
 ] as const;
@@ -133,7 +134,7 @@ function isSecondPackageRead(name: string): name is SecondPackageReadOperation {
 }
 
 function isObservedRead(name: string): name is ObservedReadOperation {
-  return isFundingRead(name) || name === KB_READ || isMeriEvidenceModeRead(name) || isSecondPackageRead(name);
+  return isFundingRead(name) || name === KB_READ || name === NEWS_READ || isMeriEvidenceModeRead(name) || isSecondPackageRead(name);
 }
 
 function canonicalIso(value: unknown): value is string {
@@ -219,6 +220,7 @@ export function parseMeriReadObservation(name: string, rawBody: unknown, carrier
   if (carrier === undefined) return undefined;
   if (!isObservedRead(name) || !record(rawBody) || typeof carrier !== 'string') invalid();
   if (name === KB_READ) assertKnowledgeBody(rawBody);
+  if (name === NEWS_READ && rawBody.view !== 'articles') invalid();
   if (
     carrier.length === 0 ||
     carrier.length > Math.ceil((MAX_DECODED_BYTES * 4) / 3) ||

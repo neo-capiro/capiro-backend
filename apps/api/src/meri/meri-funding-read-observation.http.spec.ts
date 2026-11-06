@@ -36,6 +36,10 @@ const ADVANCED_VECTORS = JSON.parse(readFileSync(join(__dirname, '__fixtures__',
 };
 const SECRET = 'strict-funding-observation-service-secret';
 const KB_NAME = 'search_client_knowledge';
+const NEWS_NAME = 'search_legiwatch_news';
+// Actual Meri native encoder vector for the next-batch article-clock bridge.
+const NEWS_BODY = { view: 'articles', q: 'drone procurement', days: 7, limit: 2 };
+const NEWS_CARRIER = 'eyJjb250ZXh0Ijp7ImFzT2YiOiIyMDI2LTEwLTEyVDAxOjAwOjAwLjAwMFoifSwib3BlcmF0aW9uIjp7ImlkIjoic2VhcmNoX2xlZ2l3YXRjaF9uZXdzIiwidmVyc2lvbiI6IjAuMi4wIn0sInJlcXVlc3RTaGEyNTYiOiJlYmRkNzJmZWUyMjQwMzdmMGE0OGNlYjNlYmQ5ZDQ1ZGJmMDM2ZWQ1YTZmZTVkNTJlNzA3NDNlZWQ0YzgzZTRjIiwic2NoZW1hVmVyc2lvbiI6Im1lcmktbmF0aXZlLXJlYWQtb2JzZXJ2YXRpb24vMSJ9';
 const KB_BODY = {
   query: '  Civic & energ\u00eda \ud83c\udf31  ',
   clientId: 'A1234567-B123-4C12-8D12-E123456789AB',
@@ -54,8 +58,8 @@ describe('served finite funding observation', () => {
   const execute = jest.fn(async (_ctx: TenantContext, name: string) => isMeriEvidenceModeRead(name) ? {
     evidenceAccuracyMode: currentMeriEvidenceAccuracyMode(name, _ctx.tenantId) ?? null,
   } : ({
-    asOf: name === KB_NAME
-      ? currentMeriReadAsOf(KB_NAME) ?? null
+    asOf: name === KB_NAME || name === NEWS_NAME
+      ? currentMeriReadAsOf(name) ?? null
       : currentMeriFundingReadAsOf(name as typeof NAME)?.toISOString() ?? null,
   }));
 
@@ -132,6 +136,17 @@ describe('served finite funding observation', () => {
     expect(response.body).toEqual({ asOf: AS_OF });
     expect(execute).toHaveBeenCalledTimes(1);
     expect(currentMeriFundingReadAsOf(NAME)).toBeUndefined();
+  });
+
+  it('binds the real Meri article clock to the exact HTTP body and service identity', async () => {
+    const response = await post(NEWS_NAME, NEWS_BODY, SECRET, NEWS_CARRIER).expect(200);
+    expect(response.body).toEqual({ asOf: '2026-10-12T01:00:00.000Z' });
+    execute.mockClear();
+    await post(NEWS_NAME, NEWS_BODY, 'wrong', NEWS_CARRIER).expect(403);
+    await post(NEWS_NAME, { ...NEWS_BODY, days: 14 }, SECRET, NEWS_CARRIER).expect(400);
+    await post(NEWS_NAME, { ...NEWS_BODY, view: 'personnel' }, SECRET, NEWS_CARRIER).expect(400);
+    expect(execute).not.toHaveBeenCalled();
+    expect(currentMeriReadAsOf(NEWS_NAME)).toBeUndefined();
   });
 
   it.each(ADVANCED_VECTORS.vectors)('admits $operation.id only with the exact native observation and service identity', async vector => {

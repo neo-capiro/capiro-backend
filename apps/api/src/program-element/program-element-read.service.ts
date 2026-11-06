@@ -15,6 +15,7 @@ import {
 } from '@capiro/defense-domain/pe-read';
 import type { TenantContext } from '@capiro/shared';
 import {
+  congressGovBillUrl,
   fundingCurrentCoalesceSql,
   fundingCurrentStageSql,
   currentFunding,
@@ -1358,6 +1359,7 @@ export class ProgramElementReadService {
 
     const mapped = bills.map(({ committeeRefs, sponsorName, peCodes, ...bill }) => ({
       ...bill,
+      url: congressGovBillUrl(bill.id) ?? bill.url,
       sponsor: sponsorName,
       committee: committeeRefs[0]?.committeeName ?? null,
       peCodeCount: peCodes?.length ?? 0,
