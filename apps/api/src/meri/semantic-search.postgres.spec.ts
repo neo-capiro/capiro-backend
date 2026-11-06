@@ -143,7 +143,7 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
     try {
       await migrator.connect();
       await migrator.query("SELECT set_config('search_path',$1,false)", [QUALIFICATION_SCHEMA]);
-      for (const name of ['20281103120000_tango_dibbs_sbir_source_integration', '20281103200000_dibbs_funding_documents']) {
+      for (const name of ['20281103120000_tango_dibbs_sbir_source_integration', '20281103200000_dibbs_funding_documents', '20290110120000_public_usable_embedding_coverage']) {
         await migrator.query(readFileSync(path.resolve(__dirname, '../../prisma/migrations', name, 'migration.sql'), 'utf8'));
       }
     } finally { await migrator.end(); }
@@ -382,9 +382,9 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
         FROM generate_series(1,${SEMANTIC_SEARCH_LIMITS.candidateLimit+1}::int) n`;
       await admin.$executeRaw`INSERT INTO context_embeddings
         (source_type,source_id,model,content_text,content_hash,embedding,metadata_jsonb)
-        VALUES ('funding_attachment_chunk',${prefix+'zero-grant'},${MODEL},'zero vector is not a match','synthetic',
+        VALUES ('funding_attachment_chunk',${ATT_GRANT+':zero'},${MODEL},'zero vector is not a match','synthetic',
           ${vectorLiteral(Array<number>(1024).fill(0))}::vector,jsonb_build_object('parentId',${ATT_GRANT})),
-        ('funding_attachment_chunk',${prefix+'zero-notice'},${MODEL},'zero vector is not a match','synthetic',
+        ('funding_attachment_chunk',${ATT_NOTICE_LOCAL+':zero'},${MODEL},'zero vector is not a match','synthetic',
           ${vectorLiteral(Array<number>(1024).fill(0))}::vector,jsonb_build_object('parentId',${ATT_NOTICE_LOCAL}))`;
       // A closer competing catalog cannot hide either family's attachment-only hit.
       const grants=await read('semantic_search_grants',{query:'eligibility'},axis(3,4));
@@ -392,7 +392,8 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
       expect(grants.map(row=>row.parent_id)).toContain('G-2');
       expect(notices.map(row=>row.parent_id)).toContain(SAM_B);
       expect([...grants,...notices].every(row=>Number.isFinite(row.score))).toBe(true);
-    } finally { await admin.$executeRaw`DELETE FROM context_embeddings WHERE source_id LIKE ${prefix+'%'} AND model=${MODEL}`; }
+    } finally { await admin.$executeRaw`DELETE FROM context_embeddings WHERE model=${MODEL}
+      AND (source_id LIKE ${prefix+'%'} OR source_id IN (${ATT_GRANT+':zero'},${ATT_NOTICE_LOCAL+':zero'}))`; }
   });
 
   it('current catalog reads keep unknown deadlines and reject mismatched passage parent or binding', async () => {
@@ -519,6 +520,39 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
     expect(await coverage('semantic_search_bills')).toEqual({ indexed: 3, total: 3 });
     expect(await coverage('semantic_search_grants')).toEqual({ indexed: 2, total: 3 });
     expect(await coverage('semantic_search_contract_opportunities')).toEqual({ indexed: 3, total: 3 });
+  });
+
+  it('installs the public usable-vector coverage index without indexing private or zero vectors', async () => {
+    const indexes=await qualification!.admin.$queryRaw<Array<{indexdef:string}>>`SELECT indexdef FROM pg_indexes
+      WHERE schemaname=current_schema() AND indexname='context_embeddings_public_usable_coverage_idx'`;
+    expect(indexes).toHaveLength(1);
+    expect(indexes[0]!.indexdef).toContain('(tenant_id IS NULL)');
+    expect(indexes[0]!.indexdef).toContain('(client_id IS NULL)');
+    expect(indexes[0]!.indexdef).toContain('(owner_user_id IS NULL)');
+    expect(indexes[0]!.indexdef).toContain('(embedding <#> embedding)');
+  });
+
+  it('does not count a completion marker without an actual current-model public vector as indexed', async () => {
+    const admin = qualification!.admin;
+    const attachment=catalogId(7,80);
+    try {
+      await admin.$executeRaw`UPDATE federal_grant SET embedded_at=now() WHERE id='G-3'`;
+      await admin.$executeRaw`INSERT INTO opportunity_attachment(id,federal_grant_id,source_url)
+        VALUES (${attachment}::uuid,'G-3','https://example.test/coverage-regression')`;
+      for(const [tenant,type,id,model,parent,vector] of [
+        [null,'funding_grant_chunk','G-3:coverage-regression-old','old-model','G-3',axis(0)],
+        [TENANT,'funding_grant_chunk','G-3:coverage-regression-private',MODEL,'G-3',axis(0)],
+        [null,'funding_grant_chunk','G-3:coverage-regression-zero',MODEL,'G-3',vectorLiteral(Array<number>(1024).fill(0))],
+        [null,'funding_grant_chunk','MISSING:coverage-regression-orphan',MODEL,'MISSING',axis(0)],
+        [null,'funding_attachment_chunk',ATT_MISSING+':coverage-regression-mismatch',MODEL,attachment,axis(0)],
+      ] as const) await admin.$executeRaw`INSERT INTO context_embeddings(tenant_id,source_type,source_id,model,content_text,content_hash,embedding,metadata_jsonb)
+        VALUES (${tenant}::uuid,${type},${id},${model},'Synthetic coverage regression','synthetic',${vector}::vector,jsonb_build_object('parentId',${parent}))`;
+      expect(await coverage('semantic_search_grants')).toEqual({ indexed: 2, total: 3 });
+    } finally {
+      await admin.$executeRaw`DELETE FROM context_embeddings WHERE source_id LIKE '%:coverage-regression-%'`;
+      await admin.$executeRaw`DELETE FROM opportunity_attachment WHERE id=${attachment}::uuid`;
+      await admin.$executeRaw`UPDATE federal_grant SET embedded_at=NULL WHERE id='G-3'`;
+    }
   });
 
   it('is the statement the service sends: a bigint-typed snippet length is what failed live', async () => {
