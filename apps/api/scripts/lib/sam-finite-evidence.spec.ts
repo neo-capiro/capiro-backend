@@ -23,6 +23,30 @@ describe('finite SAM raw evidence and single-attempt streaming', () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect((fetcher.mock.calls as unknown[][])[0]![1]).toMatchObject({ redirect: 'error', signal: expect.any(AbortSignal) });
   });
+  it('accepts the canonical decimal-string total returned by the live SAM API', async () => {
+    // Live source envelope on 2026-11-05: totalRecords:"1581" (HTTP 200).
+    // The count is pagination metadata, never an amount or an award identity.
+    const raw = Buffer.from('{"awardSummary":[{}],"totalRecords":"1581"}');
+    const h = input(jest.fn(async () => new Response(raw)) as typeof fetch);
+    const page = await stageSamPage(h.options);
+    expect(page.totalRecords).toBe(1581);
+    expect(page.historyIncomplete).toBe(true);
+    expect(h.files.get('page-1.bin')).toEqual(raw);
+  });
+  it.each([null, true, [], '', '01', '-1', '1.5', '1e3', ' 1', '9007199254740992', 9007199254740992, -1])(
+    'refuses malformed or unsafe pagination totals without coercing them (%j)', async totalRecords => {
+      const raw = Buffer.from(JSON.stringify({ awardSummary: [], totalRecords }));
+      const h = input(jest.fn(async () => new Response(raw)) as typeof fetch);
+      await expect(stageSamPage(h.options)).rejects.toThrow('SOURCE_TOTAL_INVALID');
+      expect(h.files.get('page-1.bin')).toEqual(raw);
+    });
+  it.each([0, '0', 100, '100', '9007199254740991'])(
+    'accepts bounded numeric or canonical digit counts while retaining incomplete coverage (%j)', async totalRecords => {
+      const h = input(jest.fn(async () => new Response(JSON.stringify({ awardSummary: [], totalRecords }))) as typeof fetch);
+      const page = await stageSamPage(h.options);
+      expect(page.totalRecords).toBe(Number(totalRecords));
+      expect(page.historyIncomplete).toBe(Number(totalRecords) > 0);
+    });
   it('retains only bounded exact prefix evidence and cancels when a chunk exceeds the remaining body allowance', async () => {
     const cancel = jest.fn();
     const fetcher = jest.fn(async () => new Response(new ReadableStream({ start(controller) { controller.enqueue(Buffer.from('abcdefg')); }, cancel })));
@@ -34,7 +58,8 @@ describe('finite SAM raw evidence and single-attempt streaming', () => {
     Buffer.from([0xff]), Buffer.from('{'), Buffer.from('null'),
     Buffer.from(JSON.stringify({ awardSummary: Array.from({ length: 101 }, () => ({})) })),
     Buffer.from(JSON.stringify({ awardSummary: [null] })),
-    Buffer.from(JSON.stringify({ awardSummary: [], totalRecords: '100' })),
+    // Canonical digit strings are valid source counts; fractional counts still refuse.
+    Buffer.from(JSON.stringify({ awardSummary: [], totalRecords: '100.5' })),
     Buffer.from('{"awardSummary":[{"awardDetails":{"dollars":{"actionObligation":{"$samDecimalLexeme":"1"}}}}]}'),
   ])('retains malformed source bytes and refuses parsing/shape (%#)', async (raw) => {
     const h = input(jest.fn(async () => new Response(raw)) as typeof fetch);

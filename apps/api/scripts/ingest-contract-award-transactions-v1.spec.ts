@@ -4,6 +4,7 @@ import * as evidence from './lib/sam-finite-evidence.js';
 import { runSamActionProducerCli } from './ingest-contract-award-transactions-v1.js';
 import type { FiniteSamPorts } from './lib/sam-finite-cohort.js';
 
+jest.mock('@prisma/client', () => ({ ...jest.requireActual('@prisma/client'), PrismaClient: jest.fn(() => { throw new Error('UNEXPECTED_LEGACY_DATABASE'); }) }));
 const key = 'usaspending|award|CONT_AWD_000123_9700_-NONE-_-NONE-';
 const NOW = Date.parse('2026-11-01T12:00:00Z');
 function fixture() {
@@ -27,7 +28,7 @@ describe('existing SAM producer finite CLI boundary', () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining('Exit 0')); expect(read).not.toHaveBeenCalled();
     expect(h.fetcher).not.toHaveBeenCalled(); expect(h.createClient).not.toHaveBeenCalled();
   });
-  it.each(['--max-pages', '--max-records', '--max-body-bytes', '--max-total-bytes', '--response-timeout-ms', '--task-timeout-ms', '--award-keys-file=unsafe'])
+  it.each(['--revision-basis', '--max-pages', '--max-records', '--max-body-bytes', '--max-total-bytes', '--response-timeout-ms', '--task-timeout-ms', '--award-keys-file=unsafe'])
   ('never falls through to legacy mode for malformed finite-only option %s', async (option) => {
     const h = fixture();
     await expect(runSamActionProducerCli([option, '1', '--from', '2026-01-01', '--to', '2026-02-01'], {}, h.ports)).rejects.toThrow('FINITE_');

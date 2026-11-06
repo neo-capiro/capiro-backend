@@ -1,4 +1,5 @@
 import { BadRequestException, Inject, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { load } from 'cheerio';
 import {
   MAX_OPPORTUNITY_KEYWORD_TERMS,
   normalizeOpportunitySearchCriteria,
@@ -121,7 +122,9 @@ function toPublicRecord(record: CatalogOpportunityRecord): OpportunitySearchReco
     id: record.id,
     source: record.source,
     sourceRecordId: record.sourceRecordId,
-    title: record.title,
+    // Decode source entities once, retaining literal angle brackets as plain
+    // text rather than letting the parser interpret source titles as markup.
+    title: load(record.title.replaceAll('<', '&lt;').replaceAll('>', '&gt;')).text(),
     agency: record.agency,
     sourceUrl: record.sourceUrl,
     type: record.type,

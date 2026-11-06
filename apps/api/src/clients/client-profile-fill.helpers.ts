@@ -297,14 +297,14 @@ export function stripHtmlToText(html: string, maxChars = 12_000): string {
 
 export function metaDescription(html: string): string | null {
   const patterns = [
-    /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["'][^>]*>/i,
-    /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["'][^>]*>/i,
-    /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["'][^>]*>/i,
-    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["'][^>]*>/i,
+    /<meta[^>]+name=["']description["'][^>]+content=(["'])(.*?)\1[^>]*>/is,
+    /<meta[^>]+content=(["'])(.*?)\1[^>]+name=["']description["'][^>]*>/is,
+    /<meta[^>]+property=["']og:description["'][^>]+content=(["'])(.*?)\1[^>]*>/is,
+    /<meta[^>]+content=(["'])(.*?)\1[^>]+property=["']og:description["'][^>]*>/is,
   ];
   for (const pattern of patterns) {
     const match = html.match(pattern);
-    if (match?.[1]) return decodeBasicEntities(match[1]).replace(/\s+/g, ' ').trim().slice(0, 1000);
+    if (match?.[2]) return decodeBasicEntities(match[2]).replace(/\s+/g, ' ').trim().slice(0, 1000);
   }
   return null;
 }

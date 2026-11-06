@@ -8,9 +8,10 @@ import {
   previewFirstChatCoreApplication,
 } from '../lib/preview/first-chat-core';
 import { previewFirstChatEdgeApplication } from '../lib/preview/first-chat-preview-edge';
+import { firstChatCoreLegiwatchConfiguration } from '../lib/preview/first-chat-core-legiwatch';
 
 const usage =
-  'Usage: preview-first-chat-core --render <image-binding.json> <fresh-output-directory> | --render-integrations <integration-binding.json> <fresh-output.json> | --render-notetaker <note-taker-binding.json> <fresh-output.json> | --render-edge <fresh-output-directory> | --render-edge-with-dns <fresh-output-directory> | --help';
+  'Usage: preview-first-chat-core --render <image-binding.json> <fresh-output-directory> | --render-integrations <integration-binding.json> <fresh-output.json> | --render-notetaker <note-taker-binding.json> <fresh-output.json> | --render-legiwatch <legiwatch-binding.json> <fresh-output.json> | --render-edge <fresh-output-directory> | --render-edge-with-dns <fresh-output-directory> | --help';
 
 /** Renders a source proposal. No AWS call, task, migration, or image build. */
 export function main(args: string[]): number {
@@ -33,7 +34,7 @@ export function main(args: string[]): number {
       return 2;
     }
   }
-  if (args.length !== 3 || !['--render', '--render-integrations', '--render-notetaker'].includes(args[0]!)) {
+  if (args.length !== 3 || !['--render', '--render-integrations', '--render-notetaker', '--render-legiwatch'].includes(args[0]!)) {
     console.error(usage);
     return 2;
   }
@@ -48,11 +49,18 @@ export function main(args: string[]): number {
       path.extname(input) !== '.json' ||
       !stat.isFile() ||
       stat.isSymbolicLink() ||
-      stat.size > 4096
+      stat.size > (args[0] === '--render-legiwatch' ? 65_536 : 4096)
     ) {
       throw new Error('Bounded image binding required');
     }
     const binding: unknown = JSON.parse(fs.readFileSync(input, 'utf8'));
+    if (args[0] === '--render-legiwatch') {
+      if (path.extname(output) !== '.json') throw new Error('JSON output required');
+      const configuration = firstChatCoreLegiwatchConfiguration(binding);
+      fs.writeFileSync(output, JSON.stringify(configuration, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+      console.log('Rendered preview LegiWatch overlays only. No AWS operation performed.');
+      return 0;
+    }
     if (args[0] === '--render-integrations') {
       if (path.extname(output) !== '.json') throw new Error('JSON output required');
       const configuration = firstChatCoreIntegrationsConfiguration(binding);

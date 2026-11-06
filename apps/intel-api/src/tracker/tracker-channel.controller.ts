@@ -3,6 +3,7 @@ import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { TrackerOwnerGuard } from './tracker-owner.guard.js';
+import { TrackerClientAccessGuard } from './tracker-client-access.guard.js';
 import { TrackerWatchlistService } from './tracker-watchlist.service.js';
 import { SmsVerificationService } from './sms/sms-verification.service.js';
 import { TrackerTestAlertService } from './tracker-test-alert.service.js';
@@ -22,7 +23,7 @@ import { SmsConfirmDto, SmsStartDto, TestAlertDto } from './tracker.dto.js';
  * here; apps/api stays source of truth for everyone else (D6).
  */
 @Controller('clients')
-@UseGuards(TenantGuard, TrackerOwnerGuard)
+@UseGuards(TenantGuard, TrackerOwnerGuard, TrackerClientAccessGuard)
 export class TrackerChannelController {
   constructor(
     private readonly watchlists: TrackerWatchlistService,

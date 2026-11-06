@@ -52,7 +52,7 @@ import { CLIENT_ORGANIZATION_TYPES } from './client-funding-profile.validation.j
  */
 const FEDERAL_SET_ASIDE_CERTIFICATION_CODES = DURABLE_SET_ASIDE_CERTIFICATIONS;
 
-class CreateClientDto {
+class ClientFieldsDto {
   @IsString()
   @Length(1, 200)
   name!: string;
@@ -145,6 +145,12 @@ class CreateClientDto {
   setAsideCertifications?: string[];
 }
 
+class CreateClientDto extends ClientFieldsDto {
+  @IsOptional()
+  @IsUUID()
+  canonicalEntityId?: string;
+}
+
 class BulkImportClientsDto {
   // 500 cap is a sanity bound, most CSV imports we expect are <50 rows.
   // class-validator's array limits guard against accidental gigabyte
@@ -153,8 +159,8 @@ class BulkImportClientsDto {
   @ArrayMinSize(1)
   @ArrayMaxSize(500)
   @ValidateNested({ each: true })
-  @Type(() => CreateClientDto)
-  rows!: CreateClientDto[];
+  @Type(() => ClientFieldsDto)
+  rows!: ClientFieldsDto[];
 }
 
 class UpdateClientDto {

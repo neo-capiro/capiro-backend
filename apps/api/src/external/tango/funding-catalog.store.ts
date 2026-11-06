@@ -67,8 +67,10 @@ export class FundingCatalogStore {
     if (updated && object(payload.important_dates)[deadlineField] === null) fields.closeDate = null;
     const now = new Date();
     const raw = { ...object(existing?.raw), tango: { payload, observedAt: now.toISOString() } };
+    // Prisma validates create even when this row exists. Reuse its recorded
+    // agency for that arm only; omitted update enrichment must stay omitted.
     await this.prisma.federalGrant.upsert({ where: { id },
-      create: { id, title: fields.title, agency: fields.agency, ...fields, raw, syncedAt: now, detailSyncedAt: now },
+      create: { id, title: fields.title, ...fields, agency: fields.agency ?? existing?.agency, raw, syncedAt: now, detailSyncedAt: now },
       update: { ...fields, raw, syncedAt: now, detailSyncedAt: now, ...catalogEmbeddingState(existing, fields, 'grant', now) },
     });
     await this.observations.proposeLink({ localResourceType: 'federal_grant', localResourceId: id, tangoResourceType: 'grant', tangoExternalId: id, basis: 'exact_identifier', confidenceBand: 'high' });

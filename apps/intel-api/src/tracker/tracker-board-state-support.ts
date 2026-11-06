@@ -134,19 +134,18 @@ export class TrackerBoardStateSupport {
    * P2-09: the bill's REAL status, for the card's chip.
    *
    * The board buckets into four coarse lanes, so the lane alone cannot tell a
-   * failed governing rule from a bill that merely reached the floor. Precedence:
-   * the most recent material change's own label (the most specific truth we
-   * have), then the state rail's canonical status, then the lane label.
+   * failed governing rule from a bill that merely reached the floor. Prefer the
+   * state rail's canonical status, then the lane label. A change chip describes
+   * an update (for example, text updated), not a legislative lifecycle status.
    * Reuses values already in scope — nothing is re-derived or re-queried.
    */
   canonicalStatusFor(
     host: TrackerBoardService,
     billId: string,
-    chip: ChangeChip | null,
+    _chip: ChangeChip | null,
     status: string | null | undefined,
     stage: BillStage,
   ): string | null {
-    if (chip?.label) return chip.label;
     if (isStateBillKey(billId) && status) return stateBillStatusLabel(status);
     return BILL_STAGES.find((s) => s.id === stage)?.label ?? null;
   }
@@ -220,7 +219,7 @@ export class TrackerBoardStateSupport {
     // Candidate ids = tracked (tenant[+client]) ∩ existing billId.in.
     const trackedRows = await host['prisma'].withTenant(tenantId, (tx) =>
       tx.trackedBill.findMany({
-        where: { tenantId, ...(clientId ? { clientId } : {}) },
+        where: { tenantId, ...(clientId ? { clientId } : baseWhere['clientId'] ? { clientId: baseWhere['clientId'] as { in: string[] } } : {}) },
         select: { billId: true },
         distinct: ['billId'],
       }),

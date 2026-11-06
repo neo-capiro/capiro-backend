@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": [
+    "scripts/lib/procurement-account-reports.ts",
+    "scripts/lib/procurement-account-reports.spec.ts",
+    "scripts/qualification/defproc-account-reports.ts",
+    "scripts/qualification/export-account-native-payload.ts"
+  ],
+  "exclude": ["node_modules", "dist", "test"]
+}

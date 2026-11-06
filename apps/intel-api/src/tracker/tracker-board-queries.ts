@@ -72,13 +72,14 @@ export class TrackerBoardQueries {
   async getPortfolioCounts(
     host: TrackerBoardService,
     tenantId: string,
+    clientIds?: string[],
   ): Promise<{
     counts: Record<string, number>;
   }> {
     const rows = await host['prisma'].withTenant(tenantId, (tx) =>
       tx.trackedBill.groupBy({
         by: ['clientId'],
-        where: { tenantId },
+        where: { tenantId, ...(clientIds ? { clientId: { in: clientIds } } : {}) },
         _count: { _all: true },
       }),
     );

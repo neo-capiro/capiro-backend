@@ -4,6 +4,7 @@ import { buildAcquisitionIdentity } from '../../src/program-element/acquisition-
 
 /** See docs/lane6/sam-action-contract-v2.md for source authority and supported subset. */
 export const SAM_ACTION_CONTRACT = 'sam-contract-action/v2' as const;
+export const SAM_OBSERVED_ACTION_CONTRACT = 'sam-contract-action/observed-v1' as const;
 export interface SamRecord extends Record<string, unknown> {
   contractId?: {
     piid?: unknown; subtier?: { code?: unknown }; modificationNumber?: unknown;
@@ -25,6 +26,11 @@ export interface ProducerRun {
   contract: typeof SAM_ACTION_CONTRACT;
   producerCommit: string; imageDigest: string; runId: string; targetId: string;
 }
+export interface ProducerRunObserved {
+  contract: typeof SAM_OBSERVED_ACTION_CONTRACT;
+  producerCommit: string; imageDigest: string; runId: string; targetId: string;
+}
+export type ProducerRunUnion = ProducerRun | ProducerRunObserved;
 export type Rejection = 'unsupported_record_kind' | 'invalid_award_identity' | 'incomplete_parent'
   | 'missing_action_identity' | 'source_identity_change' | 'no_award_match' | 'multiple_award_matches'
   | 'invalid_catalog_identity' | 'invalid_obligation' | 'invalid_action_date' | 'invalid_source_revision';
@@ -34,7 +40,14 @@ export interface MappedSamAction {
   actionDate: string | null; signedObligationDelta: string;
   sourceRevisionOrder: string; sourcePayloadHash: string;
 }
+export interface MappedObservedSamAction {
+  sourceTransactionId: string; awardIdentityKey: string; awardUniqueId: string;
+  piid: string; modificationNumber: string; transactionNumber: string;
+  actionDate: string | null; signedObligationDelta: string;
+  sourceRevisionLabel: string | null; sourcePayloadHash: string;
+}
 export type MappingResult = { ok: true; value: MappedSamAction } | { ok: false; reason: Rejection };
+export type MappingObservedResult = { ok: true; value: MappedObservedSamAction } | { ok: false; reason: Rejection };
 
 export function sourceText(value: unknown): string | null {
   if (typeof value !== 'string' && !(typeof value === 'number' && Number.isSafeInteger(value))) return null;
@@ -77,6 +90,14 @@ function validDay(day: string): boolean {
 export function sourceRevisionOrder(value: unknown): string | null {
   return exactInstant(value);
 }
+/** Label must be original string unchanged (null/missing allowed, max256 chars, reject controls/nonstring). */
+export function sourceRevisionLabel(value: unknown): string | null {
+  if (value === null) return null;
+  if (typeof value !== 'string') return null;
+  const text = value;
+  if (text.length > 256 || /[\u0000-\u001f\u007f]/.test(text)) return null;
+  return text;
+}
 export function awardKey(awardUniqueId: string): string | null {
   const built = buildAcquisitionIdentity({ source: 'usaspending', recordKind: 'award', generatedAwardId: awardUniqueId });
   return built.ok ? built.identity.key : null;
@@ -92,6 +113,12 @@ export function parseAwardId(id: string): { piid: string; agency: string; parent
 }
 export function validProducerRun(run: ProducerRun): boolean {
   return run.contract === SAM_ACTION_CONTRACT && /^[a-f0-9]{40}$/.test(run.producerCommit)
+    && /^sha256:[a-f0-9]{64}$/.test(run.imageDigest)
+    && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(run.runId)
+    && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(run.targetId);
+}
+export function validProducerRunObserved(run: ProducerRunObserved): boolean {
+  return run.contract === SAM_OBSERVED_ACTION_CONTRACT && /^[a-f0-9]{40}$/.test(run.producerCommit)
     && /^sha256:[a-f0-9]{64}$/.test(run.imageDigest)
     && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(run.runId)
     && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(run.targetId);
@@ -152,6 +179,68 @@ export function transactionInput(record: SamRecord, value: MappedSamAction, run:
     sourceUrl: `https://api.sam.gov/contract-awards/v1/search?piid=${encodeURIComponent(value.piid)}`,
     raw: { sourcePayload: record, acquisitionProvenance: { ...run, awardUniqueId: value.awardUniqueId,
       sourceRevisionOrder: value.sourceRevisionOrder, sourcePayloadHash: value.sourcePayloadHash } },
+  };
+}
+
+/**Observed-v1 mapping: reuses common identity/numeric validation; label = original string or null (max256, no controls), no date parsing. */
+export function mapObservedSamAction(record: SamRecord, candidates: readonly AwardCandidate[]): MappingObservedResult {
+  const reject = (reason: Rejection): MappingObservedResult => ({ ok: false, reason });
+  const type = sourceText(record.coreData?.awardOrIDVType?.code);
+  if (sourceText(record.coreData?.awardOrIDV)?.toUpperCase() !== 'AWARD' || !type || !['A', 'B', 'C', 'D'].includes(type)) {
+    return reject('unsupported_record_kind');
+  }
+  // Renamed identities need an explicit source crosswalk before either history can be qualified.
+  if (record.oldContractId != null && (!Array.isArray(record.oldContractId) || record.oldContractId.length > 0)) return reject('source_identity_change');
+  const id = record.contractId;
+  const piid = component(id?.piid), ownAgency = agency(id?.subtier?.code);
+  if (!piid || !ownAgency) return reject('invalid_award_identity');
+  const parentText = sourceText(id?.referencedIDVPiid), parentAgencyText = sourceText(id?.referencedIDVSubtier?.code);
+  const parentPiid = component(id?.referencedIDVPiid), parentAgency = agency(id?.referencedIDVSubtier?.code);
+  if ((parentText !== null || parentAgencyText !== null || type === 'A' || type === 'C') && (!parentPiid || !parentAgency)) {
+    return reject('incomplete_parent');
+  }
+  // Non-string objects/booleans are malformed, not absence.
+  if ((id?.referencedIDVPiid != null && !parentText) || (id?.referencedIDVSubtier?.code != null && !parentAgencyText)) return reject('incomplete_parent');
+  const modificationNumber = sourceText(id?.modificationNumber), transactionNumber = sourceText(id?.transactionNumber);
+  if (!modificationNumber || !transactionNumber) return reject('missing_action_identity');
+  const matches = candidates.filter((row) => {
+    const parsed = parseAwardId(row.awardUniqueId);
+    return parsed && row.piid === piid && parsed.piid === piid && parsed.agency === ownAgency
+      && parsed.parentPiid === parentPiid && parsed.parentAgency === parentAgency;
+  });
+  if (matches.length === 0) return reject('no_award_match');
+  const awards = new Map(matches.map((row) => [JSON.stringify([row.awardUniqueId, row.identityKey]), row]));
+  if (awards.size !== 1) return reject('multiple_award_matches');
+  if (matches.some((row) => row.identityKey !== awardKey(row.awardUniqueId))) return reject('invalid_catalog_identity');
+  const award = [...awards.values()][0]!;
+  const signedObligationDelta = usd(record.awardDetails?.dollars?.actionObligation);
+  if (signedObligationDelta === null) return reject('invalid_obligation');
+  const signed = sourceText(record.awardDetails?.dates?.dateSigned);
+  const actionDate = signed?.slice(0, 10) ?? null;
+  if (record.awardDetails?.dates?.dateSigned != null && !signed) return reject('invalid_action_date');
+  if (signed && (!/^(\d{4}-\d{2}-\d{2})(?:[ T]00:00:00(?:\.0{1,6})?)?$/.test(signed) || !validDay(actionDate!))) return reject('invalid_action_date');
+  const rawLabel = record.awardDetails?.transactionData?.lastModifiedDate;
+  const revisionLabel = sourceRevisionLabel(rawLabel);
+  if (rawLabel != null && revisionLabel === null) return reject('invalid_source_revision');
+  return { ok: true, value: {
+    // JSON preserves component boundaries; shared store applies its existing outer percent encoding.
+    sourceTransactionId: JSON.stringify([SAM_OBSERVED_ACTION_CONTRACT, award.identityKey, modificationNumber, transactionNumber]),
+    awardIdentityKey: award.identityKey, awardUniqueId: award.awardUniqueId, piid,
+    modificationNumber, transactionNumber, actionDate, signedObligationDelta,
+    sourceRevisionLabel: revisionLabel, sourcePayloadHash: payloadHash(record),
+  } };
+}
+
+export function observedTransactionInput(record: SamRecord, value: MappedObservedSamAction, run: ProducerRunObserved, observedAt: string) {
+  if (!validProducerRunObserved(run) || exactInstant(observedAt) === null) throw new Error('valid observed producer provenance and observation time required');
+  return {
+    source: 'sam_gov', sourceTransactionId: value.sourceTransactionId, awardIdentityKey: value.awardIdentityKey,
+    piid: value.piid, modificationNumber: value.modificationNumber, actionDate: value.actionDate,
+    signedObligationDelta: value.signedObligationDelta, signedOutlayDelta: null,
+    sourceObservedAt: exactInstant(observedAt)!,
+    sourceUrl: `https://api.sam.gov/contract-awards/v1/search?piid=${encodeURIComponent(value.piid)}`,
+    raw: { sourcePayload: record, acquisitionProvenance: { ...run, awardUniqueId: value.awardUniqueId,
+      revisionBasis: 'latest_observed' as const, sourceRevisionLabel: value.sourceRevisionLabel, sourcePayloadHash: value.sourcePayloadHash } },
   };
 }
 

@@ -90,6 +90,10 @@ refuse_legacy_budget_commit() {
 }
 
 case "${1:-serve}" in
+  refresh-legiwatch-impact)
+    shift
+    exec ./node_modules/.bin/tsx scripts/refresh-legiwatch-impact.ts "$@"
+    ;;
   migrate)
     # Phase A: this branch previously auto-resolved failed migrations by editing
     # Prisma's migration ledger, which silently converted a failed deployment

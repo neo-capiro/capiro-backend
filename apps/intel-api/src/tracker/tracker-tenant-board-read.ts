@@ -55,7 +55,7 @@ export class TrackerTenantBoardRead {
     let changedIds: Set<string> | null = null;
     if (opts.filters?.changedWithinDays) {
       const days = opts.filters.changedWithinDays;
-      const rows = await this.readChangedRows(host, tenantId, days);
+      const rows = await this.readChangedRows(host, tenantId, days, opts.filters.clientIds);
       changedIds = new Set(rows.map((r) => r.sourceRef));
       if (!changedIds.size) {
         return { columns: empty(), nextCursor: null, hasMore: false, total: 0, withheld: 0 };
@@ -63,7 +63,7 @@ export class TrackerTenantBoardRead {
     }
     const baseWhere: Record<string, unknown> = { tenantId };
     if (changedIds) baseWhere['billId'] = { in: [...changedIds] };
-    if (opts.filters?.clientIds?.length) baseWhere['clientId'] = { in: opts.filters.clientIds };
+    if (opts.filters?.clientIds) baseWhere['clientId'] = { in: opts.filters.clientIds };
     if (opts.filters?.stages?.length) baseWhere['stage'] = { in: opts.filters.stages };
     else if (opts.filters?.activeOnly) baseWhere['stage'] = { not: 'enacted' };
     await host['alignStateStageFilter'](tenantId, null, baseWhere, opts.filters);
@@ -107,11 +107,12 @@ export class TrackerTenantBoardRead {
       { nextCursor, hasMore, total, withheld },
     );
   }
-  private readChangedRows(host: TrackerBoardService, tenantId: string, days: number) {
+  private readChangedRows(host: TrackerBoardService, tenantId: string, days: number, clientIds?: string[]) {
     return host['prisma'].withTenant(tenantId, (tx) =>
       tx.intelAlert.findMany({
         where: {
           tenantId,
+          ...(clientIds ? { clientId: { in: clientIds } } : {}),
           sourceType: { in: ['bill', 'state_bill'] },
           createdAt: { gte: new Date(Date.now() - days * this.policy.dayMs) },
         },

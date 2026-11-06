@@ -3,6 +3,8 @@ import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { SemanticSearchService } from './semantic-search.service.js';
 import { SEMANTIC_SEARCH_LIMITS } from './semantic-search.js';
+import { PrismaTransactionDeadlineError } from '../prisma/prisma-transaction-deadline.js';
+import { withMeriToolExecutionControl } from './meri-tool-request-control.js';
 
 // The query-vector port is scripted exactly as defense-research.semantic.spec
 // does: the service must use the selected provider and its model, never Bedrock.
@@ -54,6 +56,7 @@ test('embeds the normalized query with the selected port and ranks under the mem
   expect(port().embed).toHaveBeenCalledWith('rural broadband');
   expect(prisma.withTenantUser).toHaveBeenCalledWith(ctx.tenantId, ctx.userId, expect.any(Function), {
     timeoutMs: SEMANTIC_SEARCH_LIMITS.statementTimeoutMs,
+    deadline: { at: expect.any(Number) },
   });
   expect(tx.tenantMembership.findFirst).toHaveBeenCalledWith({
     where: { tenantId: ctx.tenantId, userId: ctx.userId, status: 'active' }, select: { id: true },
@@ -82,9 +85,50 @@ test('ranks grants and contract opportunities under their own source types', asy
   await service.read(ctx, 'semantic_search_grants', { query: 'clean water' });
   await service.read(ctx, 'semantic_search_contract_opportunities', { query: 'clean water', includeInactive: true });
   expect(statementOf(tx, 0).sql).toContain("ce.source_type = 'funding_grant_chunk'");
-  expect(statementOf(tx, 1).sql).toContain('FROM federal_grant WHERE embedded_at IS NOT NULL');
+  expect(statementOf(tx, 1).sql).toContain('FROM federal_grant r JOIN indexed_parents');
   expect(statementOf(tx, 2).sql).toContain("ce.source_type = 'funding_notice_chunk'");
-  expect(statementOf(tx, 3).sql).toContain('FROM sam_opportunity WHERE embedded_at IS NOT NULL');
+  expect(statementOf(tx, 3).sql).toContain('FROM sam_opportunity r JOIN indexed_parents');
+});
+
+test('keeps semantic reads in the existing deadline without per-request JIT compilation', async () => {
+  const { tx, service } = fixture();
+  await service.read(ctx, 'semantic_search_bills', { query: 'unmanned aircraft' });
+  const statements = (tx.$executeRaw.mock.calls as unknown as Array<[string[]]>).map(([parts]) => parts.join('?'));
+  expect(statements.some(sql => sql.includes("set_config('jit', 'off', true)"))).toBe(true);
+});
+
+test('passes an absolute deadline so the database server cancels abandoned semantic queries', async () => {
+  jest.useFakeTimers({ now: new Date('2026-11-05T12:00:00Z') });
+  const { prisma, service } = fixture();
+  await service.read(ctx, 'semantic_search_bills', { query: 'unmanned aircraft' });
+  expect(prisma.withTenantUser).toHaveBeenCalledWith(ctx.tenantId, ctx.userId, expect.any(Function), {
+    timeoutMs: SEMANTIC_SEARCH_LIMITS.statementTimeoutMs,
+    deadline: { at: Date.now() + SEMANTIC_SEARCH_LIMITS.statementTimeoutMs },
+  });
+});
+
+test('provider latency does not consume a database allowance that starts after embedding', async () => {
+  jest.useFakeTimers({ now: new Date('2026-11-05T12:00:00Z') });
+  port().embed.mockImplementationOnce(() => new Promise(resolve => setTimeout(() => resolve(unit), 3500)));
+  const { prisma, service } = fixture();
+  const pending = service.read(ctx, 'semantic_search_bills', { query: 'unmanned aircraft' });
+  await jest.advanceTimersByTimeAsync(3500);
+  await pending;
+  expect(prisma.withTenantUser).toHaveBeenCalledWith(ctx.tenantId, ctx.userId, expect.any(Function), {
+    timeoutMs: SEMANTIC_SEARCH_LIMITS.statementTimeoutMs,
+    deadline: { at: Date.now() + SEMANTIC_SEARCH_LIMITS.statementTimeoutMs },
+  });
+});
+
+test('a shorter caller deadline is not renewed by the semantic database allowance', async () => {
+  jest.useFakeTimers({ now: new Date('2026-11-05T12:00:00Z') });
+  const { prisma, service } = fixture();
+  const deadlineAt = Date.now() + 1000;
+  await withMeriToolExecutionControl({ deadlineAt }, () =>
+    service.read(ctx, 'semantic_search_grants', { query: 'water' }));
+  expect(prisma.withTenantUser).toHaveBeenCalledWith(ctx.tenantId, ctx.userId, expect.any(Function), {
+    timeoutMs: SEMANTIC_SEARCH_LIMITS.statementTimeoutMs, deadline: { at: deadlineAt },
+  });
 });
 
 test.each(['semantic_search_dibbs_solicitations', 'semantic_search_sbir_topics'] as const)(
@@ -97,7 +141,7 @@ test.each(['semantic_search_dibbs_solicitations', 'semantic_search_sbir_topics']
     expect(statementOf(tx,0).values).toContain(port().metadata.model);
     expect(statementOf(tx,1).values).toEqual([port().metadata.model]);
     expect(prisma.withTenantUser).toHaveBeenCalledWith(ctx.tenantId,ctx.userId,expect.any(Function),
-      { timeoutMs: SEMANTIC_SEARCH_LIMITS.statementTimeoutMs });
+      { timeoutMs: SEMANTIC_SEARCH_LIMITS.statementTimeoutMs, deadline: { at: expect.any(Number) } });
   },
 );
 
@@ -141,6 +185,7 @@ test.each([
 
 test.each([
   ['a statement cancelled by statement_timeout', new Prisma.PrismaClientKnownRequestError('Raw query failed', { code: 'P2010', clientVersion: 'test', meta: { code: '57014' } })],
+  ['an exhausted absolute database deadline', new PrismaTransactionDeadlineError()],
   ['a pool wait that ran out', new Prisma.PrismaClientKnownRequestError('Timed out fetching a new connection from the pool', { code: 'P2024', clientVersion: 'test' })],
 ])('%s is the same closed 503, not a 500', async (_name, error) => {
   const { prisma, service } = fixture();

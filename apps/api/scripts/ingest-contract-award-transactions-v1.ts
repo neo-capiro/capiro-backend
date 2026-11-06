@@ -219,6 +219,7 @@ const direct = typeof require !== 'undefined' && typeof module !== 'undefined' &
 export const SAM_FINITE_HELP = `SAM action producer: legacy arguments remain unchanged.
 Finite mode: --award-keys-file FILE --award-keys-sha256 SHA256 --evidence-dir NEW_ABSOLUTE_DIR
   --expires-at UTC_INSTANT --producer-commit SHA40 --image-digest sha256:HEX64 --run-id ID --target-id ID [--commit]
+  [--revision-basis latest_observed] (default: existing v2 publisher-clock contract)
   [--max-pages 1..25] [--max-records 1..2500] [--max-body-bytes 1..2097152]
   [--max-total-bytes 1..16777216] [--response-timeout-ms 1..10000] [--task-timeout-ms 1..120000]
 One page-zero request per distinct PIID; one attempt; no redirects, automatic retry, resume or replay.
@@ -230,7 +231,7 @@ An exit or process stop does not establish database rollback. Reconcile retained
 export async function runSamActionProducerCli(args = process.argv.slice(2), env = process.env, ports?: FiniteSamPorts,
   expire: () => void = () => { console.error('FINITE_TASK_WATCHDOG_EXPIRED: reconcile private evidence; database outcome may be unknown'); process.exit(3); }): Promise<number> {
   if (args.includes('--help')) { console.log(SAM_FINITE_HELP); return 0; }
-  const finiteFlags = ['--award-keys-file', '--award-keys-sha256', '--evidence-dir', '--expires-at', '--max-pages',
+  const finiteFlags = ['--revision-basis', '--award-keys-file', '--award-keys-sha256', '--evidence-dir', '--expires-at', '--max-pages',
     '--max-records', '--max-body-bytes', '--max-total-bytes', '--response-timeout-ms', '--task-timeout-ms'];
   if (!args.some((arg) => finiteFlags.includes(arg.split('=')[0]!))) {
     await main(); return process.exitCode ? Number(process.exitCode) : 0;

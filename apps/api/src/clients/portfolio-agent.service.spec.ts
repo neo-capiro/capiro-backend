@@ -130,6 +130,8 @@ describe('bounded Portfolio Claude Agent SDK task', () => {
       },
     ],
     ['forbidden_tool', { ...success, permission_denials: [{ tool_name: 'Write' }] }],
+    ['error_during_execution', { ...success, is_error: true }],
+    ['invalid_output', { ...success, structured_output: undefined }],
     ['error_max_budget_usd', { ...success, subtype: 'error_max_budget_usd' }],
     ['error_max_turns', { ...success, subtype: 'error_max_turns' }],
     [
@@ -186,6 +188,50 @@ describe('bounded Portfolio Claude Agent SDK task', () => {
     expect(env).not.toHaveProperty('ANTHROPIC_API_KEY');
     expect(env).not.toHaveProperty('ANTHROPIC_BASE_URL');
   });
+  it('uses explicitly selected Anthropic runtime with only the injected provider credential', async () => {
+    Object.assign(process.env, {
+      ANTHROPIC_API_KEY: 'synthetic-api-key',
+      ANTHROPIC_AUTH_TOKEN: 'synthetic-oauth',
+      ANTHROPIC_BASE_URL: 'https://proxy.invalid',
+      CLAUDE_CODE_USE_BEDROCK: '1',
+      AWS_ACCESS_KEY_ID: 'synthetic-aws-key',
+      AWS_CONTAINER_CREDENTIALS_RELATIVE_URI: '/credentials',
+      CLAUDE_CODE_USE_VERTEX: '1',
+    });
+    const { service, query } = fixture();
+    const onAudit = jest.fn();
+    await service.extract({
+      ...request,
+      runtime: { provider: 'anthropic', model: 'fixture-anthropic-model' },
+      onAudit,
+    });
+    const options = (query.mock.calls[0] as unknown as [{ options: Record<string, any> }])[0]
+      .options;
+    expect(options.model).toBe('fixture-anthropic-model');
+    expect(options.env.ANTHROPIC_API_KEY).toBe('synthetic-api-key');
+    for (const key of [
+      'ANTHROPIC_AUTH_TOKEN',
+      'ANTHROPIC_BASE_URL',
+      'CLAUDE_CODE_USE_BEDROCK',
+      'CLAUDE_CODE_USE_VERTEX',
+      'AWS_ACCESS_KEY_ID',
+      'AWS_CONTAINER_CREDENTIALS_RELATIVE_URI',
+    ])
+      expect(options.env).not.toHaveProperty(key);
+    expect(options.verbatimPrompts).toBe(true);
+    expect(onAudit).toHaveBeenCalledWith(
+      expect.objectContaining({ provider: 'anthropic', model: 'fixture-anthropic-model' }),
+    );
+    expect(JSON.stringify(onAudit.mock.calls)).not.toContain('synthetic-api-key');
+  });
+  it('never falls back to Bedrock when the explicitly selected Anthropic key is missing', async () => {
+    delete process.env.ANTHROPIC_API_KEY;
+    const { service, query } = fixture();
+    await expect(
+      service.extract({ ...request, runtime: { provider: 'anthropic', model: 'fixture' } }),
+    ).rejects.toMatchObject({ code: 'source_unavailable' });
+    expect(query).not.toHaveBeenCalled();
+  });
   it('passes configured SDK output and retry limits to the actual query child', async () => {
     Object.assign(process.env, {
       CLAUDE_CODE_MAX_OUTPUT_TOKENS: '4096',
@@ -195,15 +241,20 @@ describe('bounded Portfolio Claude Agent SDK task', () => {
     });
     const { service, query } = fixture();
     await service.extract(request);
-    const options = (query.mock.calls[0] as unknown as [{ options: Record<string, any> }])[0].options;
+    const options = (query.mock.calls[0] as unknown as [{ options: Record<string, any> }])[0]
+      .options;
     expect(options.env).toMatchObject({
-      CLAUDE_CODE_MAX_OUTPUT_TOKENS: '4096', CLAUDE_CODE_MAX_RETRIES: '0',
-      CLAUDE_CODE_NONSTREAMING_TIMEOUT_RETRIES: '0', AWS_MAX_ATTEMPTS: '1',
+      CLAUDE_CODE_MAX_OUTPUT_TOKENS: '4096',
+      CLAUDE_CODE_MAX_RETRIES: '0',
+      CLAUDE_CODE_NONSTREAMING_TIMEOUT_RETRIES: '0',
+      AWS_MAX_ATTEMPTS: '1',
     });
   });
   it.each([
-    ['CLAUDE_CODE_MAX_OUTPUT_TOKENS', '0'], ['AWS_MAX_ATTEMPTS', '0'],
-    ['CLAUDE_CODE_MAX_RETRIES', '-1'], ['CLAUDE_CODE_MAX_RETRIES', '1.5'],
+    ['CLAUDE_CODE_MAX_OUTPUT_TOKENS', '0'],
+    ['AWS_MAX_ATTEMPTS', '0'],
+    ['CLAUDE_CODE_MAX_RETRIES', '-1'],
+    ['CLAUDE_CODE_MAX_RETRIES', '1.5'],
     ['CLAUDE_CODE_NONSTREAMING_TIMEOUT_RETRIES', '2oops'],
     ['CLAUDE_CODE_MAX_OUTPUT_TOKENS', '9007199254740992'],
   ])('refuses invalid %s=%s before query invocation', async (key, value) => {
