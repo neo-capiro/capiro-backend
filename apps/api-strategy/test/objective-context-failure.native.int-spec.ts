@@ -113,7 +113,7 @@ native('canonical Objective context failure on the owned PG16 target', () => {
     global.fetch = async (input, init) => {
       expect(new URL(String(input)).origin).toBe(origin);
       const result = await originalFetch(input, init);
-      result.json = async () => JSON.parse(await result.text());
+      Object.defineProperty(result, 'json', { value: async () => JSON.parse(await result.text()) });
       return result;
     };
     config = new ConfigService({ INTERNAL_SERVICE_SECRET: secret, API_INTERNAL_URL: origin });
