@@ -4,7 +4,10 @@ import { ImpactService, currentImpact } from './impact.service.js';
 import { emptyImpact } from './impact.repository.js';
 import type { ImpactEvidenceSnapshot } from './impact-evidence.types.js';
 
-const ctx = { tenantId: 'synthetic-tenant', userId: 'synthetic-actor' } as TenantContext;
+const ctx = {
+  tenantId: 'synthetic-tenant',
+  userId: 'synthetic-actor',
+} as TenantContext;
 const snapshot: ImpactEvidenceSnapshot = {
   clientId: 'client',
   billId: '119-hr-1',
@@ -24,8 +27,11 @@ const result: LegiWatchImpactAnalysis = {
 };
 function fixture() {
   const tx = {};
-  const prisma = { withTenantUser: jest.fn(async (_tenant, _user, fn) => fn(tx)) };
+  const prisma = {
+    withTenantUser: jest.fn(async (_tenant, _user, fn) => fn(tx)),
+  };
   const repository = {
+    list: jest.fn(),
     row: jest.fn().mockResolvedValue({
       clientId: 'client',
       billId: '119-hr-1',
@@ -37,7 +43,10 @@ function fixture() {
     actions: jest.fn().mockResolvedValue([]),
     refresh: jest.fn().mockResolvedValue(null),
   };
-  const evidence = { load: jest.fn().mockResolvedValue(snapshot) };
+  const evidence = {
+    load: jest.fn().mockResolvedValue(snapshot),
+    loadMany: jest.fn().mockResolvedValue([snapshot]),
+  };
   const analysis = { analyze: jest.fn().mockResolvedValue(result) };
   return {
     prisma,
@@ -76,6 +85,82 @@ it('revalidates evidence after inference and refuses to save against a changed p
     .mockResolvedValueOnce({ ...snapshot, fingerprint: 'new' });
   await expect(f.service.analyze(ctx, 'client', '119-hr-1')).rejects.toThrow('evidence changed');
   expect(f.repository.save).not.toHaveBeenCalled();
+});
+it.each(['unavailable', 'needs_evidence'] as const)(
+  'conceals privately retained evidence from both current and stale %s responses',
+  (status) => {
+    const analysis = {
+      ...emptyImpact(),
+      status,
+      inputFingerprint: 'current',
+      lastValidAnalysis: {
+        ...result,
+        inputFingerprint: 'old',
+        findings: [{ mechanism: 'Restricted retained evidence' } as never],
+      },
+    };
+    for (const fingerprint of ['current', 'new']) {
+      const response = currentImpact(analysis, { ...snapshot, fingerprint });
+      expect(response).not.toHaveProperty('lastValidAnalysis');
+      expect(JSON.stringify(response)).not.toContain('Restricted retained evidence');
+      expect(JSON.stringify(response)).not.toContain('Cited client impact');
+      expect(response.stale).toBe(fingerprint !== 'current');
+      expect(response.status).toBe(fingerprint === 'current' ? status : 'needs_evidence');
+    }
+  },
+);
+it('keeps privately retained assessment contents out of tracker and detail payloads', async () => {
+  const f = fixture();
+  const row = {
+    clientId: 'client',
+    billId: '119-hr-1',
+    trackerBackend: 'core',
+    sourceUrl: null,
+    analysis: {
+      ...emptyImpact(),
+      status: 'unavailable',
+      inputFingerprint: 'current',
+      lastValidAnalysis: { ...result, inputFingerprint: 'old' },
+    },
+  };
+  f.repository.row.mockResolvedValue(row);
+  f.repository.list.mockResolvedValue({
+    rows: [row],
+    clients: [],
+    total: 1,
+    hasMore: false,
+  });
+  for (const response of [
+    await f.service.detail(ctx, 'client', '119-hr-1'),
+    await f.service.list(ctx, {}),
+  ]) {
+    expect(JSON.stringify(response)).not.toContain('lastValidAnalysis');
+    expect(JSON.stringify(response)).not.toContain('Cited client impact');
+  }
+});
+
+it('links federal bill actions to the public bill page while preserving version URLs', async () => {
+  const f = fixture();
+  f.repository.row.mockResolvedValue({
+    clientId: 'client',
+    billId: '119-hr-1',
+    trackerBackend: 'core',
+    sourceUrl: 'https://api.congress.gov/v3/bill/119/hr/1?format=json',
+    analysis: null,
+  });
+  f.repository.actions.mockResolvedValue([
+    { date: '2026-11-06', text: 'Introduced', sourceUrl: null },
+  ]);
+  const versionUrl = 'https://www.govinfo.gov/content/pkg/BILLS-119hr1ih/pdf/BILLS-119hr1ih.pdf';
+  f.evidence.load.mockResolvedValue({
+    ...snapshot,
+    versions: [{ id: 'text-version', sourceUrl: versionUrl }],
+  });
+  const detail = await f.service.detail(ctx, 'client', '119-hr-1');
+  const publicUrl = 'https://www.congress.gov/bill/119th-congress/house-bill/1';
+  expect(detail.row.sourceUrl).toBe(publicUrl);
+  expect(detail.actions[0]?.sourceUrl).toBe(publicUrl);
+  expect(detail.versions[0]?.sourceUrl).toBe(versionUrl);
 });
 it('fails closed if a grant is revoked or tracked bill removed during inference', async () => {
   const f = fixture();

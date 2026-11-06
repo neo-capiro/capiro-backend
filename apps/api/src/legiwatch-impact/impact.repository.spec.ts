@@ -197,6 +197,44 @@ it('persists Core context separately from analysis and preserves notes and stanc
   ).toEqual([{ note: null }]);
 });
 
+it.each(['unavailable', 'needs_evidence'] as const)(
+  'retains the last valid assessment privately when changed evidence returns %s',
+  async (status) => {
+    const valid = {
+      ...emptyImpact(),
+      status: 'ready' as const,
+      summary: 'Previously verified assessment',
+      inputFingerprint: 'revision-a',
+      analyzedAt: '2026-11-06T00:00:00.000Z',
+    };
+    await repo.save(tx, ctx, open, '119-hr-1', valid);
+    const unresolved = {
+      ...emptyImpact(),
+      status,
+      inputFingerprint: 'revision-b',
+    };
+    expect(await repo.save(tx, ctx, open, '119-hr-1', unresolved)).toEqual({
+      ...unresolved,
+      lastValidAnalysis: valid,
+    });
+    const retry = { ...unresolved, inputFingerprint: 'revision-c' };
+    expect(await repo.save(tx, ctx, open, '119-hr-1', retry)).toEqual({
+      ...retry,
+      lastValidAnalysis: valid,
+    });
+    expect((await repo.row(tx, ctx, open, '119-hr-1')).analysis).toEqual({
+      ...retry,
+      lastValidAnalysis: valid,
+    });
+    const replacement = {
+      ...valid,
+      inputFingerprint: 'revision-d',
+      summary: 'New verified assessment',
+    };
+    expect(await repo.save(tx, ctx, open, '119-hr-1', replacement)).toEqual(replacement);
+  },
+);
+
 it('enforces migration RLS for direct tenant/wall reads and writes, including revoked membership', async () => {
   await repo.save(tx, ctx, open, '119-hr-1', emptyImpact());
   await db.exec(
@@ -228,4 +266,19 @@ it('reads federal/state actions from canonical tables and never fabricates proba
   });
   expect(safeSourceUrl('javascript:alert(1)')).toBeNull();
   expect(safeSourceUrl('https://user:pass@example.test')).toBeNull();
+});
+
+it('presents the public federal bill page without changing the retained provider URL', async () => {
+  const providerUrl = 'https://api.congress.gov/v3/bill/119/hr/1?format=json';
+  await db.query('UPDATE congress_bill SET url=$1 WHERE id=$2', [providerUrl, '119-hr-1']);
+  const row = await repo.row(tx, ctx, open, '119-hr-1');
+  expect(presentImpactRow(row, emptyImpact()).sourceUrl).toBe(
+    'https://www.congress.gov/bill/119th-congress/house-bill/1',
+  );
+  expect(row.sourceUrl).toBe(providerUrl);
+  const stateUrl = 'https://www.flsenate.gov/Session/Bill/2026/1';
+  expect(
+    presentImpactRow({ ...row, billId: 'fl-2026-sb1', sourceUrl: stateUrl }, emptyImpact())
+      .sourceUrl,
+  ).toBe(stateUrl);
 });
