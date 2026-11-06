@@ -30,6 +30,8 @@ import { StrategyContextPlaneClient } from '../src/meri/strategy-context-plane.c
 import { GENERATION_ADMISSION, GENERATION_REQUEST, canonicalGenerationAdmissionSha256 } from '../src/meri/objective-canonical-generation.js';
 import { readGenerationLedger } from '../src/meri/objective-canonical-producer-ledger.js';
 import { digest, type ObjectiveAdmission } from '../src/meri/objective-generation.types.js';
+import { createCanonicalRequestPublication } from '../src/meri/objective-canonical-request.js';
+import type { DraftJobInput } from '../src/meri/draft-job.types.js';
 import { buildObjectivePlannerNativeFixture, seedObjectivePlannerNativeReadyWithinTx,
   type ObjectivePlannerNativeFixture } from './objective-planner-native-fixture.js';
 
@@ -208,7 +210,7 @@ native('canonical Objective context failure on the owned PG16 target', () => {
         await super.assertGenerationCurrent(tx, grant, subject);
         const row = await tx.spDraftJob.findFirst({ where: { id: s.body.generationJobId, tenantId: s.f.tenantId } });
         if (row?.status === 'failed') {
-          revoked += await tx.$executeRaw`UPDATE tenant_memberships SET status='inactive'
+          revoked += await tx.$executeRaw`UPDATE tenant_memberships SET status='removed'
             WHERE tenant_id=${s.f.tenantId}::uuid AND id=${s.f.membershipId}::uuid AND status::text='active'`;
           await super.assertGenerationCurrent(tx, grant, subject);
         }
@@ -243,6 +245,10 @@ native('canonical Objective context failure on the owned PG16 target', () => {
 
   test.each(['publication', 'failure'] as const)('concurrent publication and failure preserve the first committed %s', async winner => {
     const s = await selected(), packets = successPacket(s);
+    const input = (await audit(s)).job.input as unknown as DraftJobInput;
+    createCanonicalRequestPublication({ admission: s.admission, dto: input.dto, context: packets.compile.body.objectiveTypedContext,
+      prompt: packets.compile.body.governedContext.prompt, owners: [{ ownerRef: s.f.clerkUserId, clerkUserId: s.f.clerkUserId }],
+      requestedAtMs: Date.now(), effectExpiresAtMs: s.admission.effectExpiresAtMs });
     let release!: () => void, entered!: () => void, compileCalls = 0;
     const blocked = new Promise<void>(done => { release = done; }), waiting = new Promise<void>(done => { entered = done; });
     handlers.set(s.requestId, async path => {
