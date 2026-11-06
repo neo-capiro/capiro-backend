@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import {
+  congressGovBillUrl,
   humanizeBillId,
   type LegiWatchImpactAnalysis,
   type LegiWatchTrackerRow,
@@ -10,11 +11,15 @@ import { requireOwnerActor, requireOwnerClient } from '../clients/client-ordered
 import type { ImpactContextDto, ImpactTrackerQuery } from './impact.dto.js';
 
 export type TrackerBackend = 'core' | 'intelligence';
+/** Private retention only; currentImpact removes this before any response. */
+export type StoredImpactAnalysis = LegiWatchImpactAnalysis & {
+  lastValidAnalysis?: LegiWatchImpactAnalysis;
+};
 export interface ImpactStoredRow extends Omit<
   LegiWatchTrackerRow,
   'impact' | 'displayNum' | 'stage' | 'passageProbability'
 > {
-  analysis: LegiWatchImpactAnalysis | null;
+  analysis: StoredImpactAnalysis | null;
   /** PostgreSQL microsecond precision, retained only for keyset pagination. */
   trackedAtExact: string;
 }
@@ -69,7 +74,7 @@ export function presentImpactRow(
             : null;
   return {
     ...rest,
-    sourceUrl: safeSourceUrl(rest.sourceUrl),
+    sourceUrl: congressGovBillUrl(row.billId) ?? safeSourceUrl(rest.sourceUrl),
     displayNum: /^\d+-/.test(row.billId)
       ? humanizeBillId(row.billId)
       : (row.billId.split('-').at(-1)?.toUpperCase() ?? row.billId),
@@ -282,12 +287,18 @@ export class ImpactRepository {
     billId: string,
     analysis: LegiWatchImpactAnalysis,
   ) {
-    const rows = await tx.$queryRawUnsafe<Array<{ analysis: LegiWatchImpactAnalysis }>>(
+    const rows = await tx.$queryRawUnsafe<Array<{ analysis: StoredImpactAnalysis }>>(
       `INSERT INTO legiwatch_client_bill_analysis AS saved(tenant_id,client_id,bill_id,analysis_jsonb,analyzed_by,updated_at)
       VALUES($1::uuid,$2::uuid,$3,$4::jsonb,$5::uuid,now()) ON CONFLICT(tenant_id,client_id,bill_id)
       DO UPDATE SET analysis_jsonb=CASE
         WHEN saved.analysis_jsonb->>'status'='ready' AND saved.analysis_jsonb->>'inputFingerprint'=EXCLUDED.analysis_jsonb->>'inputFingerprint'
-        THEN saved.analysis_jsonb ELSE EXCLUDED.analysis_jsonb END,
+        THEN saved.analysis_jsonb
+        WHEN EXCLUDED.analysis_jsonb->>'status'='ready' THEN EXCLUDED.analysis_jsonb
+        WHEN saved.analysis_jsonb->>'status'='ready'
+        THEN EXCLUDED.analysis_jsonb || jsonb_build_object('lastValidAnalysis',saved.analysis_jsonb-'lastValidAnalysis')
+        WHEN jsonb_typeof(saved.analysis_jsonb->'lastValidAnalysis')='object'
+        THEN EXCLUDED.analysis_jsonb || jsonb_build_object('lastValidAnalysis',saved.analysis_jsonb->'lastValidAnalysis')
+        ELSE EXCLUDED.analysis_jsonb END,
         analyzed_by=CASE
         WHEN saved.analysis_jsonb->>'status'='ready' AND saved.analysis_jsonb->>'inputFingerprint'=EXCLUDED.analysis_jsonb->>'inputFingerprint'
         THEN saved.analyzed_by ELSE EXCLUDED.analyzed_by END,updated_at=now()
