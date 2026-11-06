@@ -97,10 +97,14 @@ export async function stageSamPage(input: {
     if (!Array.isArray(body.awardSummary) || body.awardSummary.length > 100
       || body.awardSummary.some((record) => !record || typeof record !== 'object' || Array.isArray(record)))
       throw new Error('SOURCE_RECORD_LIMIT_OR_SHAPE');
-    if (body.totalRecords !== undefined && (!Number.isSafeInteger(body.totalRecords) || Number(body.totalRecords) < 0))
+    // SAM returns this pagination count as a decimal string as well as a JSON number.
+    // Normalize only a bounded canonical count; never coerce IDs, amounts or malformed metadata.
+    const reportedTotal = typeof body.totalRecords === 'string' && /^(?:0|[1-9]\d{0,15})$/.test(body.totalRecords)
+      ? Number(body.totalRecords) : body.totalRecords;
+    if (reportedTotal !== undefined && (!Number.isSafeInteger(reportedTotal) || Number(reportedTotal) < 0))
       throw new Error('SOURCE_TOTAL_INVALID');
     guard();
-    const totalRecords = body.totalRecords === undefined ? null : body.totalRecords as number;
+    const totalRecords = reportedTotal === undefined ? null : reportedTotal as number;
     return { records: body.awardSummary, bytes, sha256: sha256Bytes(raw), totalRecords,
       historyIncomplete: body.awardSummary.length === 100 || (totalRecords !== null && totalRecords > body.awardSummary.length),
       observedAt: new Date(input.now()).toISOString(), status: response.status };

@@ -84,7 +84,7 @@ async function fetchDominantFunding(awardId: string): Promise<DominantFunding | 
           return undefined;
         }
         if (!res.ok) return null;
-        json = (await res.json()) as typeof json;
+        json = await res.json();
         break;
       } catch {
         if (attempt < MAX_ATTEMPTS) {
@@ -268,8 +268,15 @@ async function main(): Promise<void> {
 }
 
 if (require.main === module) {
-void main().catch((err) => {
-  console.error('[enrich-award-pe-tas] FAILED', err);
-  process.exit(1);
-});
+  const args = process.argv.slice(2);
+  if (args.some(argument => argument.startsWith('--account'))) {
+    const { runAccountMode } = require('./lib/procurement-account-runner.js') as typeof import('./lib/procurement-account-runner.js');
+    void runAccountMode(args).then(code => { process.exitCode = code; }).catch(() => {
+      console.error('ACCOUNT_RUN_FAILURE: account mode could not complete'); process.exitCode = 1;
+    });
+  } else {
+    void main().catch((err) => {
+      console.error('[enrich-award-pe-tas] FAILED', err); process.exit(1);
+    });
+  }
 }

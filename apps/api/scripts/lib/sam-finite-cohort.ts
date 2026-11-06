@@ -2,19 +2,20 @@ import { PrismaClient } from '@prisma/client';
 import { isAbsolute } from 'node:path';
 import { AcquisitionContinuityStore } from '../../src/program-element/acquisition-continuity/acquisition-continuity.store.js';
 import { capturePrismaDeadline, runPrismaTransaction } from '../../src/prisma/prisma-transaction-deadline.js';
-import { awardKey, canonicalJson, mapSamAction, parseAwardId, SAM_ACTION_CONTRACT, transactionInput, validProducerRun,
-  type AwardCandidate, type ProducerRun, type SamRecord } from './sam-contract-action.js';
+import { awardKey, canonicalJson, mapObservedSamAction, mapSamAction, parseAwardId, SAM_ACTION_CONTRACT, SAM_OBSERVED_ACTION_CONTRACT,
+  observedTransactionInput, transactionInput, validProducerRun, validProducerRunObserved, type AwardCandidate, type ProducerRun,
+  type ProducerRunObserved, type SamRecord } from './sam-contract-action.js';
 import { exactInstant } from './sam-exact-instant.js';
 import { assertLosslessSamJsonSupport } from './sam-response-json.js';
 import { createPrivateEvidenceDirectory, readCohortFile, sha256Bytes, stageSamPage, type FiniteEvidence } from './sam-finite-evidence.js';
 
 export interface FiniteSamConfig {
   keys: readonly string[]; cohortBytes: Buffer; cohortSha256: string; evidenceDir: string;
-  run: ProducerRun; commit: boolean; enabled: boolean; apiKey: string; expiresAt: string;
-  startedAt: number; deadlineAt: number; maxPages: number; maxRecords: number; maxBodyBytes: number; maxTotalBytes: number; responseMs: number;
+  run: ProducerRun | ProducerRunObserved; commit: boolean; enabled: boolean; apiKey: string; expiresAt: string;
+  revisionBasis: 'default' | 'latest_observed'; startedAt: number; deadlineAt: number; maxPages: number; maxRecords: number; maxBodyBytes: number; maxTotalBytes: number; responseMs: number;
 }
 const OPTIONS = new Set(['award-keys-file', 'award-keys-sha256', 'evidence-dir', 'expires-at', 'producer-commit',
-  'image-digest', 'run-id', 'target-id', 'max-pages', 'max-records', 'max-body-bytes', 'max-total-bytes', 'response-timeout-ms', 'task-timeout-ms']);
+  'image-digest', 'run-id', 'target-id', 'max-pages', 'max-records', 'max-body-bytes', 'max-total-bytes', 'response-timeout-ms', 'task-timeout-ms', 'revision-basis']);
 export function parseFiniteSamConfig(args: readonly string[], env: NodeJS.ProcessEnv, now = Date.now(), read = readCohortFile): FiniteSamConfig {
   const values = new Map<string, string>(); let commit = false;
   for (let index = 0; index < args.length; index++) {
@@ -31,9 +32,12 @@ export function parseFiniteSamConfig(args: readonly string[], env: NodeJS.Proces
     if (!/^[1-9]\d*$/.test(value) || !Number.isSafeInteger(Number(value)) || Number(value) > max) throw new Error('FINITE_BOUND_INVALID');
     return Number(value);
   };
-  const run = { contract: SAM_ACTION_CONTRACT, producerCommit: required('producer-commit'), imageDigest: required('image-digest'),
+  const revisionBasis = values.get('revision-basis') ?? 'default';
+  if (revisionBasis !== 'default' && revisionBasis !== 'latest_observed') throw new Error('FINITE_REVISION_BASIS_INVALID');
+  const runContract = revisionBasis === 'latest_observed' ? SAM_OBSERVED_ACTION_CONTRACT : SAM_ACTION_CONTRACT;
+  const run = { contract: runContract, producerCommit: required('producer-commit'), imageDigest: required('image-digest'),
     runId: required('run-id'), targetId: required('target-id') };
-  if (!validProducerRun(run)) throw new Error('FINITE_PROVENANCE_INVALID');
+  if (revisionBasis === 'latest_observed' ? !validProducerRunObserved(run as ProducerRunObserved) : !validProducerRun(run as ProducerRun)) throw new Error('FINITE_PROVENANCE_INVALID');
   const expiresAt = exactInstant(required('expires-at'));
   if (!expiresAt || Date.parse(expiresAt) <= now) throw new Error('FINITE_EXPIRY_INVALID');
   const evidenceDir = required('evidence-dir');
@@ -60,11 +64,11 @@ export function parseFiniteSamConfig(args: readonly string[], env: NodeJS.Proces
   assertLosslessSamJsonSupport();
   return { ...config, keys: Object.freeze(keys), cohortBytes, cohortSha256: expected, evidenceDir, run, commit,
     enabled: commit && env.PROGRAM_ACQUISITION_CONTINUITY_ENABLED === 'true', apiKey, expiresAt,
-    startedAt: now, deadlineAt: Math.min(now + config.taskMs, Date.parse(expiresAt)) };
+    revisionBasis: revisionBasis as 'default' | 'latest_observed', startedAt: now, deadlineAt: Math.min(now + config.taskMs, Date.parse(expiresAt)) };
 }
 export interface FiniteSamReceipt {
   contract: 'sam-finite-cohort/1'; state: 'STAGING' | 'DRY_RUN' | 'COMPLETED_BOUNDED' | 'REFUSED' | 'TRANSACTION_OUTCOME_UNRESOLVED';
-  coverage: 'bounded_observation_only'; mode: 'COMMIT' | 'DRY_RUN'; run: ProducerRun; cohortSha256: string; awardIdentityKeys: readonly string[];
+  coverage: 'bounded_observation_only'; mode: 'COMMIT' | 'DRY_RUN'; run: ProducerRun | ProducerRunObserved; cohortSha256: string; awardIdentityKeys: readonly string[];
   expiresAt: string; deadlineAt: number; finishedAt: string | null; plannedPages: number;
   pages: Array<{ piid: string; offset: 0; limit: 100; attempts: 1; file: string; records: number | null; historyIncomplete: boolean | null;
     totalReported: number | null; observedAt: string | null; status: number | null; responseBodyComplete: boolean }>;
@@ -129,7 +133,7 @@ export async function runFiniteSamCohort(config: FiniteSamConfig, ports: FiniteS
           WHERE a.piid=ANY(${piids}::text[])
         ) candidates ORDER BY "awardUniqueId" COLLATE "C", "identityKey" COLLATE "C", piid COLLATE "C" LIMIT 26`;
       remaining();
-      const accepted = validateStagedCohort(staged, candidates, config.keys, receipt);
+      const accepted = validateStagedCohort(staged, candidates, config.keys, receipt, config.run.contract);
       const existing = await tx.$queryRaw<Array<{ present: boolean }>>`
         SELECT true AS present FROM public.acquisition_award_transaction_revision
         WHERE source_system='sam_gov' AND raw_jsonb#>>'{acquisitionProvenance,contract}'=${config.run.contract}
@@ -144,7 +148,12 @@ export async function runFiniteSamCohort(config: FiniteSamConfig, ports: FiniteS
         remaining();
         if (!config.enabled) continue;
         writeAttempted = true;
-        const result = await store.appendTransaction(transactionInput(item.record, item.mapped, config.run, item.observedAt));
+        const input = config.run.contract === SAM_OBSERVED_ACTION_CONTRACT && 'sourceRevisionLabel' in item.mapped
+          ? observedTransactionInput(item.record, item.mapped, config.run, item.observedAt)
+          : config.run.contract === SAM_ACTION_CONTRACT && 'sourceRevisionOrder' in item.mapped
+            ? transactionInput(item.record, item.mapped, config.run, item.observedAt) : null;
+        if (!input) throw new Error('FINITE_CONTRACT_MISMATCH');
+        const result = await store.appendTransaction(input);
         receipt.provisionalRows.push({ id: result.id, inserted: result.inserted, sourcePayloadHash: item.mapped.sourcePayloadHash,
           awardIdentityKey: item.mapped.awardIdentityKey, observedAt: item.observedAt, file: item.file, row: item.row }); remaining();
       }
@@ -203,23 +212,30 @@ async function stageCohort(config: FiniteSamConfig, ports: FiniteSamPorts, evide
   }
   return staged;
 }
-function validateStagedCohort(staged: readonly StagedRecord[], candidates: readonly AwardCandidate[], keys: readonly string[], receipt: FiniteSamReceipt) {
+function validateStagedCohort(staged: readonly StagedRecord[], candidates: readonly AwardCandidate[], keys: readonly string[], receipt: FiniteSamReceipt, contract: typeof SAM_ACTION_CONTRACT | typeof SAM_OBSERVED_ACTION_CONTRACT) {
   if (candidates.length > 25 || candidates.some((candidate) => awardKey(candidate.awardUniqueId) !== candidate.identityKey
     || parseAwardId(candidate.awardUniqueId)?.piid !== candidate.piid)
     || keys.some((key) => !candidates.some((candidate) => candidate.identityKey === key))) throw new Error('FINITE_CATALOG_SCOPE_INVALID');
   receipt.outcomes = [];
-  const accepted: Array<StagedRecord & { mapped: Extract<ReturnType<typeof mapSamAction>, { ok: true }>['value'] }> = [];
+  const accepted: Array<StagedRecord & { mapped: Extract<ReturnType<typeof mapSamAction | typeof mapObservedSamAction>, { ok: true }>['value'] }> = [];
   const heads = new Map<string, Set<string>>(); let refused = false;
+  const useObserved = contract === SAM_OBSERVED_ACTION_CONTRACT;
   for (const item of staged) {
-    const mapped = mapSamAction(item.record, candidates);
+    const mapped = useObserved ? mapObservedSamAction(item.record, candidates) : mapSamAction(item.record, candidates);
     if (!mapped.ok) { receipt.outcomes.push({ file: item.file, row: item.row, outcome: mapped.reason }); refused = true; continue; }
     if (!keys.includes(mapped.value.awardIdentityKey)) { receipt.outcomes.push({ file: item.file, row: item.row, outcome: 'out_of_scope' }); continue; }
-    const identity = JSON.stringify([mapped.value.sourceTransactionId, mapped.value.sourceRevisionOrder]);
-    const payloads = heads.get(identity) ?? new Set<string>(); payloads.add(canonicalJson(item.record)); heads.set(identity, payloads);
+    // For observed mode, fork key = sourceTransactionId + observedAt; otherwise use sourceRevisionOrder
+    const forkKey = useObserved 
+      ? JSON.stringify([mapped.value.sourceTransactionId, item.observedAt])
+      : JSON.stringify([mapped.value.sourceTransactionId, ('sourceRevisionOrder' in mapped.value ? mapped.value.sourceRevisionOrder : null)]);
+    const payloads = heads.get(forkKey) ?? new Set<string>(); payloads.add(canonicalJson(item.record)); heads.set(forkKey, payloads);
     accepted.push({ ...item, mapped: mapped.value });
   }
   for (const item of accepted) {
-    const fork = heads.get(JSON.stringify([item.mapped.sourceTransactionId, item.mapped.sourceRevisionOrder]))!.size > 1;
+    const forkKey = useObserved
+      ? JSON.stringify([item.mapped.sourceTransactionId, item.observedAt])
+      : JSON.stringify([item.mapped.sourceTransactionId, ('sourceRevisionOrder' in item.mapped ? item.mapped.sourceRevisionOrder : null)]);
+    const fork = heads.get(forkKey)!.size > 1;
     receipt.outcomes.push({ file: item.file, row: item.row, outcome: fork ? 'source_revision_fork' : 'mapped' });
     if (fork) refused = true;
   }

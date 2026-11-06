@@ -12,7 +12,14 @@ import { ProcurementMoneyFlowService } from './procurement-money-flow.service.js
 export class ProcurementMoneyFlowController {
   constructor(private readonly service: ProcurementMoneyFlowService) {}
   @Post('money-flow')
-  moneyFlow(@CurrentTenant() context: TenantContext, @Body() scope: unknown) { return this.service.moneyFlow(context.tenantId, scope); }
+  moneyFlow(@CurrentTenant() context: TenantContext, @Body() scope: unknown) {
+    return scope && typeof scope === 'object' && Object.prototype.hasOwnProperty.call(scope, 'revisionBasis')
+      ? this.service.observedMoneyFlow(context.tenantId, scope)
+      : this.service.moneyFlow(context.tenantId, scope);
+  }
+  /** Independent account-reports route: account caps cannot break Money Flow/Hub callers. */
+  @Post('account-reports')
+  accountReports(@CurrentTenant() context: TenantContext, @Body() scope: unknown) { return this.service.accountReports(context.tenantId, scope); }
 }
 
 /** Procurement summary is separate from Hub's existing opportunity-count metric. */
