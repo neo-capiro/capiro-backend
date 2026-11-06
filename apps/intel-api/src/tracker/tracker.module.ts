@@ -46,6 +46,7 @@ import { SmsService } from './sms/sms.service.js';
 import { SmsVerificationService } from './sms/sms-verification.service.js';
 import { HearingSmsController } from '../hearing/hearing-sms.controller.js';
 import { TrackerOwnerGuard } from './tracker-owner.guard.js';
+import { TrackerClientAccessGuard } from './tracker-client-access.guard.js';
 import {
   BillCorpusController,
   FolderTrackerController,
@@ -152,6 +153,7 @@ import { ClientBriefContextClient } from '../hearing/client-brief-context.client
     SmsService,
     SmsVerificationService,
     TrackerOwnerGuard,
+    TrackerClientAccessGuard,
   ],
   // Phase8EvidenceService is the canonical Florida budget DTO owner reused by the
   // signed retained-read module; it is exported, not duplicated.

@@ -102,6 +102,12 @@ export const configSchema = z.object({
     .default('https://api.legistorm.com/v2.023.07/legislative_districts'),
   AWS_REGION_DEFAULT: z.string().default('us-east-1'),
   PORTFOLIO_AGENT_MODEL: z.preprocess(blankToUndefined, z.string().trim().min(1).optional()),
+  LEGIWATCH_AGENT_PROVIDER: z.enum(['bedrock', 'anthropic']).default('bedrock'),
+  LEGIWATCH_AGENT_MODEL: z.preprocess(blankToUndefined, z.string().trim().min(1).optional()),
+  LEGIWATCH_AGENT_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(120_000).default(90_000),
+  LEGIWATCH_AGENT_MAX_TURNS: z.coerce.number().int().min(1).max(8).default(4),
+  LEGIWATCH_AGENT_MAX_BUDGET_USD: z.coerce.number().min(0.03).max(2).default(0.5),
+  LEGIWATCH_IMPACT_REFRESH_TIMEOUT_MS: z.coerce.number().int().min(60_000).max(900_000).default(240_000),
   CENSUS_SERVING_CONGRESS: z.coerce.number().int().positive().default(119),
   CENSUS_STATE_LEGISLATIVE_YEAR: z.coerce.number().int().min(2000).default(2024),
   CENSUS_GEOMETRY_VERSION: z.string().trim().min(1).default('BAS 2026'),
@@ -1013,6 +1019,9 @@ export const configSchema = z.object({
   // Key is an api.data.gov key sourced from Secrets Manager (injected as env by CDK).
   // Endpoints fail closed (the service throws) when the key is unset.
   GOVINFO_API_KEY: z.string().optional(),
+  CONGRESS_API_KEY: z.string().min(1).optional(),
+  REGULATIONS_GOV_API_KEY: z.string().min(1).optional(),
+  LEGISCAN_API_KEY: z.string().min(1).optional(),
   // S3 bucket for cached GovInfo PDFs (committee reports, public laws).
   GOVINFO_CACHE_BUCKET: z.string().optional(),
 
@@ -1230,6 +1239,10 @@ export type AppConfig = z.infer<typeof configSchema>;
  */
 export function validateConfig(raw: Record<string, unknown>): AppConfig {
   const parsed = configSchema.parse(raw);
+  if (parsed.LEGIWATCH_AGENT_PROVIDER === 'anthropic' &&
+      (!parsed.LEGIWATCH_AGENT_MODEL || !parsed.ANTHROPIC_API_KEY?.trim())) {
+    throw new Error('LegiWatch Anthropic provider requires LEGIWATCH_AGENT_MODEL and ANTHROPIC_API_KEY');
+  }
   if (parsed.CORE_ROSTER_PREVIEW_ENABLED && !parsed.PREVIEW_NATIVE_GETS_ENABLED) {
     throw new Error('CORE_ROSTER_PREVIEW_ENABLED requires PREVIEW_NATIVE_GETS_ENABLED=true');
   }

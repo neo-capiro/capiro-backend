@@ -3,6 +3,7 @@ import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { TrackerOwnerGuard } from './tracker-owner.guard.js';
+import { TrackerClientAccessGuard } from './tracker-client-access.guard.js';
 import { TrackerWatchlistService } from './tracker-watchlist.service.js';
 import { TrackerSeedService } from './tracker-seed.service.js';
 import { PutAlertPrefsDto, PutWatchlistDto } from './tracker.dto.js';
@@ -18,7 +19,7 @@ import { PutAlertPrefsDto, PutWatchlistDto } from './tracker.dto.js';
  * truth (D6).
  */
 @Controller('tracker/watchlists')
-@UseGuards(TenantGuard, TrackerOwnerGuard)
+@UseGuards(TenantGuard, TrackerOwnerGuard, TrackerClientAccessGuard)
 export class TrackerWatchlistController {
   constructor(
     private readonly svc: TrackerWatchlistService,

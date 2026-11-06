@@ -5,7 +5,18 @@ import * as ecs from 'aws-cdk-lib/aws-ecs';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { ScheduledIngestionJobs } from '../lib/constructs/scheduled-ingestion-jobs';
-import { INGESTION_JOBS } from '../lib/ingestion-schedule';
+import { INGESTION_JOBS, LEGIWATCH_IMPACT_REFRESH_JOB } from '../lib/ingestion-schedule';
+
+describe('LegiWatch impact refresh schedule', () => {
+  test('uses the bounded worker and stays outside the historical live Compute schedule matrix', () => {
+    expect(INGESTION_JOBS.some((job) => job.id === LEGIWATCH_IMPACT_REFRESH_JOB.id)).toBe(false);
+    expect(LEGIWATCH_IMPACT_REFRESH_JOB.command).toEqual(['refresh-legiwatch-impact', '--limit', '10', '--discovery-limit', '100']);
+    expect(LEGIWATCH_IMPACT_REFRESH_JOB.rateMinutes).toBe(15);
+    const dispatcher = readFileSync(resolve(__dirname, '../../../apps/api/scripts/entrypoint-dispatcher.inc'), 'utf8');
+    expect(dispatcher).toContain('refresh-legiwatch-impact)');
+    expect(dispatcher).toContain('exec ./node_modules/.bin/tsx scripts/refresh-legiwatch-impact.ts "$@"');
+  });
+});
 
 describe('Package 5 program/acquisition continuity schedule', () => {
   test('ships dark with its independent writer gate explicit', () => {

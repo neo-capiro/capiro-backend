@@ -56,6 +56,19 @@ export interface ScheduledIngestionJob {
 // NOTE: AWS EventBridge cron requires exactly one of day-of-month / day-of-week
 // to be '?'. The helpers below default the unused field to '?'.
 
+/** Dedicated preview worker proposal, rendered with explicit task/network refs.
+ * Kept outside INGESTION_JOBS so a historical Compute deploy cannot launch it
+ * against the shared live database. Activation belongs to the preview overlay. */
+export const LEGIWATCH_IMPACT_REFRESH_JOB = {
+  id: 'LegiwatchImpactRefresh',
+  command: ['refresh-legiwatch-impact', '--limit', '10', '--discovery-limit', '100'],
+  cron: { minute: '0/15', hour: '*' },
+  rateMinutes: 15,
+  description: 'Reevaluate authorized tracked bills after retained evidence or client profile changes',
+  environment: { LEGIWATCH_IMPACT_REFRESH_TIMEOUT_MS: '240000' },
+  tier: 'agent',
+} satisfies ScheduledIngestionJob;
+
 export const INGESTION_JOBS: ScheduledIngestionJob[] = [
   // ── TIER 1 — DAILY sources ────────────────────────────────────────────────
   {

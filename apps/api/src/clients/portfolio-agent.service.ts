@@ -23,7 +23,7 @@ export interface PortfolioAgentSource {
   attachmentId?: string;
 }
 export interface PortfolioAgentAudit {
-  provider: 'bedrock';
+  provider: 'bedrock' | 'anthropic';
   model: string;
   sdkVersion: string;
   promptVersion: string;
@@ -50,6 +50,8 @@ export interface PortfolioAgentRequest {
   timeoutMs?: number;
   maxTurns?: number;
   maxBudgetUsd?: number;
+  /** Trusted server configuration, never model/browser-supplied provider settings. */
+  runtime?: { provider: 'bedrock' | 'anthropic'; model: string };
   onAudit?: (audit: PortfolioAgentAudit) => Promise<void>;
 }
 export class PortfolioAgentError extends Error {
@@ -61,16 +63,16 @@ export class PortfolioAgentError extends Error {
   }
 }
 
-/** Only ordinary IAM-chain configuration enters the SDK child; never provider keys or proxy URLs. */
+/** Replace the child environment; select one provider without inherited endpoints or fallbacks. */
 export function portfolioAgentEnvironment(
   env: NodeJS.ProcessEnv,
+  provider: 'bedrock' | 'anthropic' = 'bedrock',
 ): Record<string, string | undefined> {
+  if (provider !== 'bedrock' && provider !== 'anthropic')
+    throw new Error('Invalid Portfolio SDK provider configuration');
   const out: Record<string, string | undefined> = {};
-  for (const key of [
-    'PATH',
-    'HOME',
-    'TMPDIR',
-    'NODE_EXTRA_CA_CERTS',
+  const runtimeKeys = ['PATH', 'HOME', 'TMPDIR', 'NODE_EXTRA_CA_CERTS'];
+  const iamKeys = [
     'AWS_REGION',
     'AWS_DEFAULT_REGION',
     'AWS_CONTAINER_CREDENTIALS_RELATIVE_URI',
@@ -79,7 +81,8 @@ export function portfolioAgentEnvironment(
     'AWS_WEB_IDENTITY_TOKEN_FILE',
     'AWS_ROLE_ARN',
     'AWS_ROLE_SESSION_NAME',
-  ]) {
+  ];
+  for (const key of [...runtimeKeys, ...(provider === 'bedrock' ? iamKeys : [])]) {
     if (env[key]) out[key] = env[key];
   }
   // Deployment limits must reach the native SDK child. Reject malformed limits
@@ -96,6 +99,15 @@ export function portfolioAgentEnvironment(
     if (!/^\d+$/.test(raw) || !Number.isSafeInteger(value) || value < minimum)
       throw new Error('Invalid Portfolio SDK limit configuration');
     out[key] = String(value);
+  }
+  if (provider === 'anthropic') {
+    const apiKey = env.ANTHROPIC_API_KEY?.trim();
+    if (!apiKey) throw new Error('Portfolio SDK provider credential unavailable');
+    return {
+      ...out,
+      ANTHROPIC_API_KEY: apiKey,
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
+    };
   }
   return {
     ...out,
@@ -136,9 +148,10 @@ export class PortfolioAgentService {
     request: PortfolioAgentRequest,
   ): Promise<{ data: T; audit: PortfolioAgentAudit }> {
     const startedAt = Date.now();
-    const model = process.env.PORTFOLIO_AGENT_MODEL?.trim() ?? '';
+    const provider = request.runtime?.provider ?? 'bedrock';
+    const model = (request.runtime?.model ?? process.env.PORTFOLIO_AGENT_MODEL)?.trim() ?? '';
     const audit: PortfolioAgentAudit = {
-      provider: 'bedrock',
+      provider,
       model,
       sdkVersion: PORTFOLIO_AGENT_SDK_VERSION,
       promptVersion: PORTFOLIO_AGENT_PROMPT_VERSION,
@@ -170,6 +183,7 @@ export class PortfolioAgentService {
     let rejectAbort: (() => void) | undefined;
     try {
       if (!model) throw new Error('configuration');
+      const env = portfolioAgentEnvironment(process.env, provider);
       if (
         !request.sources.length ||
         request.sources.length > 60 ||
@@ -248,7 +262,7 @@ export class PortfolioAgentService {
         options: {
           model,
           cwd: scratch,
-          env: portfolioAgentEnvironment(process.env),
+          env,
           abortController: controller,
           systemPrompt: {
             type: 'preset',
@@ -279,6 +293,7 @@ export class PortfolioAgentService {
           },
           strictMcpConfig: true,
           settingSources: [],
+          verbatimPrompts: true,
           persistSession: false,
           maxTurns: Math.max(1, Math.min(request.maxTurns ?? 4, 8)),
           maxBudgetUsd: Math.max(0.01, Math.min(request.maxBudgetUsd ?? 0.5, 2)),
@@ -314,7 +329,11 @@ export class PortfolioAgentService {
         audit.cacheWriteTokens += usage.cacheCreationInputTokens;
       }
       if (result.subtype !== 'success' || result.is_error || result.permission_denials?.length) {
-        audit.outcome = result.permission_denials?.length ? 'forbidden_tool' : result.subtype;
+        audit.outcome = result.permission_denials?.length
+          ? 'forbidden_tool'
+          : result.subtype === 'success'
+            ? 'error_during_execution'
+            : result.subtype;
         throw new Error('sdk_failed');
       }
       const output = result.structured_output;

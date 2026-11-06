@@ -1,9 +1,4 @@
-import {
-  BillImpactService,
-  IMPACT_CLIENT_SQL,
-  IMPACT_STATE_SQL,
-  IMPACT_FEDERAL_SQL,
-} from './bill-impact.service.js';
+import { BillImpactService, IMPACT_STATE_SQL, IMPACT_FEDERAL_SQL } from './bill-impact.service.js';
 jest.mock('@capiro/shared', () => ({
   ...jest.requireActual('@capiro/shared'),
   recordAiUsageEvent: jest.fn(async () => undefined),
@@ -11,6 +6,9 @@ jest.mock('@capiro/shared', () => ({
 const ctx = {
   tenantId: '00000000-0000-4000-8000-000000000001',
   userId: '00000000-0000-4000-8000-000000000002',
+  clerkUserId: 'synthetic-clerk',
+  role: 'standard_user',
+  tenantSlug: 'fixture',
 } as never;
 const clientId = '00000000-0000-4000-8000-000000000003';
 const input = { clientId, versionId: 'v1', revision: 'hash' };
@@ -53,22 +51,63 @@ function harness(federal = false) {
           },
         ],
       };
-  const tenantQuery = jest.fn(async (sql: string) =>
-    sql.includes('intel_feature_flag') ? [{ enabled: true }] : [client],
-  );
+  const profile = { facts: [] as any[], attachmentVisible: true };
+  const authorization = {
+    role: 'standard_user',
+    memberActive: true,
+    tenantActive: true,
+    clerkUserId: 'synthetic-clerk',
+    clientVisible: true,
+    wallAllowed: true,
+  };
+  const currentMembership = () =>
+    authorization.memberActive &&
+    authorization.tenantActive &&
+    authorization.clerkUserId === 'synthetic-clerk'
+      ? { role: authorization.role }
+      : null;
+  const memberRead = jest.fn(async () => currentMembership());
+  const clientRead = jest.fn(async () => (authorization.clientVisible ? client : null));
+  const tenantQuery = jest.fn(async (sql: string) => {
+    if (sql.includes('intel_feature_flag')) return [{ enabled: true }];
+    if (sql.includes('FROM profile_fact')) return profile.facts;
+    if (sql.includes('FROM engagement_attachments'))
+      return profile.attachmentVisible ? [{ id: 'synthetic-attachment', prospectId: null }] : [];
+    if (sql.includes('AS allowed')) return [{ allowed: authorization.wallAllowed }];
+    return [];
+  });
   const query = jest.fn(async (sql: string) =>
     sql.includes('legiwatch_research_document_source') || sql.includes('federal_evidence_current')
       ? [version]
       : [lifecycle],
   );
   const prisma = {
-    withTenant: jest.fn(async (_: string, fn: any) => fn({ $queryRawUnsafe: tenantQuery })),
+    withTenantUser: jest.fn(async (_tenant: string, _user: string, fn: any) =>
+      fn({
+        $queryRawUnsafe: tenantQuery,
+        $queryRaw: async (query: any) => {
+          const sql = Array.isArray(query) ? query.join('') : query.text;
+          if (sql.includes('FROM clients'))
+            return authorization.clientVisible ? [{ version: 0, primary: null }] : [];
+          if (sql.includes('FROM tenant_memberships'))
+            return currentMembership() ? [currentMembership()] : [];
+          return [];
+        },
+        tenantMembership: { findFirst: memberRead },
+        client: { findFirst: clientRead },
+        clientFacility: { findMany: async () => [] },
+        clientCapability: { findMany: async () => [] },
+        clientPortfolioProposal: { findMany: async () => [] },
+        clientCapabilityTerm: { findMany: async () => [] },
+        clientFacilityCapability: { findMany: async () => [] },
+      }),
+    ),
     $queryRawUnsafe: query,
   };
-  const complete = jest
+  const extract = jest
     .fn()
     .mockResolvedValueOnce({
-      text: JSON.stringify({
+      data: {
         impacts: [
           {
             evidenceIds: ['E1'],
@@ -79,35 +118,42 @@ function harness(federal = false) {
           },
         ],
         limitations: 'Draft analysis of selected text only.',
-      }),
-      raw: {},
-      truncated: false,
+      },
     })
     .mockResolvedValueOnce({
-      text: JSON.stringify({ verdicts: [{ index: 0, supported: true }] }),
-      raw: {},
-      truncated: false,
+      data: { verdicts: [{ index: 0, supported: true }] },
     });
-  const resolveProvider = jest.fn(async () => ({
-    apiKey: 'fixture',
-    model: 'fixture',
-    usedTenantKey: true,
-  }));
-  const service = new BillImpactService(
-    prisma as never,
-    { resolveProvider } as never,
-    { complete } as never,
-  );
-  return { service, client, lifecycle, version, tenantQuery, query, complete, resolveProvider };
+  const service = new BillImpactService(prisma as never, { extract } as never);
+  return {
+    service,
+    client,
+    lifecycle,
+    version,
+    tenantQuery,
+    query,
+    extract,
+    profile,
+    authorization,
+    memberRead,
+    clientRead,
+  };
 }
 describe('bill impact review-only generation', () => {
+  const originalEnv = { ...process.env };
+  beforeEach(() => {
+    process.env.LEGIWATCH_AGENT_PROVIDER = 'anthropic';
+    process.env.LEGIWATCH_AGENT_MODEL = 'fixture';
+  });
+  afterEach(() => {
+    process.env = { ...originalEnv };
+  });
   it('allows no supported client connection without fabricating a mandatory impact', async () => {
     const h = harness();
-    h.complete.mockReset().mockResolvedValue({ text: '{"impacts":[]}', raw: {} });
+    h.extract.mockReset().mockResolvedValue({ data: { impacts: [] } });
     const result = await h.service.generate(ctx, 'fl-2026-hb1211', input);
     expect(result.impacts).toEqual([]);
     expect(result.reviewRequired).toBe(true);
-    expect(h.complete).toHaveBeenCalledTimes(1);
+    expect(h.extract).toHaveBeenCalledTimes(1);
     expect(result.limitations).toContain('require human review');
   });
   it('bounds the whole request and cancels provider work before the browser deadline', async () => {
@@ -115,7 +161,7 @@ describe('bill impact review-only generation', () => {
     try {
       const h = harness();
       let providerSignal: AbortSignal | undefined;
-      h.complete.mockReset().mockImplementation((request: any) => {
+      h.extract.mockReset().mockImplementation((request: any) => {
         providerSignal = request.signal;
         return new Promise(() => undefined);
       });
@@ -137,12 +183,18 @@ describe('bill impact review-only generation', () => {
       expect(result.reviewRequired).toBe(true);
       expect(result.version.revision).toBe('hash');
       expect(result.lifecycle.latestAction).toBe(h.lifecycle.latestAction);
-      expect(h.complete).toHaveBeenCalledTimes(2);
+      expect(h.extract).toHaveBeenCalledTimes(2);
       expect(h.query).toHaveBeenCalledWith(
         federal ? IMPACT_FEDERAL_SQL : IMPACT_STATE_SQL,
         ...[id, ...(!federal ? ['2026'] : [])],
       );
-      expect(h.complete.mock.calls[0]![0].userStatic).toContain('does not appropriate funds');
+      expect(h.extract.mock.calls[0]![0].sources[0].text).toContain('does not appropriate funds');
+      expect(h.extract.mock.calls[0]![0].runtime).toEqual({
+        provider: 'anthropic',
+        model: 'fixture',
+      });
+      expect(h.extract.mock.calls[0]![0].prompt).not.toContain('Manufactures composite');
+      expect(h.extract.mock.calls[1]![0].instructions).toContain('Independently check');
     },
   );
   it('does not select a version automatically', async () => {
@@ -150,7 +202,7 @@ describe('bill impact review-only generation', () => {
     await expect(
       h.service.generate(ctx, 'fl-2026-hb1211', { ...input, versionId: '' }),
     ).rejects.toThrow(/selected text/);
-    expect(h.complete).not.toHaveBeenCalled();
+    expect(h.extract).not.toHaveBeenCalled();
   });
   it.each(['partial', 'metadata'])('withholds %s source before provider lookup', async (kind) => {
     const h = harness();
@@ -159,41 +211,47 @@ describe('bill impact review-only generation', () => {
     await expect(h.service.generate(ctx, 'fl-2026-hb1211', input)).rejects.toThrow(
       /complete retained/,
     );
-    expect(h.resolveProvider).not.toHaveBeenCalled();
+    expect(h.extract).not.toHaveBeenCalled();
   });
   it('rejects stale revision before generation', async () => {
     const h = harness();
     await expect(
       h.service.generate(ctx, 'fl-2026-hb1211', { ...input, revision: 'old' }),
     ).rejects.toThrow(/changed/);
-    expect(h.complete).not.toHaveBeenCalled();
+    expect(h.extract).not.toHaveBeenCalled();
   });
   it('requires meaningful client context before model work', async () => {
     const h = harness();
     h.client.description = 'Defense';
     await expect(h.service.generate(ctx, 'fl-2026-hb1211', input)).rejects.toThrow(/substantive/);
-    expect(h.complete).not.toHaveBeenCalled();
+    expect(h.extract).not.toHaveBeenCalled();
   });
-  it('passes only trusted tenant/user/client identity into the restrictive access query', async () => {
+  it('passes trusted tenant, current Clerk principal and client into the canonical access owner', async () => {
     const h = harness();
     await h.service.options(ctx, 'fl-2026-hb1211', clientId);
-    expect(h.tenantQuery).toHaveBeenCalledWith(
-      IMPACT_CLIENT_SQL,
-      (ctx as any).tenantId,
-      (ctx as any).userId,
-      clientId,
-    );
+    expect(h.memberRead).toHaveBeenCalledWith({
+      where: {
+        tenantId: (ctx as any).tenantId,
+        userId: (ctx as any).userId,
+        status: 'active',
+        user: { clerkUserId: 'synthetic-clerk' },
+        tenant: { status: 'active' },
+      },
+      select: { role: true },
+    });
+    expect(h.clientRead).toHaveBeenCalledWith({
+      where: { tenantId: (ctx as any).tenantId, id: clientId },
+      select: { id: true, name: true },
+    });
   });
   it('holds inaccessible clients before reading public evidence or calling model', async () => {
     const h = harness();
-    h.tenantQuery.mockImplementation(async (sql) =>
-      sql.includes('intel_feature_flag') ? [{ enabled: true }] : [],
-    );
+    h.authorization.clientVisible = false;
     await expect(h.service.options(ctx, 'fl-2026-hb1211', clientId)).rejects.toThrow(
-      /Client unavailable/,
+      /Client not found/,
     );
     expect(h.query).not.toHaveBeenCalled();
-    expect(h.complete).not.toHaveBeenCalled();
+    expect(h.extract).not.toHaveBeenCalled();
   });
   it('honors an explicit disabled feature even for the internal tenant', async () => {
     const h = harness();
@@ -201,15 +259,15 @@ describe('bill impact review-only generation', () => {
     await expect(h.service.options(ctx, 'fl-2026-hb1211', clientId)).rejects.toThrow(/unavailable/);
     expect(h.query).not.toHaveBeenCalled();
   });
-  it.each(['truncated', 'refusal', 'unsupported'])(
+  it.each(['incomplete', 'refusal', 'unsupported'])(
     'withholds %s generation/review',
     async (mode) => {
       const h = harness();
       if (mode === 'unsupported')
-        h.complete
+        h.extract
           .mockReset()
           .mockResolvedValueOnce({
-            text: JSON.stringify({
+            data: {
               impacts: [
                 {
                   evidenceIds: ['E1'],
@@ -220,17 +278,10 @@ describe('bill impact review-only generation', () => {
                 },
               ],
               limitations: 'None.',
-            }),
-            raw: {},
+            },
           })
-          .mockResolvedValueOnce({ text: '{"verdicts":[{"index":0,"supported":false}]}', raw: {} });
-      else
-        h.complete.mockReset().mockResolvedValue({
-          text: '{}',
-          raw: {},
-          truncated: mode === 'truncated',
-          stopReason: mode,
-        });
+          .mockResolvedValueOnce({ data: { verdicts: [{ index: 0, supported: false }] } });
+      else h.extract.mockReset().mockRejectedValue(new Error(mode));
       await expect(h.service.generate(ctx, 'fl-2026-hb1211', input)).rejects.toThrow(
         /could not be verified/,
       );
@@ -238,14 +289,32 @@ describe('bill impact review-only generation', () => {
   );
   it('rechecks client access after generation and withholds on revocation', async () => {
     const h = harness();
-    let access = 0;
-    h.tenantQuery.mockImplementation(async (sql) =>
-      sql.includes('intel_feature_flag') ? [{ enabled: true }] : ++access === 1 ? [h.client] : [],
-    );
+    h.extract.mockReset().mockImplementation(async () => {
+      h.authorization.wallAllowed = false;
+      return { data: { impacts: [] } };
+    });
     await expect(h.service.generate(ctx, 'fl-2026-hb1211', input)).rejects.toThrow(
-      /Client unavailable/,
+      /Client not found/,
     );
   });
+
+  it.each(['role demotion', 'tenant deactivation', 'Clerk principal replacement'])(
+    'withholds the draft after in-flight %s',
+    async (reason) => {
+      const h = harness();
+      h.extract.mockReset().mockImplementation(async () => {
+        if (reason === 'role demotion') h.authorization.role = 'guest';
+        else if (reason === 'tenant deactivation') h.authorization.tenantActive = false;
+        else h.authorization.clerkUserId = 'replacement-principal';
+        return { data: { impacts: [] } };
+      });
+      await expect(h.service.generate(ctx, 'fl-2026-hb1211', input)).rejects.toThrow(
+        'Account owner access denied',
+      );
+      expect(h.extract).toHaveBeenCalledTimes(1);
+      expect(h.memberRead).toHaveBeenCalledTimes(2);
+    },
+  );
   it('rechecks exact retained source after generation', async () => {
     const h = harness();
     let reads = 0;
@@ -266,6 +335,79 @@ describe('bill impact review-only generation', () => {
           : []
         : [h.lifecycle],
     );
+    await expect(h.service.generate(ctx, 'fl-2026-hb1211', input)).rejects.toThrow(/changed/);
+  });
+
+  it('does not recover revoked source-backed prose from the client projection', async () => {
+    const h = harness();
+    const restricted =
+      'Restricted source describes a proprietary supplier capability for defense manufacturing.';
+    h.client.description = restricted;
+    h.profile.facts = [
+      {
+        id: 'fact-description',
+        fieldKey: 'description',
+        value: restricted,
+        origin: 'research',
+        evidence: [{ attachmentId: 'synthetic-attachment' }],
+        status: 'approved',
+        isCurrent: true,
+        version: 1,
+      },
+    ];
+    h.profile.attachmentVisible = false;
+    const options = await h.service.options(ctx, 'fl-2026-hb1211', clientId);
+    expect(options.contextUnavailable).toMatch(/substantive/);
+    expect(JSON.stringify(options)).not.toContain(restricted);
+    await expect(h.service.generate(ctx, 'fl-2026-hb1211', input)).rejects.toThrow(/substantive/);
+    expect(h.extract).not.toHaveBeenCalled();
+  });
+
+  it('retains visible profile context while excluding revoked evidence from the SDK sources', async () => {
+    const h = harness();
+    const restricted =
+      'Restricted source describes a proprietary supplier capability for defense manufacturing.';
+    h.client.description = restricted;
+    (h.client as { productDescription: string | null }).productDescription =
+      'Manufactures public catalog composite structures for domestic aircraft suppliers.';
+    h.profile.facts = [
+      {
+        id: 'fact-description',
+        fieldKey: 'description',
+        value: restricted,
+        origin: 'research',
+        evidence: [{ attachmentId: 'synthetic-attachment' }],
+        status: 'approved',
+        isCurrent: true,
+        version: 1,
+      },
+    ];
+    h.profile.attachmentVisible = false;
+    h.extract.mockReset().mockResolvedValue({ data: { impacts: [] } });
+    const result = await h.service.generate(ctx, 'fl-2026-hb1211', input);
+    expect(JSON.stringify(h.extract.mock.calls[0]![0])).not.toContain(restricted);
+    expect(JSON.stringify(h.extract.mock.calls[0]![0].sources)).toContain('public catalog');
+    expect(JSON.stringify(result)).not.toContain(restricted);
+  });
+
+  it('withholds a generated draft when its client source is revoked during model execution', async () => {
+    const h = harness();
+    h.profile.facts = [
+      {
+        id: 'fact-description',
+        fieldKey: 'description',
+        value: h.client.description,
+        origin: 'research',
+        evidence: [{ attachmentId: 'synthetic-attachment' }],
+        status: 'approved',
+        isCurrent: true,
+        version: 1,
+      },
+    ];
+    h.extract.mockReset().mockImplementation(async () => {
+      h.profile.attachmentVisible = false;
+      return { data: { impacts: [] } };
+    });
     await expect(h.service.generate(ctx, 'fl-2026-hb1211', input)).rejects.toThrow(/changed/);
   });
 });

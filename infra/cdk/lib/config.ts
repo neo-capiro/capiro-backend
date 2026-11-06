@@ -52,6 +52,9 @@ export interface EnvConfig {
   logRetentionDays: number;
   /** Opt in only after capiro/<env>/typesafe-api-key has been provisioned. */
   typesafeApiKeySecretEnabled?: boolean;
+  /** LegiWatch alone may opt into the Anthropic API; other agents keep their provider. */
+  legiwatchAgentProvider?: 'bedrock' | 'anthropic';
+  legiwatchAgentModel?: string;
   externalSecretArns?: {
     microsoftClientId: string;
     microsoftTenantId: string;
@@ -61,6 +64,9 @@ export interface EnvConfig {
     oauthStateSecret: string;
     openaiApiKey: string;
     anthropicApiKey: string;
+    /** Explicit existing references only; there is no inferred secret name. */
+    congressApiKey?: string;
+    regulationsGovApiKey?: string;
     notesEncryptionKey: string;
     samGovApiKey?: string;
     aiCredentialEncryptionKey?: string;
@@ -358,7 +364,53 @@ export function loadConfig(app: cdk.App): EnvConfig {
             },
           };
 
-  return { ...BASE, envName, account, region, ...overrides };
+  const config: EnvConfig = { ...BASE, envName, account, region, ...overrides };
+  const provider = app.node.tryGetContext('legiwatchAgentProvider');
+  const model = app.node.tryGetContext('legiwatchAgentModel');
+  if (provider !== undefined) config.legiwatchAgentProvider = provider;
+  if (model !== undefined) config.legiwatchAgentModel = model;
+  for (const [contextKey, secretKey] of [
+    ['congressApiKeyArn', 'congressApiKey'],
+    ['regulationsGovApiKeyArn', 'regulationsGovApiKey'],
+  ] as const) {
+    const arn = app.node.tryGetContext(contextKey);
+    if (arn === undefined) continue;
+    if (!config.externalSecretArns)
+      throw new Error('Existing external secret bindings are required before adding source credentials');
+    config.externalSecretArns[secretKey] = completeExternalSecretArn(arn, config, contextKey);
+  }
+  legiwatchAgentEnvironment(config);
+  return config;
+}
+
+/** Reject plaintext, partial ARNs, JSON selectors and cross-account references. */
+export function completeExternalSecretArn(
+  value: unknown,
+  config: Pick<EnvConfig, 'account' | 'region'>,
+  label: string,
+): string {
+  if (typeof value !== 'string' ||
+      !/^arn:aws:secretsmanager:[a-z0-9-]+:\d{12}:secret:[A-Za-z0-9/_+=.@-]+-[A-Za-z0-9]{6}$/.test(value) ||
+      !value.startsWith(`arn:aws:secretsmanager:${config.region}:${config.account}:secret:`))
+    throw new Error(`${label}: complete same-account and same-region Secrets Manager ARN required`);
+  return value;
+}
+
+export function legiwatchAgentEnvironment(
+  config: Pick<EnvConfig, 'legiwatchAgentProvider' | 'legiwatchAgentModel'>,
+): Record<string, string> {
+  const provider = config.legiwatchAgentProvider ?? 'bedrock';
+  if (provider !== 'bedrock' && provider !== 'anthropic')
+    throw new Error('LegiWatch provider must be bedrock or anthropic');
+  const model = config.legiwatchAgentModel;
+  if (model !== undefined && (typeof model !== 'string' || !model.trim() || model !== model.trim()))
+    throw new Error('LegiWatch model must be a non-empty model identifier');
+  if (provider === 'anthropic' && !model)
+    throw new Error('LegiWatch Anthropic provider requires an explicit model');
+  return {
+    LEGIWATCH_AGENT_PROVIDER: provider,
+    ...(model ? { LEGIWATCH_AGENT_MODEL: model } : {}),
+  };
 }
 
 export function stackName(envName: EnvName, suffix: string): string {

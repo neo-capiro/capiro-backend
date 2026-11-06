@@ -4,6 +4,7 @@ import { EngagementModule } from '../engagement/engagement.module.js';
 import { TrackerController } from './tracker.controller.js';
 import { InternalTrackerController } from './internal-tracker.controller.js';
 import { TrackerService } from './tracker.service.js';
+import { TrackerClientAccessGuard } from './tracker-client-access.guard.js';
 import { TrackerChangeDetectorService } from './tracker-change-detector.service.js';
 import { TrackerAlertService } from './notifications/tracker-alert.service.js';
 import { TrackerEmailService } from './notifications/tracker-email.service.js';
@@ -24,6 +25,7 @@ import { SmsVerificationService } from './sms/sms-verification.service.js';
   controllers: [TrackerController, InternalTrackerController],
   providers: [
     TrackerService,
+    TrackerClientAccessGuard,
     TrackerChangeDetectorService,
     TrackerAlertService,
     TrackerEmailService,
