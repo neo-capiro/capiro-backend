@@ -194,11 +194,14 @@ describeDatabase('Fill retry leases and recovery in PostgreSQL', () => {
       const reloaded = new ClientProfileFillWorkflowService(
         {} as any, engine as any, {} as any, {} as any, {} as any, {} as any, {} as any,
       ) as any;
+      const signal = new AbortController().signal;
       for (const task of tasks)
         await reloaded.executeTask(ctx, {
           clientId, runId: created.id, taskType: task.task_type, input: task.input_jsonb,
-        }, {});
-      expect(engine.gatherPublicWeb).toHaveBeenCalledWith(ctx, clientId, created.id, 'https://research.example/');
+        }, {}, signal);
+      expect(engine.gatherPublicWeb).toHaveBeenCalledWith(
+        ctx, clientId, created.id, 'https://research.example/', undefined, signal, undefined, undefined,
+      );
       expect(engine.gatherLda).toHaveBeenCalledWith(ctx, clientId, created.id, [
         { id: 42, name: 'Imported', confidence: 1 }, { id: 73, name: 'Provisional', confidence: 0.8 },
       ]);
