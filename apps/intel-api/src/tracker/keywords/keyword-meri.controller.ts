@@ -47,6 +47,17 @@ export class KeywordMeriController {
     )
       throw new BadRequestException('CANONICAL_ACTOR_SCOPE_REQUIRED');
     const ctx = { tenantId: b.tenantId, clerkUserId: b.actor, role: null };
+    // This private calculation anchor is supplied only by the authenticated Core
+    // bridge, outside model input. It does not replace any source-scope checks.
+    let newsWindowAsOf: Date | undefined;
+    if (b.newsWindowAsOf !== undefined) {
+      if (write || b.tool !== 'search_legiwatch_news' || input.view !== 'articles' ||
+          typeof b.newsWindowAsOf !== 'string')
+        throw new BadRequestException('INVALID_NEWS_WINDOW_OBSERVATION');
+      newsWindowAsOf = new Date(b.newsWindowAsOf);
+      if (!Number.isFinite(newsWindowAsOf.getTime()) || newsWindowAsOf.toISOString() !== b.newsWindowAsOf)
+        throw new BadRequestException('INVALID_NEWS_WINDOW_OBSERVATION');
+    }
     if (
       [
         'search_legiwatch_news',
@@ -66,7 +77,7 @@ export class KeywordMeriController {
         );
       if (input.view === 'personnel') return this.sources.personnel(ctx, input);
       if (input.view !== 'articles') throw new BadRequestException('UNSUPPORTED_SOURCE_VIEW');
-      return this.sources.news(ctx, input);
+      return this.sources.news(ctx, input, newsWindowAsOf);
     }
     if (
       [

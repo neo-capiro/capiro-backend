@@ -15,6 +15,29 @@ import {
   MERI_EVIDENCE_MODE_READS,
   currentMeriEvidenceAccuracyMode,
 } from './meri-funding-read-observation.js';
+
+describe('LegiWatch article observation', () => {
+  const name = 'search_legiwatch_news';
+  const body = { days: 7, view: 'articles' };
+  const carrier = Buffer.from(JSON.stringify({ context: { asOf: '2026-10-17T12:34:56.789Z' },
+    operation: { id: name, version: '0.2.0' },
+    requestSha256: createHash('sha256').update(JSON.stringify(body)).digest('hex'),
+    schemaVersion: 'meri-native-read-observation/1' })).toString('base64url');
+  it('admits only the exact article request with verified service identity', () => {
+    const req = request(carrier, SECRET, name);
+    expect(guardRequest(req)).toBe(true);
+    const observation = admitMeriReadObservation(name, body, req);
+    expect(withMeriReadObservation(observation!, () => currentMeriReadAsOf(name))).toBe('2026-10-17T12:34:56.789Z');
+    expect(currentMeriReadAsOf(name)).toBeUndefined();
+    expect(() => admitMeriReadObservation(name, { ...body, days: 14 }, req)).toThrow(BadRequestException);
+    for (const view of ['personnel', 'source'])
+      expect(() => admitMeriReadObservation(name, { ...body, view }, req)).toThrow(BadRequestException);
+    const untrusted = request(carrier, 'wrong', name);
+    expect(guardRequest(untrusted)).toBe(true);
+    expect(() => admitMeriReadObservation(name, body, untrusted)).toThrow(ForbiddenException);
+    expect(() => admitMeriReadObservation(KB_NAME, body, req)).toThrow(BadRequestException);
+  });
+});
 const modeOnlyReads = MERI_EVIDENCE_MODE_READS.filter(id => id !== 'search_sam_opportunities');
 
 // neo-capiro/meri-greenfield@b4daa4adf6e8269e7c341751db9a02bf6d4f062b,
