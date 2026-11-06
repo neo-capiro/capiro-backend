@@ -10,6 +10,7 @@
 import { describe, expect, test } from '@jest/globals';
 import {
   AttachmentScannerService,
+  ClamAvAttachmentScanner,
   FakeAttachmentScanner,
   NullAttachmentScanner,
   isUsableScanStatus,
@@ -18,8 +19,24 @@ import {
 } from './attachment-scanner.service.js';
 import { AttachmentContentService } from './attachment-content.service.js';
 
+/**
+ * Build a minimal ConfigService mock that maps known config keys. Keys not
+ * present fall back to their defaults so existing tests are unaffected.
+ */
+function makeConfig(overrides: Record<string, unknown> = {}) {
+  const defaults: Record<string, unknown> = {
+    ENGAGEMENT_ATTACHMENT_SCAN_REQUIRED: false,
+    ENGAGEMENT_ATTACHMENT_SCANNER_PROVIDER: 'none',
+    ENGAGEMENT_CLAMAV_PORT: 3310,
+    ENGAGEMENT_CLAMAV_TIMEOUT_MS: 120_000,
+    AWS_REGION_DEFAULT: 'us-east-1',
+  };
+  const merged = { ...defaults, ...overrides };
+  return { get: (key: string) => merged[key] } as never;
+}
+
 function scannerService(scanRequired: boolean): AttachmentScannerService {
-  return new AttachmentScannerService({ get: () => scanRequired } as never);
+  return new AttachmentScannerService(makeConfig({ ENGAGEMENT_ATTACHMENT_SCAN_REQUIRED: scanRequired }));
 }
 
 describe('null adapter honesty', () => {
@@ -253,5 +270,52 @@ describe('test adapter', () => {
     const fake = new FakeAttachmentScanner('pending').set('bad-key', 'threat');
     await expect(fake.getStatus('b', 'bad-key')).resolves.toBe('threat');
     await expect(fake.getStatus('b', 'other')).resolves.toBe('pending');
+  });
+});
+
+describe('provider selection and fallback defaults', () => {
+  test('default provider is none — service providerName is "none"', () => {
+    const svc = new AttachmentScannerService(makeConfig());
+    expect(svc.providerName).toBe('none');
+  });
+
+  test('provider=none with scan NOT required → scanner_not_required', async () => {
+    const svc = new AttachmentScannerService(
+      makeConfig({ ENGAGEMENT_ATTACHMENT_SCANNER_PROVIDER: 'none', ENGAGEMENT_ATTACHMENT_SCAN_REQUIRED: false }),
+    );
+    await expect(svc.getStatus('b', 'k')).resolves.toBe('scanner_not_required');
+  });
+
+  test('provider=none with scan REQUIRED → failed (fail-closed)', async () => {
+    const svc = new AttachmentScannerService(
+      makeConfig({ ENGAGEMENT_ATTACHMENT_SCANNER_PROVIDER: 'none', ENGAGEMENT_ATTACHMENT_SCAN_REQUIRED: true }),
+    );
+    await expect(svc.getStatus('b', 'k')).resolves.toBe('failed');
+  });
+
+  test('provider=clamav creates ClamAvAttachmentScanner and reports providerName "clamav"', () => {
+    const svc = new AttachmentScannerService(
+      makeConfig({ ENGAGEMENT_ATTACHMENT_SCANNER_PROVIDER: 'clamav' }),
+    );
+    expect(svc.providerName).toBe('clamav');
+  });
+
+  test('ClamAvAttachmentScanner.getStatus delegates to clamAvScanObject (fail-closed on error)', async () => {
+    // Use a fake S3 that errors + a port with no listener — must return failed.
+    const fakeFailing = {
+      send: jest.fn(async () => { throw new Error('network error'); }),
+    };
+    const scanner = new ClamAvAttachmentScanner(fakeFailing as never, 1, 1000);
+    await expect(scanner.getStatus('b', 'k')).resolves.toBe('failed');
+  });
+
+  test('AttachmentScannerService.getStatus never throws — adapter errors become failed', async () => {
+    // Inject an adapter that throws, bypassing the catch in getStatus.
+    const svc = new AttachmentScannerService(makeConfig());
+    // Force-replace the internal scanner with a throwing one.
+    (svc as unknown as { scanner: { getStatus: () => Promise<never> } }).scanner = {
+      getStatus: async () => { throw new Error('unexpected adapter error'); },
+    };
+    await expect(svc.getStatus('b', 'k')).resolves.toBe('failed');
   });
 });

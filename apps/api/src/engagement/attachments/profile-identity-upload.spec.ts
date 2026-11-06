@@ -1,3 +1,4 @@
+import { describe, test, expect, jest } from '@jest/globals';
 import { createHash, randomUUID } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
 import { EngagementService } from '../engagement.service.js';
@@ -200,6 +201,13 @@ function fixture(empty = false) {
 }
 
 describe('private document-first identity upload owner', () => {
+  test('binds the scanner verdict to the exact bytes verified during confirmation', async () => {
+    const h = fixture(true);
+    const saved = await h.service.confirmAttachment(ctx, h.confirm);
+    expect((h.service as any).scanner.getStatus).toHaveBeenCalledWith('fixture-bucket', h.confirm.s3Key, digest);
+    expect(saved.calculatedSha256).toBe(digest);
+    expect(saved.lifecycleStatus).toBe('ready');
+  });
   test('confirmation fixes uploader-private ACL even when extra client fields claim sharing', async () => {
     const h = fixture(true);
     const saved = await h.service.confirmAttachment(ctx, {

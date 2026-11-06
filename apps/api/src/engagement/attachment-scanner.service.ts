@@ -1,10 +1,8 @@
 /**
  * Attachment malware-scan abstraction (Phase 1 §3.h2).
  *
- * The application contract only. Phase 1 §6.1 is explicit that NO production
- * scanner or infrastructure contract was verified in this repository, and that
- * the executor must pause before provisioning one — so this file deliberately
- * ships:
+ * The null adapter remains the explicit default. A separately provisioned,
+ * task-local ClamAV daemon can be selected by configuration. This file ships:
  *
  *   - the `AttachmentScanner` interface and the status vocabulary;
  *   - a NULL adapter used when ENGAGEMENT_ATTACHMENT_SCAN_REQUIRED=false, which
@@ -12,18 +10,18 @@
  *     point: `clean` is a security assertion about bytes, and no scanner has
  *     looked at these bytes. The UI must say "not scanned".
  *   - a test adapter for deterministic specs.
+ *   - a ClamAV INSTREAM adapter, selected by
+ *     ENGAGEMENT_ATTACHMENT_SCANNER_PROVIDER=clamav (default: none).
  *
- * It deliberately does NOT ship: an AWS GuardDuty / S3 object-tag adapter, any
- * CDK resource, or a "return clean" production default. Creating a fake clean
- * adapter would convert an unresolved infrastructure decision into a silent
- * false security guarantee, which is worse than the current honest gap.
- *
- * When a scanner IS chosen, add its adapter here and select it by configuration
- * — do not hardcode resource creation in application code.
+ * Only a real daemon verdict over the owner-verified bytes may report clean.
+ * Infrastructure and provider activation remain explicit deployment decisions;
+ * application initialization never creates resources or bypasses quarantine.
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { S3Client } from '@aws-sdk/client-s3';
 import type { AppConfig } from '../config/config.schema.js';
+import { clamAvScanObject } from './clamav-attachment-scanner.js';
 
 /**
  * The scan lifecycle, mapped from whatever a provider reports.
@@ -89,7 +87,7 @@ export function scanStatusDisclosure(status: AttachmentScanStatus | null): strin
 export interface AttachmentScanner {
   /** The provider name recorded on the attachment row. */
   readonly providerName: string;
-  getStatus(bucket: string, key: string): Promise<AttachmentScanStatus>;
+  getStatus(bucket: string, key: string, expectedSha256?: string): Promise<AttachmentScanStatus>;
 }
 
 /**
@@ -143,6 +141,32 @@ export class FakeAttachmentScanner implements AttachmentScanner {
 }
 
 /**
+ * ClamAV INSTREAM adapter — streams S3 object bytes to a local clamd sidecar.
+ *
+ * Selected when ENGAGEMENT_ATTACHMENT_SCANNER_PROVIDER=clamav. The sidecar must
+ * be in the same ECS awsvpc task (127.0.0.1). Fail-closed: any connection error,
+ * timeout, or malformed response becomes `failed`, not `clean`.
+ */
+@Injectable()
+export class ClamAvAttachmentScanner implements AttachmentScanner {
+  readonly providerName = 'clamav';
+
+  constructor(
+    private readonly s3: S3Client,
+    private readonly port: number,
+    private readonly timeoutMs: number,
+  ) {}
+
+  async getStatus(bucket: string, key: string, expectedSha256?: string): Promise<AttachmentScanStatus> {
+    return clamAvScanObject(this.s3, bucket, key, {
+      port: this.port,
+      timeoutMs: this.timeoutMs,
+      expectedSha256,
+    });
+  }
+}
+
+/**
  * Resolves the active scanner. One indirection so §6.1's decision (GuardDuty
  * Malware Protection for S3 / an internal ClamAV pipeline / another approved
  * scanner) lands here and nowhere else.
@@ -155,9 +179,19 @@ export class AttachmentScannerService {
 
   constructor(config: ConfigService<AppConfig, true>) {
     this.scanRequired = config.get('ENGAGEMENT_ATTACHMENT_SCAN_REQUIRED', { infer: true });
-    // Only the null adapter exists today, on purpose (§6.1). When a real adapter
-    // is added, select it here by configuration.
-    this.scanner = new NullAttachmentScanner(this.scanRequired);
+    const provider = config.get('ENGAGEMENT_ATTACHMENT_SCANNER_PROVIDER', { infer: true });
+
+    if (provider === 'clamav') {
+      const region = config.get('AWS_REGION_DEFAULT', { infer: true });
+      const port = config.get('ENGAGEMENT_CLAMAV_PORT', { infer: true });
+      const timeoutMs = config.get('ENGAGEMENT_CLAMAV_TIMEOUT_MS', { infer: true });
+      const s3 = new S3Client({ region });
+      this.scanner = new ClamAvAttachmentScanner(s3, port, timeoutMs);
+      this.logger.log(`Attachment scanner: clamav (127.0.0.1:${port}, timeout=${timeoutMs}ms)`);
+    } else {
+      // 'none' (default) — null adapter, existing behavior unchanged.
+      this.scanner = new NullAttachmentScanner(this.scanRequired);
+    }
   }
 
   get providerName(): string {
@@ -169,11 +203,11 @@ export class AttachmentScannerService {
    * `failed` (not usable) rather than an exception that a caller might swallow
    * into "probably fine".
    */
-  async getStatus(bucket: string, key: string): Promise<AttachmentScanStatus> {
+  async getStatus(bucket: string, key: string, expectedSha256?: string): Promise<AttachmentScanStatus> {
     try {
-      return await this.scanner.getStatus(bucket, key);
+      return await this.scanner.getStatus(bucket, key, expectedSha256);
     } catch (e) {
-      this.logger.warn(`attachment scan status lookup failed for ${key}: ${(e as Error).message}`);
+      this.logger.warn('attachment scan status lookup failed');
       return 'failed';
     }
   }
