@@ -32,7 +32,7 @@ import { StrategyOrchestratorClient } from './strategy-orchestrator.client.js';
 import { StrategyContextPlaneClient } from './strategy-context-plane.client.js';
 import { admitObjective } from './objective-generation-admission.js';
 import { objectivePersistence, safeObjectiveFailure, ObjectiveLeaseLost } from './objective-generation-completion.js';
-import { digest, SAFE_FAILURES, type ObjectiveAdmission } from './objective-generation.types.js';
+import { digest, SAFE_FAILURES, safeObjectiveContextIssues, type ObjectiveAdmission } from './objective-generation.types.js';
 import {
   DRAFT_JOB_STAGE_TEXT,
   type DraftJobInput,
@@ -317,12 +317,7 @@ export class DraftJobWorkerService implements OnModuleInit, OnModuleDestroy {
       const failure = safeObjectiveFailure(error);
       if (failure.code === 'OBJECTIVE_CONTEXT_INCOMPLETE') {
         const details = (error as any)?.getResponse?.()?.issues;
-        const groups = ['government_targets','government_profile_support','represented_facilities','current_directory','member_notes','target_recommendations','state_directory','relationship_history'];
-        const issues = Array.isArray(details) ? details.filter(i => groups.includes(i?.group) &&
-          ['REQUIRED_CONTEXT_UNAVAILABLE','REQUIRED_FIELDS_EXCEED_PACKET_BUDGET'].includes(i?.code)).map(i => ({ group: i.group, code: i.code,
-            message: i.code === 'REQUIRED_FIELDS_EXCEED_PACKET_BUDGET' ? 'Required fields do not fit the approved context budget.' : 'Required context could not be completely observed.' })) : [];
-        envelope.receipt.context = { ...envelope.receipt.context, state: 'incomplete', issues: issues.length ? issues : [{
-          group: 'government_targets', code: 'REQUIRED_CONTEXT_UNAVAILABLE', message: 'Required context could not be completely observed within the approved policy.' }] };
+        envelope.receipt.context = { ...envelope.receipt.context, state: 'incomplete', issues: safeObjectiveContextIssues(details) };
       }
       envelope.receipt.failure = failure;
       envelope.receipt.result = null;

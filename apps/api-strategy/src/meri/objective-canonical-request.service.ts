@@ -1,13 +1,13 @@
-import { HttpException, Injectable } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
 import type { Request } from 'express';
 import type { Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ObjectiveCanonicalWorkloadAuthority, type CanonicalGenerationGrant, type CanonicalGenerationSubject } from '../planner/objective-canonical-authority.js';
 import { applicationHash, applicationUuid, CanonicalApplicationError } from '../planner/objective-canonical-application.js';
-import { GENERATION_ADMISSION, GENERATION_REQUEST, canonicalGenerationAdmissionSha256,
+import { GENERATION_ADMISSION, GENERATION_ACCEPTANCE, GENERATION_REQUEST, canonicalGenerationAdmissionSha256,
   parseCanonicalGenerationAdmission, type CanonicalGenerationAdmission } from './objective-canonical-generation.js';
 import { readGenerationLedger, insertGenerationLedger } from './objective-canonical-producer-ledger.js';
-import { deriveCanonicalPublicationInput } from './objective-canonical-job-input.js';
+import { deriveCanonicalPublicationInput, deriveCanonicalPublicationFailureInput } from './objective-canonical-job-input.js';
 import { admitCanonicalGenerationWithinTx, requireCanonicalGenerationReadWithinTx } from './objective-canonical-generation-fence.js';
 import { createCanonicalRequestPublication } from './objective-canonical-request.js';
 import { createCanonicalRegenerationRequestPublication } from './objective-canonical-regeneration-request.js';
@@ -15,7 +15,8 @@ import { readCanonicalRequestPublication, canonicalPublicationInputHash, canonic
 import { captureCanonicalStrategyBasis } from './objective-canonical-basis.js';
 import { ObjectiveCanonicalOwnerDirectory } from './objective-canonical-owner-directory.js';
 import { StrategyContextPlaneClient } from './strategy-context-plane.client.js';
-import type { ObjectiveAdmission } from './objective-generation.types.js';
+import { publicObjectiveReceipt, validObjectiveOutcome, safeObjectiveContextIssues, SAFE_FAILURES,
+  type ObjectiveAdmission } from './objective-generation.types.js';
 import type { DraftJobInput } from './draft-job.types.js';
 
 type Tx = Prisma.TransactionClient;
@@ -64,14 +65,25 @@ export class ObjectiveCanonicalRequestService {
     if (!job) return fail('NOT_AVAILABLE');
     return job;
   }
-  private async retained(tx: Tx, grant: CanonicalGenerationGrant, subject: CanonicalGenerationSubject, a: CanonicalGenerationAdmission) {
+  private async retained(tx: Tx, grant: CanonicalGenerationGrant, subject: CanonicalGenerationSubject, a: CanonicalGenerationAdmission,
+    job: Awaited<ReturnType<ObjectiveCanonicalRequestService['job']>>) {
     await this.proof(tx, grant, subject, a);
     await requireCanonicalGenerationReadWithinTx(tx, a, grant.clerkUserId);
     const stored = await readCanonicalRequestPublication(tx, a);
-    if (!stored) return null;
+    let result;
+    if (stored) result = stored.publication;
+    else if (job.status === 'failed') {
+      const input = deriveCanonicalPublicationFailureInput(job, a), receipt = input.envelope.receipt;
+      if (job.stage !== 'failed' || !validObjectiveOutcome(receipt, job.status, job.strategyId, job.errorMessage) ||
+          applicationHash(receipt.context.issues) !== applicationHash(safeObjectiveContextIssues(receipt.context.issues)) ||
+          await readGenerationLedger(tx, GENERATION_ACCEPTANCE, grant.tenantId, grant.clerkUserId, job.id)) return fail('OUTCOME_UNCONFIRMED');
+      const objectiveReceipt = publicObjectiveReceipt(receipt);
+      result = { schemaVersion: 1 as const, generationJobId: job.id, sourceAdmissionSha256: canonicalGenerationAdmissionSha256(a),
+        outcome: 'failed' as const, objectiveReceipt, objectiveReceiptSha256: applicationHash(objectiveReceipt) };
+    } else return null;
     await requireCanonicalGenerationReadWithinTx(tx, a, grant.clerkUserId);
     await this.proof(tx, grant, subject, a);
-    return stored.publication;
+    return result;
   }
   private async effect(tx: Tx, grant: CanonicalGenerationGrant, subject: CanonicalGenerationSubject, a: CanonicalGenerationAdmission) {
     await this.proof(tx, grant, subject, a);
@@ -83,17 +95,48 @@ export class ObjectiveCanonicalRequestService {
         fresh.expectedStrategyVersionId !== a.expectedStrategyVersionId || fresh.effectExpiresAtMs < a.effectExpiresAtMs ||
         await this.now(tx) >= a.effectExpiresAtMs) return fail('SOURCE_STALE');
   }
+  /** A definite Core compile refusal is accounted by this existing job owner.
+   * Lost replies and all other errors remain unknown. The queued-job lock makes
+   * a committed publication/failure win before this transaction changes a row. */
+  private async contextFailure(grant: CanonicalGenerationGrant, subject: CanonicalGenerationSubject,
+    a: CanonicalGenerationAdmission, inputHash: string, details: unknown) {
+    return this.prisma.withTenantUser(grant.tenantId, grant.clerkUserId, async tx => {
+      const job = await this.job(tx, grant, a.generationJobId, true), actual = await this.admission(tx, grant, job.id);
+      if (applicationHash(actual) !== applicationHash(a)) return fail('REQUEST_CONFLICT');
+      const previous = await this.retained(tx, grant, subject, a, job);
+      if (previous) return previous;
+      await this.effect(tx, grant, subject, a);
+      const current = deriveCanonicalPublicationInput(job, a);
+      if (current.inputHash !== inputHash) return fail('REQUEST_CONFLICT');
+      if (await readGenerationLedger(tx, GENERATION_ACCEPTANCE, grant.tenantId, grant.clerkUserId, job.id)) return fail('OUTCOME_UNCONFIRMED');
+      const failure = { code: 'OBJECTIVE_CONTEXT_INCOMPLETE', message: SAFE_FAILURES.OBJECTIVE_CONTEXT_INCOMPLETE! };
+      const input: DraftJobInput = { ...(job.input as unknown as DraftJobInput), objectiveGeneration: {
+        ...current.envelope, receipt: { ...current.envelope.receipt, result: null, failure,
+          context: { ...current.envelope.receipt.context, state: 'incomplete', issues: safeObjectiveContextIssues(details) } } } };
+      const changed = await tx.spDraftJob.updateMany({ where: { tenantId: grant.tenantId, id: job.id,
+        ownerUserId: grant.clerkUserId, status: 'queued', attempt: 1, claimedBy: null, claimedAt: null, strategyId: null },
+        data: { status: 'failed', stage: 'failed', errorMessage: failure.message, progressText: null, streamPreview: null,
+          input: input as unknown as Prisma.InputJsonValue } });
+      if (changed.count !== 1) return fail('OUTCOME_UNCONFIRMED');
+      // The effect check locked the source/control before the update. Recheck
+      // visibility and the original deadline without inventing a queued claim.
+      const saved = await this.job(tx, grant, job.id, false), result = await this.retained(tx, grant, subject, a, saved);
+      if (!result || !('outcome' in result)) return fail('OUTCOME_UNCONFIRMED');
+      if (await this.now(tx) >= Math.min(a.effectExpiresAtMs, grant.expiresAtMs)) return fail();
+      return result;
+    }, { timeoutMs: 15_000 });
+  }
   /** Fixed POST, job identity only. An exact committed publication is returned
    * before any new compilation. Competing calls return the one lock winner;
    * context compilation itself is not a model run or a provider operation. */
   async publish(http: Request, raw: unknown) {
-    return this.safe(async () => {
+    const result = await this.safe(async () => {
       const body = this.identity(raw), subject: CanonicalGenerationSubject = { phase: 'publish',
         generationJobId: body.generationJobId, requestSha256: applicationHash(body) };
       const grant = await this.authority.verifyGeneration(http, subject);
       const initial = await this.prisma.withTenantUser(grant.tenantId, grant.clerkUserId, async tx => {
         const job = await this.job(tx, grant, body.generationJobId, true), a = await this.admission(tx, grant, job.id);
-        const previous = await this.retained(tx, grant, subject, a);
+        const previous = await this.retained(tx, grant, subject, a, job);
         if (previous) return { kind: 'retained' as const, publication: previous };
         await this.effect(tx, grant, subject, a);
         const input = deriveCanonicalPublicationInput(job, a);
@@ -107,19 +150,25 @@ export class ObjectiveCanonicalRequestService {
         mode: 'draft' as const, objective: input.envelope.request.objective, generationRequestId: a.generationRequestId,
         generationType: input.dto.type, query: [input.dto.goal, input.dto.meriContext].filter(Boolean).join('\n'),
         traceId: a.generationRequestId };
-      const governed = await this.contextPlane.compile(contextRequest, async value => {
-        if (compiled) return fail('OUTCOME_UNCONFIRMED'); compiled = value;
-      }, async value => { if (typedContext !== undefined) return fail('OUTCOME_UNCONFIRMED'); typedContext = value; });
-      if (!compiled || typedContext === undefined) return fail('OUTCOME_UNCONFIRMED');
+      let governed: Awaited<ReturnType<StrategyContextPlaneClient['compile']>>;
+      try {
+        governed = await this.contextPlane.compile(contextRequest, async value => {
+          if (compiled) return fail('OUTCOME_UNCONFIRMED'); compiled = value;
+        }, async value => { if (typedContext !== undefined) return fail('OUTCOME_UNCONFIRMED'); typedContext = value; });
+        if (!compiled || typedContext === undefined) return fail('OUTCOME_UNCONFIRMED');
+        // Re-observation stays outside the final transaction.
+        await this.contextPlane.recheckObjective(contextRequest, compiled);
+      } catch (error) {
+        const response = error instanceof BadRequestException ? error.getResponse() : null;
+        if (!response || typeof response !== 'object' || !('code' in response) || response.code !== 'OBJECTIVE_CONTEXT_INCOMPLETE') throw error;
+        return this.contextFailure(grant, subject, a, input.inputHash, 'issues' in response ? response.issues : undefined);
+      }
       const observed = compiled;
-      // Re-observation is outside the final tx. Required mutable Core sources
-      // remain separately fenced by the mature final Strategy output hooks.
-      await this.contextPlane.recheckObjective(contextRequest, observed);
       return this.prisma.withTenantUser(grant.tenantId, grant.clerkUserId, async tx => {
         const job = await this.job(tx, grant, body.generationJobId, true);
         const actual = await this.admission(tx, grant, job.id);
         if (applicationHash(actual) !== applicationHash(a)) return fail('REQUEST_CONFLICT');
-        const previous = await this.retained(tx, grant, subject, a);
+        const previous = await this.retained(tx, grant, subject, a, job);
         if (previous) return previous;
         await this.effect(tx, grant, subject, a);
         const current = deriveCanonicalPublicationInput(job, a);
@@ -155,23 +204,28 @@ export class ObjectiveCanonicalRequestService {
         return checked.publication;
       }, { timeoutMs: 15_000 });
     });
+    // Throw only AFTER a failure receipt committed, including exact replays.
+    if ('outcome' in result) throw new HttpException(result, 409);
+    return result;
   }
   /** Read-only GET. Missing publication is 503/unconfirmed, never absence or
    * permission to accept another request, issue a new grant or start a query. */
   async lookup(http: Request, rawJobId: string) {
-    return this.safe(async () => {
+    const result = await this.safe(async () => {
       const body = { schemaVersion: 1 as const, generationJobId: applicationUuid(rawJobId) };
       const subject: CanonicalGenerationSubject = { phase: 'request-read', generationJobId: body.generationJobId,
         requestSha256: applicationHash(body) };
       const grant = await this.authority.verifyGeneration(http, subject);
       return this.prisma.withTenantUser(grant.tenantId, grant.clerkUserId, async tx => {
-        await this.job(tx, grant, body.generationJobId, false);
+        const job = await this.job(tx, grant, body.generationJobId, false);
         const a = await this.admission(tx, grant, body.generationJobId);
-        const result = await this.retained(tx, grant, subject, a);
+        const result = await this.retained(tx, grant, subject, a, job);
         if (!result) return fail('OUTCOME_UNCONFIRMED');
         return result;
       }, { timeoutMs: 15_000 });
     });
+    if ('outcome' in result) throw new HttpException(result, 409);
+    return result;
   }
   private async safe<T>(run: () => Promise<T>): Promise<T> {
     try { return await run(); } catch (error) {

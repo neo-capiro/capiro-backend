@@ -76,7 +76,7 @@ function dto(raw: unknown): DraftStrategyDto {
   }
   return r as unknown as DraftStrategyDto;
 }
-function envelope(raw: unknown, a: CanonicalGenerationAdmission): ObjectiveJobEnvelope {
+function envelope(raw: unknown, a: CanonicalGenerationAdmission, contextFailed = false): ObjectiveJobEnvelope {
   const e = fields(raw, ['request', 'fingerprint', 'receipt'], ['localDigest', 'externalDigest', 'historyDigest',
     'historyObservedAt', 'historyCheckedAt', 'coverage', 'contactIds']);
   const r = fields(e.request, ['requestId', 'clientId', 'objective', 'type']);
@@ -90,9 +90,14 @@ function envelope(raw: unknown, a: CanonicalGenerationAdmission): ObjectiveJobEn
       !TYPES.includes(r.type) || e.fingerprint !== applicationHash(e.request) || receipt.schemaVersion !== 1 ||
       receipt.requestId !== r.requestId || source.clientId !== r.clientId || source.objectiveId !== o.objectiveId ||
       source.objectiveVersion !== o.objectiveVersion || source.objectiveRevisionId !== a.canonical.requestedObjectiveRevisionId ||
-      receipt.result !== null || receipt.failure !== null) return unavailable();
+      receipt.result !== null || !contextFailed && receipt.failure !== null) return unavailable();
+  if (contextFailed) {
+    const failure = fields(receipt.failure, ['code', 'message']);
+    if (failure.code !== 'OBJECTIVE_CONTEXT_INCOMPLETE' || typeof failure.message !== 'string') return unavailable();
+  }
   const c = fields(receipt.context, ['reobservedAt', 'state', 'packetId', 'compiledAt', 'sourceDigest', 'coverageDigest', 'inputDigest', 'issues']);
   if (c.reobservedAt !== null || !['pending', 'complete', 'incomplete'].includes(c.state) || !Array.isArray(c.issues)) return unavailable();
+  if (contextFailed && c.state !== 'incomplete') return unavailable();
   for (const issue of c.issues) {
     const i = fields(issue, ['group', 'code', 'message']);
     for (const value of [i.group, i.code, i.message]) if (typeof value !== 'string') return unavailable();
@@ -137,14 +142,14 @@ function requireJobScope(job: CanonicalJobOwnerRow, a: CanonicalGenerationAdmiss
       job.ownerUserId !== a.clerkUserId || job.strategyId !== null ||
       job.requestKey !== `objective-v1:${applicationHash([job.tenantId, job.ownerUserId, a.generationRequestId])}`) return unavailable();
 }
-function deriveInput(job: CanonicalJobOwnerRow, a: CanonicalGenerationAdmission, runtimeEnvelope?: unknown): CanonicalJobInput {
+function deriveInput(job: CanonicalJobOwnerRow, a: CanonicalGenerationAdmission, runtimeEnvelope?: unknown, contextFailed = false): CanonicalJobInput {
   // Safely reject getters/proxies/non-JSON anywhere before cloning or reading
   // input fields. The legacy bearer is neither returned nor fingerprinted.
   const stored = fields(JSON.parse(applicationJson(job.input)), ['dto', 'bearer', 'objectiveGeneration', 'canonicalGeneration']);
   if (stored.bearer !== null) return unavailable();
   const marker = fields(stored.canonicalGeneration, ['admissionId']);
   if (marker.admissionId !== generationLedgerId(GENERATION_ADMISSION, job.tenantId, job.ownerUserId, job.id)) return unavailable();
-  const derivedDto = dto(stored.dto), storedEnvelope = envelope(stored.objectiveGeneration, a);
+  const derivedDto = dto(stored.dto), storedEnvelope = envelope(stored.objectiveGeneration, a, contextFailed);
   if (derivedDto.clientId !== job.clientId || derivedDto.type !== storedEnvelope.request.type) return conflict();
   if (runtimeEnvelope !== undefined) {
     const runtime = envelope(JSON.parse(applicationJson(runtimeEnvelope)), a);
@@ -175,4 +180,13 @@ export function deriveCanonicalPublicationInput(rawJob: CanonicalJobOwnerRow, ra
   requireJobScope(job, a);
   if (job.status !== 'queued' || job.attempt !== 1 || job.claimedBy !== null || job.claimedAt !== null) return unavailable();
   return deriveInput(job, a);
+}
+
+/** Retained pre-publication context failure only. This validates original input;
+ * it grants no effect, claim, retry or substitute accepted-run evidence. */
+export function deriveCanonicalPublicationFailureInput(rawJob: CanonicalJobOwnerRow, rawAdmission: unknown): CanonicalJobInput {
+  const a = parseCanonicalGenerationAdmission(rawAdmission), job = ownerRow(rawJob);
+  requireJobScope(job, a);
+  if (job.status !== 'failed' || job.attempt !== 1 || job.claimedBy !== null || job.claimedAt !== null) return unavailable();
+  return deriveInput(job, a, undefined, true);
 }

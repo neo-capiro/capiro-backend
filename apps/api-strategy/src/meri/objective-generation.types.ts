@@ -205,6 +205,17 @@ export const SAFE_FAILURES: Record<string, string> = {
     'The saved outcome could not be confirmed. Refresh this attempt before starting another.',
   OBJECTIVE_GENERATION_FAILED: 'This Objective strategy could not be generated.',
 };
+/** Required-context diagnostics are public copy, never upstream messages/content. */
+export function safeObjectiveContextIssues(details: unknown): ObjectiveIssue[] {
+  const groups = ['government_targets', 'government_profile_support', 'represented_facilities',
+    'current_directory', 'member_notes', 'target_recommendations', 'state_directory', 'relationship_history'];
+  const issues = Array.isArray(details) ? details.filter(i => groups.includes(i?.group) &&
+    ['REQUIRED_CONTEXT_UNAVAILABLE', 'REQUIRED_FIELDS_EXCEED_PACKET_BUDGET'].includes(i?.code))
+    .map(i => ({ group: i.group, code: i.code, message: i.code === 'REQUIRED_FIELDS_EXCEED_PACKET_BUDGET'
+      ? 'Required fields do not fit the approved context budget.' : 'Required context could not be completely observed.' })) : [];
+  return issues.length ? issues : [{ group: 'government_targets', code: 'REQUIRED_CONTEXT_UNAVAILABLE',
+    message: 'Required context could not be completely observed.' }];
+}
 export function digest(value: unknown): string {
   return requestCodec.digest(value);
 }
