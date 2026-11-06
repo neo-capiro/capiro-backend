@@ -151,3 +151,18 @@ test('a recorded absent website does not silently adopt a later canonical websit
   expect(service.fetchPublicPages).not.toHaveBeenCalled();
   expect(readResearchInputs({}, 'public_web')).toEqual({});
 });
+
+test('initial public-web extraction selects the bounded corpus protocol and preserves its task signal', async () => {
+  const service = engine();
+  const extract = jest.fn(async () => ({ data: { officialWebsite: { value: null, evidenceUrl: null },
+    description: { value: null, evidenceUrl: null }, people: [], facilities: [], capabilities: [], news: [] } }));
+  service.portfolioAgent = { extract };
+  const signal = new AbortController().signal;
+  await service.extractPublicWeb(ctx, { id: clientId, name: 'Synthetic client', website: 'https://evidence.example/' },
+    { url: 'https://evidence.example/', text: 'Approved evidence', description: null }, [], [],
+    { kind: 'client', id: clientId }, signal);
+  expect(extract).toHaveBeenCalledWith(expect.objectContaining({
+    task: 'public_web', sourceOverview: true, maxTurns: 8, timeoutMs: 180_000, signal,
+    sources: [{ id: 'page-0', url: 'https://evidence.example/', text: 'Approved evidence' }],
+  }));
+});

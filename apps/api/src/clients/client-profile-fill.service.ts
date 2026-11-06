@@ -1288,10 +1288,10 @@ export class ClientProfileFillService {
     ].join(' ');
     // The SDK exposes the complete approved corpus through read_source. Do not
     // duplicate up to forty page excerpts into every model turn's context.
-    const prompt = `CLIENT: ${client.name}\nKNOWN WEBSITE: ${client.website ?? 'none'}\nRead the approved public evidence with read_source.`;
+    const prompt = `CLIENT: ${client.name}\nKNOWN WEBSITE: ${client.website ?? 'none'}\nRead the approved public evidence overview with read_sources, then any necessary full sources with read_source.`;
 
     try {
-      const {data:parsed}=await this.portfolioAgent.extract<Record<string,unknown>>({subject,signal,task:'public_web',timeoutMs:180_000,...governProfileExtraction(subject,system,prompt),schema,schemaVersion:'v1',onAudit:audit=>recordFillInferenceAudit(this.prisma,audit),sources:[...pages.map((p,i)=>({id:`page-${i}`,url:p.url,text:p.text})),...results.map((r,i)=>({id:`result-${i}`,url:r.url,text:[r.title,r.snippet,r.publishedAt].filter(Boolean).join('\n')}))]});
+      const {data:parsed}=await this.portfolioAgent.extract<Record<string,unknown>>({subject,signal,task:'public_web',timeoutMs:180_000,maxTurns:8,sourceOverview:true,...governProfileExtraction(subject,system,prompt),schema,schemaVersion:'v1',onAudit:audit=>recordFillInferenceAudit(this.prisma,audit),sources:[...pages.map((p,i)=>({id:`page-${i}`,url:p.url,text:p.text})),...results.map((r,i)=>({id:`result-${i}`,url:r.url,text:[r.title,r.snippet,r.publishedAt].filter(Boolean).join('\n')}))]});
       if (!parsed) throw new BadRequestException('Profile research returned no structured result');
       return this.normalizePublicWebExtraction(parsed);
     } catch (error) {

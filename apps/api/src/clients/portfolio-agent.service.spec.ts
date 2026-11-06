@@ -93,6 +93,7 @@ describe('bounded Portfolio Claude Agent SDK task', () => {
       'Write',
       'mcp__other__StructuredOutput',
       'mcp__other__read_source',
+      'mcp__portfolio_sources__read_sources',
     ]) {
       await expect(options.canUseTool(name, {})).resolves.toMatchObject({ behavior: 'deny' });
     }
@@ -160,6 +161,99 @@ describe('bounded Portfolio Claude Agent SDK task', () => {
     const result = service.extract({ ...request, timeoutMs: 10 });
     const assertion = expect(result).rejects.toMatchObject({ code: 'timeout' });
     await jest.advanceTimersByTimeAsync(11);
+    await assertion;
+    expect(close).toHaveBeenCalled();
+  });
+  it('reads a full public-web corpus overview and targeted full evidence before structured finalization', async () => {
+    const sources = Array.from({ length: 56 }, (_, i) => ({
+      id: `source-${i}`,
+      url: `https://evidence.example/${i}`,
+      text: i === 55 ? 'x'.repeat(6_000) + ' Supported tail evidence.' : `Approved source ${i}.`,
+    }));
+    const handlers = new Map<string, (input: Record<string, unknown>) => Promise<any>>();
+    const tool = jest.fn((name, _description, _schema, handler) => {
+      handlers.set(name, handler);
+      return { name };
+    });
+    let overview: any;
+    let full: any;
+    const close = jest.fn();
+    const query = jest.fn(() =>
+      Object.assign(
+        (async function* () {
+          overview = JSON.parse((await handlers.get('read_sources')!({})).content[0].text);
+          full = JSON.parse(
+            (await handlers.get('read_source')!({ sourceId: 'source-55' })).content[0].text,
+          );
+          yield {
+            ...success,
+            num_turns: 3,
+            structured_output: {
+              subject,
+              data: { name: 'tail evidence' },
+              evidence: [{ sourceId: 'source-55', quote: 'Supported tail evidence.' }],
+            },
+          };
+        })(),
+        { close },
+      ),
+    );
+    const sdk = { query, tool, createSdkMcpServer: (value: unknown) => value };
+    const service = new PortfolioAgentService(async () => sdk as never);
+    const result = await service.extract({
+      ...request,
+      task: 'public_web',
+      sources,
+      sourceOverview: true,
+      maxTurns: 8,
+      timeoutMs: 180_000,
+    });
+    expect(overview.sources).toHaveLength(56);
+    expect(overview.sources.map((source: any) => source.id)).toEqual(
+      sources.map((source) => source.id),
+    );
+    expect(overview.sources[55]).toMatchObject({
+      text: 'x'.repeat(5_000),
+      truncated: true,
+      totalCharacters: sources[55]!.text.length,
+    });
+    expect(overview.sources[0].truncated).toBe(false);
+    expect(full).toEqual(sources[55]);
+    expect(result.data).toEqual({ name: 'tail evidence' });
+    expect(result.audit).toMatchObject({ outcome: 'success', turns: 3 });
+    const options = (query.mock.calls[0] as unknown as [{ options: Record<string, any> }])[0]
+      .options;
+    expect(options.maxTurns).toBe(8);
+    expect(options.maxBudgetUsd).toBe(0.5);
+    expect(options.allowedTools).toContain('mcp__portfolio_sources__read_sources');
+    expect(options.systemPrompt.append).toContain('Reserve your remaining turns for finalization');
+    expect(close).toHaveBeenCalled();
+  });
+  it('honors the enclosing task abort before its longer public-web timeout', async () => {
+    jest.useFakeTimers();
+    const controller = new AbortController();
+    const close = jest.fn();
+    const sdk = {
+      query: () => ({
+        [Symbol.asyncIterator]: () => ({ next: () => new Promise(() => {}) }),
+        close,
+      }),
+      tool: jest.fn(),
+      createSdkMcpServer: jest.fn(),
+    };
+    const service = new PortfolioAgentService(async () => sdk as never);
+    const assertion = expect(
+      service.extract({
+        ...request,
+        task: 'public_web',
+        sourceOverview: true,
+        maxTurns: 8,
+        timeoutMs: 180_000,
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ code: 'cancelled' });
+    setTimeout(() => controller.abort(new Error('run deadline')), 20);
+    await jest.advanceTimersByTimeAsync(21);
     await assertion;
     expect(close).toHaveBeenCalled();
   });
