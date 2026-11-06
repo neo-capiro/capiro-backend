@@ -186,7 +186,7 @@ native('fresh Strategy consent after proven unpublished expiry on owned PG16', (
     // Deliberately malformed negative fixture. Its body is not trusted; the
     // exact deterministic ledger identity itself prevents absence proof.
     await prisma.withTenant(s.f.tenantId, tx => tx.spPlannerResource.create({ data: {
-      id: key, tenantId: s.f.tenantId, ownerId: s.f.clerkUserId, kind: 'renamed', data: {}, version: 1 } }));
+      id: key, tenantId: s.f.tenantId, ownerId: s.f.clerkUserId, kind: 'renamed', name: 'Synthetic malformed ledger', data: {}, version: 1 } }));
     await s.expire(); const before = await s.audit();
     await expect(s.submit()).rejects.toMatchObject({ code: 'OUTCOME_UNCONFIRMED' }); expect(await s.audit()).toEqual(before);
   }, 30000);
