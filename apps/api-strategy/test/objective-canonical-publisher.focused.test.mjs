@@ -429,8 +429,7 @@ async function failedReceipt(call) {
 }
 
 test('definite Core context failures commit the public failure receipt before POST409 and replay without compilation', async () => {
-  for (const phase of ['compileHook', 'recheckHook']) {
-    const x = new PublisherFixture(); x[phase] = () => { throw incomplete(); };
+    const x = new PublisherFixture(); x.compileHook = () => { throw incomplete(); };
     const result = await failedReceipt(() => x.publish()), job = x.data.job, before = copy(x.data);
     assert.equal(job.status, 'failed'); assert.equal(job.stage, 'failed'); assert.equal(job.attempt, 1);
     assert.equal(job.claimedBy, null); assert.equal(x.stored(), undefined); assert.equal(x.data.rows.size, 1);
@@ -444,7 +443,6 @@ test('definite Core context failures commit the public failure receipt before PO
     assert.deepEqual(await failedReceipt(() => x.publish()), result); assert.deepEqual(await failedReceipt(() => x.lookup()), result);
     assert.deepEqual(x.data, before); assert.equal(x.compileCount, 1);
     x.member = false; await assert.rejects(() => x.lookup(), httpError('AUTHORITY_UNAVAILABLE'));
-  }
 });
 
 test('unknown errors and malformed Core failures never create a terminal receipt', async () => {
@@ -458,6 +456,12 @@ test('unknown errors and malformed Core failures never create a terminal receipt
   const failure = await failedReceipt(() => x.publish());
   assert.deepEqual(failure.objectiveReceipt.context.issues, [{ group: 'government_targets', code: 'REQUIRED_CONTEXT_UNAVAILABLE',
     message: 'Required context could not be completely observed.' }]);
+});
+
+test('a recheck context error is uncertain readback, not a definite compile refusal',async()=>{
+  const x = new PublisherFixture(), before = copy(x.data); x.recheckHook = () => { throw incomplete(); };
+  await assert.rejects(() => x.publish(), httpError('OUTCOME_UNCONFIRMED'));
+  assert.deepEqual(x.data, before); assert.equal(x.events.some(e => e.method === 'updateJob'), false);
 });
 
 test('failed receipt write requires unchanged original input, consent, expiry, claim and successful CAS', async () => {

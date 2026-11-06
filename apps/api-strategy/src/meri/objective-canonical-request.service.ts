@@ -155,15 +155,16 @@ export class ObjectiveCanonicalRequestService {
         governed = await this.contextPlane.compile(contextRequest, async value => {
           if (compiled) return fail('OUTCOME_UNCONFIRMED'); compiled = value;
         }, async value => { if (typedContext !== undefined) return fail('OUTCOME_UNCONFIRMED'); typedContext = value; });
-        if (!compiled || typedContext === undefined) return fail('OUTCOME_UNCONFIRMED');
-        // Re-observation stays outside the final transaction.
-        await this.contextPlane.recheckObjective(contextRequest, compiled);
       } catch (error) {
         const response = error instanceof BadRequestException ? error.getResponse() : null;
         if (!response || typeof response !== 'object' || !('code' in response) || response.code !== 'OBJECTIVE_CONTEXT_INCOMPLETE') throw error;
         return this.contextFailure(grant, subject, a, input.inputHash, 'issues' in response ? response.issues : undefined);
       }
+      if (!compiled || typedContext === undefined) return fail('OUTCOME_UNCONFIRMED');
       const observed = compiled;
+      // Recheck failures include corrupt/mismatched readbacks, so they remain
+      // unconfirmed rather than becoming evidence of a Core compile refusal.
+      await this.contextPlane.recheckObjective(contextRequest, observed);
       return this.prisma.withTenantUser(grant.tenantId, grant.clerkUserId, async tx => {
         const job = await this.job(tx, grant, body.generationJobId, true);
         const actual = await this.admission(tx, grant, job.id);
