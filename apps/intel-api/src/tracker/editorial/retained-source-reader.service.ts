@@ -11,7 +11,7 @@ import {
 @Injectable()
 export class RetainedSourceReaderService {
   constructor(readonly evidence: Phase8EvidenceService) {}
-  async news(ctx: WorkspaceTenantContext, input: unknown) {
+  async news(ctx: WorkspaceTenantContext, input: unknown, asOf?: Date) {
     return this.evidence.run(ctx, input, 'news', async (tx, b, scope) => {
       const limit = Math.min(100, Math.max(1, Math.trunc(Number(b.limit) || 50))),
         offset = Math.max(0, Number(b.offset) || 0),
@@ -21,7 +21,7 @@ export class RetainedSourceReaderService {
       if (b.monitorId !== undefined) throw new BadRequestException('NEWS_MONITOR_FILTER_RETIRED');
       const q = String(b.q ?? '').slice(0, 500),
         publisher = String(b.publisher ?? ''),
-        since = new Date(Date.now() - days * 86400000);
+        since = new Date((asOf?.getTime() ?? Date.now()) - days * 86400000);
       const rows = await tx.$queryRaw<
         Array<Record<string, unknown>>
       >`SELECT o.*, EXISTS(SELECT 1 FROM intel_legiwatch_evidence_tracking t WHERE t.tenant_id=${ctx.tenantId} AND t.owner_clerk_id=${ctx.clerkUserId} AND t.kind='news' AND t.source_id=o.id AND t.folder_id=${scope.folderId} AND NOT t.removed) AS saved, (SELECT t.version FROM intel_legiwatch_evidence_tracking t WHERE t.tenant_id=${ctx.tenantId} AND t.owner_clerk_id=${ctx.clerkUserId} AND t.kind='news' AND t.source_id=o.id AND t.folder_id=${scope.folderId}) AS tracking_version FROM legiwatch_news_source o WHERE o.is_current AND COALESCE(o.published_at,o.observed_at)>=${since} AND (${publisher}='' OR o.publisher=${publisher}) AND (${q}='' OR o.title ILIKE ${'%' + q + '%'} OR o.summary ILIKE ${'%' + q + '%'}) ORDER BY COALESCE(o.published_at,o.observed_at) DESC,o.id LIMIT ${limit + 1} OFFSET ${offset}`;

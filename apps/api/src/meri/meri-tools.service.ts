@@ -27,6 +27,7 @@ import {
 } from './meri-funding-read-observation.js';
 import {
   BadGatewayException,
+  HttpException,
   BadRequestException,
   Injectable,
   Logger,
@@ -87,7 +88,7 @@ import {
 } from '../clients/client-facilities.service.js';
 import { ClientsService } from '../clients/clients.service.js';
 import { RepresentationResolverService } from '../clients/representation-resolver.service.js';
-import { RegulatoryDocketService } from '../regulatory-docket/regulatory-docket.service.js';
+import { RegulatoryDocketService, regulatoryDocketTitleQuery } from '../regulatory-docket/regulatory-docket.service.js';
 import { EngagementMailSender } from '../engagement/mail-sender.service.js';
 import {
   ownMailThreadWhere,
@@ -1928,6 +1929,7 @@ export class MeriToolsService {
       }),
       search_tracked_bills: obj({ clientId: str('Client UUID') }, ['clientId']),
       query_regulatory_dockets: obj({
+        query: { ...str('Optional literal title substring, case-insensitive; not a semantic topic search'), maxLength: 200 },
         agencyId: str('Optional agency identifier filter, e.g. DOD, EPA'),
         documentType: str('Optional document type filter, e.g. Proposed Rule, Rule, Notice'),
         upcomingOnly: {
@@ -2713,10 +2715,13 @@ export class MeriToolsService {
       : undefined;
     const control = meriToolRequestControl();
     assertMeriToolRequestActive();
+    const newsWindowAsOf = name === 'search_legiwatch_news' && input.view === 'articles'
+      ? currentMeriReadAsOf('search_legiwatch_news') : undefined;
+    const sideEffecting = this.isSideEffecting(name);
     const response = await fetch(
       (process.env.TRACKER_APP_BASE_URL ?? 'https://app.capiro.ai').replace(/\/+$/, '') +
         '/intel-api/internal/legiwatch/meri/' +
-        (this.isSideEffecting(name) ? 'apply' : 'read'),
+        (sideEffecting ? 'apply' : 'read'),
       {
         method: 'POST',
         redirect: 'error',
@@ -2727,13 +2732,23 @@ export class MeriToolsService {
           actor: ctx.clerkUserId,
           tool: name,
           input: { ...input, clientId },
+          ...(newsWindowAsOf === undefined ? {} : { newsWindowAsOf }),
         }),
       },
     );
-    if (!response.ok)
-      throw new BadRequestException(
-        `LegiWatch current scope, source or approval requires review (HTTP ${response.status})`,
+    if (!response.ok) {
+      // The retained transport distinguishes denied scope, an unsupported route
+      // and an unavailable source by status. Never expose the private error body.
+      await response.body?.cancel().catch(() => undefined);
+      if (sideEffecting)
+        throw new BadRequestException(
+          `LegiWatch current scope, source or approval requires review (HTTP ${response.status})`,
+        );
+      throw new HttpException(
+        'LegiWatch source did not complete this request',
+        response.status >= 400 && response.status <= 599 ? response.status : 502,
       );
+    }
     const result = await response.json();
     if (name === 'prepare_legiwatch_briefing') {
       const draft = (
@@ -4195,7 +4210,7 @@ export class MeriToolsService {
         generatedAt,
         ok: false,
         error:
-          'The query could not be run (likely a timeout on an expensive query — try narrowing filters or lowering limit).',
+          'The query could not be run. No query results were returned.',
       };
     }
   }
@@ -8073,16 +8088,18 @@ export class MeriToolsService {
   }
 
   private async queryRegulatoryDockets(input: Record<string, unknown>) {
+    const query = regulatoryDocketTitleQuery(input.query);
     const upcomingOnly = optionalBoolean(input, 'upcomingOnly');
     const limit = clampInt(input.limit, 1, 50, 20);
 
     if (upcomingOnly) {
       const days = clampInt(input.days, 1, 365, 30);
-      const deadlines = await this.regulatoryDockets.getUpcomingDeadlines(days);
+      const deadlines = await this.regulatoryDockets.getUpcomingDeadlines(days, query);
       return {
         tool: 'query_regulatory_dockets',
         generatedAt: new Date().toISOString(),
         windowDays: days,
+        ...(query ? { appliedQuery: query } : {}),
         total: deadlines.length,
         results: deadlines.slice(0, limit),
       };
@@ -8091,6 +8108,7 @@ export class MeriToolsService {
     const agencyId = optionalString(input, 'agencyId', 40);
     const documentType = optionalString(input, 'documentType', 80);
     const result = await this.regulatoryDockets.listDockets({
+      query,
       agencyId: agencyId ?? undefined,
       documentType: documentType ?? undefined,
       limit,
@@ -8099,6 +8117,7 @@ export class MeriToolsService {
     return {
       tool: 'query_regulatory_dockets',
       generatedAt: new Date().toISOString(),
+      ...(query ? { appliedQuery: query } : {}),
       total: result.total,
       results: result.data,
     };

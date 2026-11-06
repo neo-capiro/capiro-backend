@@ -22,3 +22,11 @@ describe('exact federal search selector', () => {
     expect(parseBillDesignation('S. 99999', 119)).toEqual({ congress: 119, type: 's', number: 99999 });
   });
 });
+
+it.each([1, 9, 999])('combined next-batch identity keeps search-only six-digit numbers in Congress %s', (congress) => {
+  for (const raw of [`${congress}-s-999999`, `${congress} S. 999999`, `S. 999999 (${congress}th)`])
+    expect(parseBillSearchSelector(raw, 119)).toEqual({ kind: 'exact', billId: `${congress}-s-999999` });
+});
+it.each(['0-s-1', '1000-s-1', '1000 S. 1'])('combined selector refuses out-of-range literal %s', (raw) => {
+  expect(parseBillSearchSelector(raw, 119)).toEqual({ kind: 'invalid' });
+});
