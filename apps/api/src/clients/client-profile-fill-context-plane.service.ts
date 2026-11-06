@@ -245,7 +245,9 @@ export class ClientProfileFillContextPlaneService {
       coverage: bundle.coverage,
     };
     const updated = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await assertFillExecution(tx, ctx.tenantId, bundle.canonicalClient.id, runId);
+      // Parallel source tasks write this same run. Acquire its write lock before
+      // the task fence; upgrading two shared run locks would deadlock.
+      await assertFillExecution(tx, ctx.tenantId, bundle.canonicalClient.id, runId, 'update');
       return tx.$executeRawUnsafe(
         `UPDATE client_profile_fill_run
             SET source_states_jsonb = jsonb_set(
