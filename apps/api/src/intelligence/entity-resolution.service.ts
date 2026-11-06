@@ -363,20 +363,6 @@ export class EntityResolutionService {
       }))
       .sort((a, b) => b.confidence - a.confidence);
 
-    const existingRows = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.clientIntelMapping.findMany({
-        where: { clientId, source, externalId: { in: scored.map((c) => c.externalId) } },
-        select: {
-          id: true,
-          externalId: true,
-          confirmed: true,
-          reviewStatus: true,
-          matchBasis: true,
-        },
-      }),
-    );
-    const existingById = new Map(existingRows.map((row) => [row.externalId, row]));
-
     let created = 0;
     let autoConfirmed = 0;
     let needsReview = 0;
@@ -395,18 +381,6 @@ export class EntityResolutionService {
       });
       if (decision === 'skip') continue;
       const autoConfirm = decision === 'auto_confirm';
-      const existing = existingById.get(cand.externalId);
-
-      // A reviewer rejection is durable. Only newly-arrived exact identifier
-      // evidence may supersede it; a rerun of the same name heuristic may not.
-      if (
-        existing?.reviewStatus === 'rejected' &&
-        !(autoConfirm && cand.matchTier === 1 && cand.matchBasis === 'exact_uei' && existing.matchBasis !== 'exact_uei')
-      ) {
-        continue;
-      }
-      if (existing?.reviewStatus === 'superseded') continue;
-
       const evidence: {
         matchBasis?: string;
         matchTier?: number;
@@ -418,49 +392,95 @@ export class EntityResolutionService {
         evidence.matchEvidence = cand.matchEvidence as unknown as Prisma.InputJsonValue;
       }
 
-      await this.prisma.withTenant(tenantId, async (tx) => {
-        if (existing) {
-          await tx.clientIntelMapping.update({
-            where: { id: existing.id },
-            data: {
-              externalName: cand.externalName,
-              confidence: cand.confidence,
-              ...evidence,
-              ...(autoConfirm
-                ? {
-                    confirmed: true,
-                    reviewStatus: 'confirmed',
-                    reviewedAt: new Date(),
-                    reviewedBy: null,
-                    rejectionReason: null,
-                    relationshipType: 'self',
-                    rollUpAwards: true,
-                  }
-                : {}),
-            },
-          });
-        } else {
-          await tx.clientIntelMapping.create({
-            data: {
-              tenantId,
-              clientId,
-              source,
-              externalId: cand.externalId,
-              externalName: cand.externalName,
-              confidence: cand.confidence,
-              confirmed: autoConfirm,
-              reviewStatus: autoConfirm ? 'confirmed' : 'candidate',
-              reviewedAt: autoConfirm ? new Date() : null,
-              ...evidence,
-              ...(autoConfirm && cand.matchTier === 1
-                ? { relationshipType: 'self', rollUpAwards: true }
-                : {}),
-            },
-          });
-          created++;
-        }
+      const persisted = await this.prisma.withTenant(tenantId, async (tx) => {
+        // Resolve-on-create and post-SAM resolution may race. PostgreSQL's
+        // unique key arbitrates insertion; an absent pre-read cannot do so.
+        const inserted = await tx.clientIntelMapping.createMany({
+          skipDuplicates: true,
+          data: {
+            tenantId,
+            clientId,
+            source,
+            externalId: cand.externalId,
+            externalName: cand.externalName,
+            confidence: cand.confidence,
+            confirmed: autoConfirm,
+            reviewStatus: autoConfirm ? 'confirmed' : 'candidate',
+            reviewedAt: autoConfirm ? new Date() : null,
+            ...evidence,
+            ...(autoConfirm && cand.matchTier === 1
+              ? { relationshipType: 'self', rollUpAwards: true }
+              : {}),
+          },
+        });
+        if (inserted.count === 1) return 'created';
+        // Re-evaluate the current review decision under its row lock. A stale
+        // pre-read must not overwrite a reviewer or a stronger concurrent match.
+        const [existing] = await tx.$queryRawUnsafe<
+          Array<{
+            id: string;
+            confirmed: boolean;
+            reviewStatus: string;
+            reviewedBy: string | null;
+            matchBasis: string | null;
+            matchTier: number | null;
+          }>
+        >(
+          `SELECT id, confirmed, review_status AS "reviewStatus", reviewed_by AS "reviewedBy",
+                    match_basis AS "matchBasis", match_tier AS "matchTier"
+               FROM client_intel_mapping
+              WHERE tenant_id=$1::uuid AND client_id=$2::uuid AND source=$3 AND external_id=$4
+              FOR UPDATE`,
+          tenantId,
+          clientId,
+          source,
+          cand.externalId,
+        );
+        if (!existing) throw new Error('Concurrent entity mapping is unavailable');
+        // A reviewer rejection is durable. Only newly-arrived exact identifier
+        // evidence may supersede it; a rerun of the same name heuristic may not.
+        if (
+          existing.reviewStatus === 'rejected' &&
+          !(
+            autoConfirm &&
+            cand.matchTier === 1 &&
+            cand.matchBasis === 'exact_uei' &&
+            existing.matchBasis !== 'exact_uei'
+          )
+        )
+          return 'preserved';
+        if (
+          existing.reviewStatus === 'superseded' ||
+          (existing.reviewStatus === 'confirmed' && existing.reviewedBy !== null) ||
+          (existing.confirmed && !autoConfirm) ||
+          (existing.matchTier !== null &&
+            cand.matchTier !== undefined &&
+            existing.matchTier < cand.matchTier)
+        )
+          return 'preserved';
+        await tx.clientIntelMapping.update({
+          where: { id: existing.id },
+          data: {
+            externalName: cand.externalName,
+            confidence: cand.confidence,
+            ...evidence,
+            ...(autoConfirm
+              ? {
+                  confirmed: true,
+                  reviewStatus: 'confirmed',
+                  reviewedAt: new Date(),
+                  reviewedBy: null,
+                  rejectionReason: null,
+                  relationshipType: 'self',
+                  rollUpAwards: true,
+                }
+              : {}),
+          },
+        });
+        return 'updated';
       });
-
+      if (persisted === 'preserved') continue;
+      if (persisted === 'created') created++;
       if (autoConfirm) autoConfirmed++;
       else needsReview++;
     }
