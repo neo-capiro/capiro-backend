@@ -925,9 +925,12 @@ export class ClientProfileFillService {
     // not treated as a dead end.
     const website = normalizeWebsite(seedWebsite === undefined ? client.website : seedWebsite);
     const researchClient = { ...client, website,...(businessUnit?{name:`${client.name} ${businessUnit.name}`}:{}) };
-    const results = await this.searchCompany(researchClient);
-    if(portfolioScope?.purpose==='business_units')results.unshift(...await this.searchPublicWeb(`${client.name} latest annual report reportable segments Form 10-K`,8));
-    results.unshift(...await this.searchPublicWeb(`${client.name} company defense government news announcements past 12 months`, 8).catch(() => []));
+    const discoveredResults = await this.searchCompany(researchClient);
+    if(portfolioScope?.purpose==='business_units')discoveredResults.unshift(...await this.searchPublicWeb(`${client.name} latest annual report reportable segments Form 10-K`,8));
+    discoveredResults.unshift(...await this.searchPublicWeb(`${client.name} company defense government news announcements past 12 months`, 8).catch(() => []));
+    // Apply the same canonical URL deduplication and 16-result allowance after
+    // all query families are combined. News/report priority remains first.
+    const results = this.boundPublicWebResults(discoveredResults);
     const sourceCollectionDeadline = Date.now() + 90_000;
     let homepage: { url: string; html: string; text: string; description: string | null } | null = null;
     let websiteFetchError: string | null = null;
@@ -1414,8 +1417,12 @@ export class ClientProfileFillService {
       })),
     );
     for (const rows of batches) out.push(...rows);
+    return this.boundPublicWebResults(out);
+  }
+
+  private boundPublicWebResults(rows: NormalizedWebResult[]): NormalizedWebResult[] {
     const seen = new Set<string>();
-    return out.filter((row) => {
+    return rows.filter((row) => {
       const normalized = normalizeComparableUrl(row.url) ?? row.url;
       if (seen.has(normalized)) return false;
       seen.add(normalized);

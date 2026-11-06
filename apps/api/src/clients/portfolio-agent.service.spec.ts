@@ -164,34 +164,65 @@ describe('bounded Portfolio Claude Agent SDK task', () => {
     await assertion;
     expect(close).toHaveBeenCalled();
   });
-  it('reads a full public-web corpus overview and targeted full evidence before structured finalization', async () => {
+  it('pages a maximum public-web corpus overview and targeted tail evidence before structured finalization', async () => {
     const sources = Array.from({ length: 56 }, (_, i) => ({
       id: `source-${i}`,
       url: `https://evidence.example/${i}`,
-      text: i === 55 ? 'x'.repeat(6_000) + ' Supported tail evidence.' : `Approved source ${i}.`,
+      text: '😀漢\\"\u0000'.repeat(14_000) + ` Supported tail evidence ${i}.`,
     }));
     const handlers = new Map<string, (input: Record<string, unknown>) => Promise<any>>();
     const tool = jest.fn((name, _description, _schema, handler) => {
       handlers.set(name, handler);
       return { name };
     });
-    let overview: any;
-    let full: any;
+    let overview: any[] = [];
+    let targeted: any[] = [];
+    const batchBytes: number[] = [];
     const close = jest.fn();
-    const query = jest.fn(() =>
+    const query = jest.fn(({ prompt }: { prompt: string }) =>
       Object.assign(
         (async function* () {
-          overview = JSON.parse((await handlers.get('read_sources')!({})).content[0].text);
-          full = JSON.parse(
-            (await handlers.get('read_source')!({ sourceId: 'source-55' })).content[0].text,
+          const manifest = JSON.parse(prompt);
+          const overviewResponses = await Promise.all(
+            Array.from({ length: manifest.overviewPageCount }, (_, page) =>
+              handlers.get('read_sources')!({ page }),
+            ),
           );
+          batchBytes.push(
+            overviewResponses.reduce(
+              (sum, response) => sum + Buffer.byteLength(response.content[0].text, 'utf8'),
+              0,
+            ),
+          );
+          overview = overviewResponses.flatMap(
+            (response) => JSON.parse(response.content[0].text).sources,
+          );
+          // Read twelve chosen last pages in one native turn, including evidence
+          // well beyond the former 50K-character spill threshold.
+          const targetedResponses = await Promise.all(
+            manifest.sources
+              .slice(-12)
+              .map((source: any) =>
+                handlers.get('read_source')!({ sourceId: source.id, page: source.pageCount - 1 }),
+              ),
+          );
+          batchBytes.push(
+            targetedResponses.reduce(
+              (sum, response) => sum + Buffer.byteLength(response.content[0].text, 'utf8'),
+              0,
+            ),
+          );
+          targeted = targetedResponses.map((response) => JSON.parse(response.content[0].text));
+          for (const response of [...overviewResponses, ...targetedResponses]) {
+            expect(Buffer.byteLength(response.content[0].text, 'utf8')).toBeLessThanOrEqual(12_000);
+          }
           yield {
             ...success,
             num_turns: 3,
             structured_output: {
               subject,
               data: { name: 'tail evidence' },
-              evidence: [{ sourceId: 'source-55', quote: 'Supported tail evidence.' }],
+              evidence: [{ sourceId: 'source-55', quote: 'Supported tail evidence 55.' }],
             },
           };
         })(),
@@ -208,17 +239,19 @@ describe('bounded Portfolio Claude Agent SDK task', () => {
       maxTurns: 8,
       timeoutMs: 180_000,
     });
-    expect(overview.sources).toHaveLength(56);
-    expect(overview.sources.map((source: any) => source.id)).toEqual(
+    expect(overview).toHaveLength(56);
+    expect(overview.map((source: any) => source.sourceId)).toEqual(
       sources.map((source) => source.id),
     );
-    expect(overview.sources[55]).toMatchObject({
-      text: 'x'.repeat(5_000),
+    expect(overview[55]).toMatchObject({
       truncated: true,
       totalCharacters: sources[55]!.text.length,
     });
-    expect(overview.sources[0].truncated).toBe(false);
-    expect(full).toEqual(sources[55]);
+    expect(targeted).toHaveLength(12);
+    expect(targeted[11].text).toContain('Supported tail evidence 55.');
+    expect(targeted[11].startOffset).toBeGreaterThan(50_000);
+    expect(batchBytes[0]).toBeLessThanOrEqual(72_000);
+    expect(batchBytes[1]).toBeLessThanOrEqual(144_000);
     expect(result.data).toEqual({ name: 'tail evidence' });
     expect(result.audit).toMatchObject({ outcome: 'success', turns: 3 });
     const options = (query.mock.calls[0] as unknown as [{ options: Record<string, any> }])[0]
@@ -226,6 +259,7 @@ describe('bounded Portfolio Claude Agent SDK task', () => {
     expect(options.maxTurns).toBe(8);
     expect(options.maxBudgetUsd).toBe(0.5);
     expect(options.allowedTools).toContain('mcp__portfolio_sources__read_sources');
+    expect(options.systemPrompt.append).toContain('at most 12 source-tool calls per turn');
     expect(options.systemPrompt.append).toContain('Reserve your remaining turns for finalization');
     expect(close).toHaveBeenCalled();
   });
