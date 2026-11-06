@@ -11,7 +11,7 @@ const row = {
 };
 function fixture(versionId: string | undefined = 'verified-version') {
   const state = { current: bytes };
-  const send = jest.fn(async () => ({ Body: Readable.from([state.current]),
+  const send = jest.fn(async (): Promise<{ Body: Readable; ContentLength: number; VersionId: string | undefined }> => ({ Body: Readable.from([state.current]),
     ContentLength: state.current.length, VersionId: versionId }));
   const service = Object.create(EngagementService.prototype) as any;
   Object.assign(service, { bucket: 'synthetic', s3: { send } });
