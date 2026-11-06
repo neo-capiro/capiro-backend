@@ -13,6 +13,7 @@ import {
   presentImpactRow,
   safeSourceUrl,
   type ImpactStoredRow,
+  type StoredImpactAnalysis,
 } from './impact.repository.js';
 import { ImpactEvidenceService } from './impact-evidence.service.js';
 import { ImpactAnalysisService } from './impact-analysis.service.js';
@@ -21,12 +22,15 @@ import type { ImpactContextDto, ImpactTrackerQuery } from './impact.dto.js';
 
 /** A changed source can also be a revoked private document. Never expose old prose/citations. */
 export function currentImpact(
-  analysis: LegiWatchImpactAnalysis | null,
+  analysis: StoredImpactAnalysis | null,
   snapshot: ImpactEvidenceSnapshot,
 ): LegiWatchImpactAnalysis {
   if (!analysis) return emptyImpact();
+  // A failed refresh retains the previous valid assessment privately. Its sources
+  // may have been revoked, even when the latest attempt's fingerprint is current.
+  const { lastValidAnalysis: _lastValidAnalysis, ...current } = analysis;
   if (analysis.inputFingerprint === snapshot.fingerprint)
-    return { ...analysis, stale: false, staleReason: null };
+    return { ...current, stale: false, staleReason: null };
   return {
     ...emptyImpact('Bill text or client evidence changed. Refresh the impact analysis.'),
     analyzedAt: analysis.analyzedAt,
@@ -86,11 +90,12 @@ export class ImpactService {
     snapshot: ImpactEvidenceSnapshot,
   ): Promise<LegiWatchImpactDetail> {
     const actions = await this.repository.actions(tx, row.billId);
+    const publicRow = presentImpactRow(row, currentImpact(row.analysis, snapshot));
     return {
-      row: presentImpactRow(row, currentImpact(row.analysis, snapshot)),
+      row: publicRow,
       actions: actions.map((action) => ({
         ...action,
-        sourceUrl: safeSourceUrl(action.sourceUrl) ?? safeSourceUrl(row.sourceUrl),
+        sourceUrl: safeSourceUrl(action.sourceUrl) ?? publicRow.sourceUrl,
       })),
       versions: snapshot.versions.map((v) => ({
         ...v,
