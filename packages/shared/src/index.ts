@@ -1106,14 +1106,14 @@ export function formatBillId(congress: number, type: string, number: number): st
  * default congress. Whitespace/punctuation tolerant — feed-normalization for
  * floor schedules and vote records ("H.R. 5347 " with trailing space, etc.).
  */
-export function parseBillDesignation(text: string, defaultCongress: number): ParsedBillId | null {
+const BILL_DESIGNATION_TYPE = 'h\\.?\\s*r\\.?|s\\.?|h\\.?\\s*j\\.?\\s*res\\.?|s\\.?\\s*j\\.?\\s*res\\.?|h\\.?\\s*con\\.?\\s*res\\.?|s\\.?\\s*con\\.?\\s*res\\.?|h\\.?\\s*res\\.?|s\\.?\\s*res\\.?';
+
+function parseBillDesignationWithin(text: string, defaultCongress: number, digits: number): ParsedBillId | null {
   const cleaned = (text ?? '').trim();
   const congressMatch = cleaned.match(/\((\d{2,3})(?:st|nd|rd|th)?\)\s*$/);
   const congress = congressMatch ? Number(congressMatch[1]) : defaultCongress;
   const body = congressMatch ? cleaned.slice(0, congressMatch.index).trim() : cleaned;
-  const m = body.match(
-    /^(h\.?\s*r\.?|s\.?|h\.?\s*j\.?\s*res\.?|s\.?\s*j\.?\s*res\.?|h\.?\s*con\.?\s*res\.?|s\.?\s*con\.?\s*res\.?|h\.?\s*res\.?|s\.?\s*res\.?)\s*(\d{1,5})$/i,
-  );
+  const m = body.match(new RegExp(`^(${BILL_DESIGNATION_TYPE})\\s*([0-9]{1,${digits}})$`, 'i'));
   if (!m || !m[1] || !m[2]) return null;
   const rawType = m[1].toLowerCase().replace(/[^a-z]/g, '');
   // "s" designations: plain "S. 663" is type 's'; the res forms already parsed.
@@ -1122,6 +1122,37 @@ export function parseBillDesignation(text: string, defaultCongress: number): Par
   const number = Number(m[2]);
   const id = formatBillId(congress, type, number);
   return id ? { congress, type, number } : null;
+}
+
+export function parseBillDesignation(text: string, defaultCongress: number): ParsedBillId | null {
+  return parseBillDesignationWithin(text, defaultCongress, 5);
+}
+
+export const INVALID_BILL_SEARCH_NOTE = 'Invalid bill designation or conflicting Congress. No bill lookup was performed; provide an exact bill designation and Congress.';
+export type BillSearchSelector = { kind: 'exact'; billId: string } | { kind: 'invalid' } | { kind: 'topic' };
+
+/** Search numbers are exact positive safe integers, not a claim that a numbered bill exists. Other readers retain their existing grammar. */
+export function parseBillSearchSelector(raw: string | null | undefined, defaultCongress: number, explicitCongress?: number): BillSearchSelector {
+  const text = (raw ?? '').trim(), lower = text.toLowerCase();
+  if (!text) return { kind: 'topic' };
+  const literal = new RegExp(`^(?:[0-9]{2,3}-(?:${BILL_TYPES.join('|')})-|(?:[0-9]{2,3})?\\s*(?:${BILL_DESIGNATION_TYPE})\\s*(?:[+-]?[0-9]|$))`, 'i').test(text);
+  // The transport's title-query cap must never turn a longer literal into a different exact selector.
+  if (literal && text.length > 240) return { kind: 'invalid' };
+  const canonical = new RegExp(`^([0-9]{2,3})-(${BILL_TYPES.join('|')})-([0-9]{1,16})$`).exec(lower);
+  let parsed: ParsedBillId | null, billId: string | null;
+  if (canonical) {
+    parsed = { congress: Number(canonical[1]), type: canonical[2] as BillType, number: Number(canonical[3]) };
+    billId = lower;
+  } else {
+    const prefix = new RegExp(`^([0-9]{2,3})\\s*(?=(?:${BILL_DESIGNATION_TYPE})\\s*[+-]?[0-9])`, 'i').exec(text);
+    const congress = prefix ? Number(prefix[1]) : explicitCongress ?? defaultCongress;
+    parsed = parseBillDesignationWithin(prefix ? text.slice(prefix[0].length) : text, congress, 16);
+    if (parsed && prefix && parsed.congress !== congress) parsed = null;
+    billId = parsed ? formatBillId(parsed.congress, parsed.type, parsed.number) : null;
+  }
+  if (!parsed || !billId || !Number.isSafeInteger(parsed.number) || parsed.number < 1 || !Number.isSafeInteger(parsed.congress) || parsed.congress < 1 || explicitCongress !== undefined && parsed.congress !== explicitCongress)
+    return { kind: literal ? 'invalid' : 'topic' };
+  return { kind: 'exact', billId };
 }
 
 /** The api.congress.gov path segment for a bill ("/bill/119/hr/8800"). */

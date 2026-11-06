@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { congressGovBillUrl } from '@capiro/shared';
 
 /**
  * Pure shape of Meri's three semantic (embedding) reads over the public
@@ -406,8 +407,8 @@ function familyProjection(operation: Exclude<SemanticSearchOperation, ActiveCata
 }
 
 /**
- * One statement per read: the nearest `candidateLimit` vectors of each passage family (each served by its own
- * partial HNSW index), the best passage per parent record above the similarity floor, then the canonical record
+ * One statement per read: nearest description vectors use their family HNSW index; attachment vectors are
+ * ranked exactly after the family/parent joins. Keep the best passage per parent above the floor, then the record
  * with its filters. The funding reads rank description and attachment passages together; an attachment passage
  * reaches its opportunity only through an existing opportunity_attachment row whose parent link names this
  * family, so a passage whose attachment or opportunity is gone never reaches the page.
@@ -429,52 +430,44 @@ export function semanticSearchSql(
   // 1..maxLimit) is bound with an explicit ::int cast.
   const family = FAMILIES[operation];
   const limits = SEMANTIC_SEARCH_LIMITS;
-  const nearest = (sourceType: string, parent: Prisma.Sql, eligibility = Prisma.empty) => {
-    const scope = Prisma.sql`ce.source_type = ${Prisma.raw(`'${sourceType}'`)}
-      AND ce.tenant_id IS NULL AND ce.client_id IS NULL AND ce.owner_user_id IS NULL
-      AND ce.model = ${model} AND ce.embedding IS NOT NULL`;
-    // Seek each owning document's existing indexed id:chunk range rather than
-    // loading every other catalog's large vector payloads before the join.
-    const rows = sourceType === ATTACHMENT_SOURCE_TYPE
-      ? Prisma.sql`FROM opportunity_attachment family_attachment
-          CROSS JOIN LATERAL (SELECT ce.* FROM context_embeddings ce WHERE ${scope}
-            AND ce.source_id ~>=~ (family_attachment.id::text || ':')
-            AND ce.source_id ~<~ (family_attachment.id::text || ';')
-            AND ce.metadata_jsonb->>'parentId'=family_attachment.id::text OFFSET 0) ce WHERE TRUE`
-      : Prisma.sql`FROM context_embeddings ce WHERE ${scope}`;
-    if (sourceType === ATTACHMENT_SOURCE_TYPE) return Prisma.sql`
-      SELECT ${parent} AS parent_id, ce.content_text, ce.metadata_jsonb AS meta, ce.updated_at AS embedded_at,
-             (1 - nearest.distance)::float8 AS score
-      FROM (SELECT ce.id, ce.embedding <=> ${vector}::vector AS distance
-        ${rows} ${eligibility}
-        ORDER BY distance LIMIT ${Prisma.raw(String(limits.candidateLimit))}) nearest
-      JOIN context_embeddings ce ON ce.id=nearest.id`;
-    return Prisma.sql`
+  const nearest = (sourceType: string, parent: Prisma.Sql) => Prisma.sql`
       SELECT ${parent} AS parent_id, ce.content_text, ce.metadata_jsonb AS meta, ce.updated_at AS embedded_at,
              (1 - (ce.embedding <=> ${vector}::vector))::float8 AS score
-        ${rows}
-         ${eligibility}
+        FROM context_embeddings ce
+       WHERE ce.source_type = ${Prisma.raw(`'${sourceType}'`)}
+         AND ce.tenant_id IS NULL AND ce.client_id IS NULL AND ce.owner_user_id IS NULL
+         AND ce.model = ${model} AND ce.embedding IS NOT NULL
        ORDER BY ce.embedding <=> ${vector}::vector
        LIMIT ${Prisma.raw(String(limits.candidateLimit))}`;
-  };
   const parent = family.attachmentParent;
-  // A different catalog's attachments must not consume this family's window.
-  // In particular, DIBBS now shares funding_attachment_chunk with grants/SAM.
-  // The correlated prefix scan remains exact rather than a shared HNSW window.
-  // Rank only ids/distances, then load the bounded page's text and score once.
-  // Ascending distance puts zero-vector NaN last; the admitted band rejects it.
-  const attachmentFamily = parent ? Prisma.sql`AND family_attachment.${Prisma.raw(parent)} IS NOT NULL` : Prisma.empty;
+  // Materialize only usable public ids and parent keys once. Correlated prefix
+  // seeks repeat an RLS-filtered source scan for every stored attachment, most
+  // of which have no vector. Keep all eligible family ids before ranking so a
+  // different catalog, an orphan or a zero vector cannot consume its window.
+  // Load the vectors only after the real attachment and opportunity joins.
   const candidates = parent
     ? Prisma.sql`description AS (${nearest(family.sourceType, Prisma.sql`ce.metadata_jsonb->>'parentId'`)}
-    ), attachment AS (${nearest(ATTACHMENT_SOURCE_TYPE, Prisma.sql`ce.metadata_jsonb->>'parentId'`, attachmentFamily)}
+    ), attachment_keys AS MATERIALIZED (
+      SELECT ce.id, ce.source_id, ce.metadata_jsonb->>'parentId' AS attachment_id
+      FROM context_embeddings ce WHERE ${usablePublicVector(ATTACHMENT_SOURCE_TYPE, model)}
+    ), family_attachment_keys AS MATERIALIZED (
+      SELECT k.id, a.id AS attachment_id, a.${Prisma.raw(parent)}::text AS parent_id
+      FROM attachment_keys k JOIN opportunity_attachment a
+        ON a.id = CASE WHEN k.attachment_id ~ ${Prisma.raw(`'${UUID_TEXT}'`)} THEN k.attachment_id::uuid END
+      JOIN ${Prisma.raw(family.reference)} r ON r.id = a.${Prisma.raw(parent)}
+      WHERE a.${Prisma.raw(parent)} IS NOT NULL
+        AND k.source_id ~>=~ (a.id::text || ':') AND k.source_id ~<~ (a.id::text || ';')
+    ), attachment AS (
+      SELECT nearest.parent_id, ce.content_text, ce.metadata_jsonb AS meta, ce.updated_at AS embedded_at,
+        nearest.attachment_id, (1 - nearest.distance)::float8 AS score
+      FROM (SELECT k.id, k.parent_id, k.attachment_id, ce.embedding <=> ${vector}::vector AS distance
+        FROM family_attachment_keys k JOIN context_embeddings ce ON ce.id = k.id
+        ORDER BY distance LIMIT ${Prisma.raw(String(limits.candidateLimit))}) nearest
+      JOIN context_embeddings ce ON ce.id = nearest.id
     ), candidates AS (
       SELECT parent_id, content_text, meta, embedded_at, NULL::uuid AS attachment_id, score FROM description
       UNION ALL
-      SELECT a.${Prisma.raw(parent)}::text, x.content_text, x.meta, x.embedded_at, a.id, x.score
-        FROM attachment x
-        JOIN opportunity_attachment a
-          ON a.id = CASE WHEN x.parent_id ~ ${Prisma.raw(`'${UUID_TEXT}'`)} THEN x.parent_id::uuid END
-       WHERE a.${Prisma.raw(parent)} IS NOT NULL`
+      SELECT parent_id, content_text, meta, embedded_at, attachment_id, score FROM attachment`
     : Prisma.sql`candidates AS (${nearest(family.sourceType, Prisma.sql`ce.source_id`)}`;
   return Prisma.sql`
     WITH ${candidates}
@@ -492,6 +485,14 @@ export function semanticSearchSql(
     LIMIT ${input.limit}::int`;
 }
 
+/** The existing partial usable-coverage index stores this predicate. Its narrow
+ * key scan must remain separate from parent joins and distance evaluation. */
+function usablePublicVector(sourceType: string, model: string): Prisma.Sql {
+  return Prisma.sql`ce.source_type = ${Prisma.raw(`'${sourceType}'`)}
+    AND ce.tenant_id IS NULL AND ce.client_id IS NULL AND ce.owner_user_id IS NULL
+    AND ce.model = ${model} AND ce.embedding IS NOT NULL AND (ce.embedding <#> ce.embedding) < 0`;
+}
+
 /** Corpus coverage, not query/filter coverage. Completion markers alone do not
  * prove a record has any searchable public vector of the selected model. */
 export function semanticCoverageSql(operation: SemanticSearchOperation, model: string): Prisma.Sql {
@@ -500,38 +501,29 @@ export function semanticCoverageSql(operation: SemanticSearchOperation, model: s
       (${operation === 'semantic_search_dibbs_solicitations'
         ? Prisma.sql`SELECT count(*) FROM tango_dibbs_solicitation d WHERE ${ACTIVE_DIBBS}`
         : Prisma.sql`SELECT count(*) FROM tango_sbir_topic t WHERE ${ACTIVE_SBIR}`})::int AS total`;
-  switch (operation) {
-    case 'semantic_search_bills':
-      return Prisma.sql`SELECT (SELECT count(DISTINCT ce.source_id) FROM context_embeddings ce
-          JOIN congress_bill cb ON cb.id=ce.source_id
-          WHERE ce.source_type = 'bill' AND ce.tenant_id IS NULL AND ce.client_id IS NULL AND ce.owner_user_id IS NULL
-            AND ce.model = ${model} AND ce.embedding IS NOT NULL AND (ce.embedding <#> ce.embedding) < 0)::int AS indexed,
-        (SELECT count(*) FROM congress_bill)::int AS total`;
-    case 'semantic_search_grants':
-    case 'semantic_search_contract_opportunities':
-      {
-        const family = FAMILIES[operation];
-        const table = Prisma.raw(family.reference);
-        const parent = Prisma.raw(family.attachmentParent!);
-        return Prisma.sql`WITH indexed_parents AS (
-          SELECT ce.metadata_jsonb->>'parentId' AS parent_id FROM context_embeddings ce
-          WHERE ce.source_type=${Prisma.raw(`'${family.sourceType}'`)} AND ce.model=${model}
-            AND ce.tenant_id IS NULL AND ce.client_id IS NULL AND ce.owner_user_id IS NULL
-            AND ce.embedding IS NOT NULL AND (ce.embedding <#> ce.embedding) < 0
-          UNION
-          SELECT a.${parent}::text FROM (
-            SELECT DISTINCT ce.metadata_jsonb->>'parentId' AS attachment_id FROM context_embeddings ce
-            WHERE ce.source_type='funding_attachment_chunk' AND ce.model=${model}
-              AND ce.tenant_id IS NULL AND ce.client_id IS NULL AND ce.owner_user_id IS NULL
-              AND ce.source_id ~>=~ ((ce.metadata_jsonb->>'parentId') || ':')
-              AND ce.source_id ~<~ ((ce.metadata_jsonb->>'parentId') || ';')
-              AND ce.embedding IS NOT NULL AND (ce.embedding <#> ce.embedding) < 0
-          ) indexed JOIN opportunity_attachment a ON a.id=CASE WHEN indexed.attachment_id ~ ${Prisma.raw(`'${UUID_TEXT}'`)}
-            THEN indexed.attachment_id::uuid END WHERE a.${parent} IS NOT NULL
-        ) SELECT (SELECT count(*) FROM ${table} r JOIN indexed_parents i ON i.parent_id=r.id::text)::int AS indexed,
-          (SELECT count(*) FROM ${table})::int AS total`;
-      }
-  }
+  if (operation === 'semantic_search_bills') return Prisma.sql`
+    WITH indexed_bills AS MATERIALIZED (
+      SELECT DISTINCT ce.source_id FROM context_embeddings ce WHERE ${usablePublicVector('bill', model)}
+    ) SELECT (SELECT count(*) FROM indexed_bills i JOIN congress_bill cb ON cb.id = i.source_id)::int AS indexed,
+      (SELECT count(*) FROM congress_bill)::int AS total`;
+  const family = FAMILIES[operation];
+  const table = Prisma.raw(family.reference);
+  const parent = Prisma.raw(family.attachmentParent!);
+  return Prisma.sql`WITH description_keys AS MATERIALIZED (
+      SELECT DISTINCT ce.metadata_jsonb->>'parentId' AS parent_id
+      FROM context_embeddings ce WHERE ${usablePublicVector(family.sourceType, model)}
+    ), attachment_keys AS MATERIALIZED (
+      SELECT ce.source_id, ce.metadata_jsonb->>'parentId' AS attachment_id
+      FROM context_embeddings ce WHERE ${usablePublicVector(ATTACHMENT_SOURCE_TYPE, model)}
+    ), indexed_parents AS (
+      SELECT parent_id FROM description_keys
+      UNION
+      SELECT a.${parent}::text FROM attachment_keys k JOIN opportunity_attachment a
+        ON a.id = CASE WHEN k.attachment_id ~ ${Prisma.raw(`'${UUID_TEXT}'`)} THEN k.attachment_id::uuid END
+      WHERE a.${parent} IS NOT NULL
+        AND k.source_id ~>=~ (a.id::text || ':') AND k.source_id ~<~ (a.id::text || ';')
+    ) SELECT (SELECT count(*) FROM ${table} r JOIN indexed_parents i ON i.parent_id=r.id::text)::int AS indexed,
+      (SELECT count(*) FROM ${table})::int AS total`;
 }
 
 export interface SemanticCoverageRow {
@@ -642,7 +634,7 @@ const STATUS_NOTES: Partial<Record<SemanticSearchOperation, string>> = {
   semantic_search_dibbs_solicitations:
     'Only active DIBBS line items with a current document URL and hash-bound indexed text are searched. Cite the canonical line item and provider record; a solicitation number may be shared. A null closeDate is an unknown deadline. archivedAt dates the fetched document snapshot, not continuous remote freshness. A truncated passage means incomplete document coverage; missing files or unreadable text are not evidence that requirements are absent.',
   semantic_search_sbir_topics:
-    'Only currently open SBIR/STTR topics with indexed descriptions are searched; cycles are not embedded. Topic provider identity differs from its topic number and parent solicitation number. textFetchedAt dates the stored provider observation. A missing description is a coverage gap; the synopsis is not proof of eligibility or complete solicitation requirements.',
+    'Only currently open SBIR/STTR topics with indexed descriptions are searched; cycles are not embedded. Topic provider identity differs from its topic number and parent solicitation number. Preserve the returned title and agency; a topic number or suffix does not establish a sponsoring office or component. Do not infer organization details absent from the returned source fields. textFetchedAt dates the stored provider observation. A missing description is a coverage gap; the synopsis is not proof of eligibility or complete solicitation requirements.',
 };
 
 export function projectSemanticSearch(
@@ -678,7 +670,9 @@ export function projectSemanticSearch(
         reference: `${family.reference}:${row.parent_id}`,
         score: Math.round(row.score * 1000) / 1000,
         snippet: typeof row.snippet === 'string' ? row.snippet : '',
-        record: row.record,
+        record: operation === 'semantic_search_bills'
+          ? { ...row.record, url: congressGovBillUrl(row.parent_id) ?? row.record.url }
+          : row.record,
         ...(passage ? { passage } : {}),
         ...(documents ? { documents } : {}),
       };
