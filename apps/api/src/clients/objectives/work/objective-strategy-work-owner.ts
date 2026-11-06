@@ -10,7 +10,8 @@ import { objectiveStrategyRequestCodec, objectiveStrategySelectionBody, parseObj
   type ObjectiveStrategySelectionRequest } from './objective-strategy-selection.js';
 import { workDigest, workFailure, workUuid, type StoredWorkReceipt, type WorkAction, type WorkAuthority, type WorkPolicyFacts,
   type WorkReadRequest, type WorkReconciliation, type WorkRequest, type WorkState } from './objective-work-command.js';
-import { objectiveRevisionSnapshotHash as applicationHash } from '../objective-work-intent.js';
+import { canRetryObjectiveStrategyBeforePublication, objectiveGenerationLedgerId } from './objective-strategy-prepublication-retry.js';
+export { objectiveGenerationLedgerId } from './objective-strategy-prepublication-retry.js';
 
 type Tx = Prisma.TransactionClient;
 const ACTION = 'objective.strategy.draft';
@@ -20,11 +21,6 @@ const ACTION = 'objective.strategy.draft';
 const GENERATION_ADMISSION = 'objective_canonical_generation_admission';
 const GENERATION_LINKED_KINDS = ['objective_canonical_generation_acceptance',
   'objective_canonical_generation_normalization', 'objective_canonical_generation_request'] as const;
-/** Same deterministic ID API-Strategy's generationLedgerId assigns to each per-job ledger row. */
-export function objectiveGenerationLedgerId(kind: string, tenantId: string, clerkUserId: string, jobId: string): string {
-  const h = applicationHash([kind, tenantId, clerkUserId, jobId]);
-  return `${h.slice(0, 8)}-${h.slice(8, 12)}-8${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
-}
 const MAX_DURATION = 1_800_000;
 type Gate = { tenantId: string; actorUserId: string; actorRole: string; strategyId: string; inventory: ObjectiveStrategyJobInventory };
 const positive = (v: unknown, max = MAX_DURATION): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v > 0 && v <= max;
@@ -47,7 +43,8 @@ function json(v: unknown): void {
   }
 }
 
-/** Initial selected Strategy intake only. No terminal or regeneration outcome is inferred. */
+/** Selected Strategy intake and proven prepublication retry only. No accepted
+ * model run, terminal model outcome or regeneration is inferred. */
 export class ObjectiveStrategyWorkOwner implements ObjectiveWorkOwnerPort {
   private readonly selected = new WeakMap<Tx, ObjectiveStrategySelectionRequest>();
   private readonly gates = new WeakMap<Tx, Gate>();
@@ -98,6 +95,25 @@ export class ObjectiveStrategyWorkOwner implements ObjectiveWorkOwnerPort {
     await this.lock(tx, ctx, request.clientId, request.objectiveId);
   }
   private key(a: WorkAuthority, state: WorkState) { return workDigest({ a, state }); }
+  private async outputAbsent(tx: Tx, a: WorkAuthority, strategyId: string): Promise<boolean> {
+    const roles = await tx.$queryRaw<Array<{ role: string }>>`SELECT role::text AS role FROM tenant_memberships
+      WHERE tenant_id=${a.tenantId}::uuid AND id=${a.actorMembershipId}::uuid
+        AND user_id=${a.actorUserId}::uuid AND status::text='active'`;
+    if (roles.length !== 1 || !['standard_user', 'user_admin', 'capiro_admin'].includes(roles[0]!.role)) return false;
+    // The existing global output gate is held before Core locks. System scope
+    // observes occupancy only, including a reserved ID hidden by tenant RLS.
+    return this.prisma!.withSystem(async system => {
+      const rows = await system.$queryRaw<Array<{ occupied: boolean }>>`SELECT
+        EXISTS(SELECT 1 FROM public.sp_strategy WHERE id=${strategyId}::uuid) OR
+        EXISTS(SELECT 1 FROM public.sp_version WHERE strategy_id=${strategyId}::uuid) AS occupied`;
+      if (rows.length !== 1 || typeof rows[0]!.occupied !== 'boolean') throw Error('Unknown global occupancy');
+      await system.auditLog.create({ data: { tenantId: a.tenantId, actorUserId: a.actorUserId,
+        actorRole: roles[0]!.role, action: 'objective_strategy_intake_output_presence_observed',
+        entityType: 'canonical_strategy', entityId: strategyId,
+        requestId: this.selected.get(tx)!.work.command.requestId, after: { occupied: rows[0]!.occupied } } });
+      return !rows[0]!.occupied;
+    }, { timeoutMs: 3000 });
+  }
   /** Called by WorkService only after its actual canonical/control write locks. */
   observeLockedStrategyStateWithinTx(tx: Tx, a: WorkAuthority, action: WorkAction, state: WorkState): void {
     if (action === ACTION && this.gates.get(tx)?.tenantId === a.tenantId && this.selected.has(tx))
@@ -119,9 +135,17 @@ export class ObjectiveStrategyWorkOwner implements ObjectiveWorkOwnerPort {
       const gate = this.gates.get(tx)!;
       if (gate.strategyId !== s.canonicalStrategyId || gate.actorUserId !== a.actorUserId ||
           !['standard_user', 'user_admin', 'capiro_admin'].includes(gate.actorRole)) return base;
-      if (state.consent || c && (c.version !== 0 || c.currentConsentId !== null || c.cancelledAt !== null || c.cancelledByUserId !== null) ||
-          a.objectiveStatus !== 'ready' || a.objectiveRevisionId !== s.sourceRevisionId || a.objectiveVersion !== s.sourceObjectiveVersion)
+      if (a.objectiveStatus !== 'ready' || a.objectiveRevisionId !== s.sourceRevisionId || a.objectiveVersion !== s.sourceObjectiveVersion)
         return base;
+      if (state.consent || c && (c.version !== 0 || c.currentConsentId !== null || c.cancelledAt !== null || c.cancelledByUserId !== null)) {
+        const selected = this.selected.get(tx)!;
+        if (selected.work.command.expectedObjectiveVersion !== a.objectiveVersion ||
+            selected.work.command.expectedCanonicalBindingVersion !== s.canonicalBindingVersion ||
+            !await canRetryObjectiveStrategyBeforePublication(tx, a, state, selected, gate.inventory) ||
+            !await this.outputAbsent(tx, a, gate.strategyId)) return base;
+        this.eligible.set(tx, this.key(a, state));
+        return { ...base, state: 'not_started' };
+      }
       const present = await tx.$queryRaw<Array<{ present: boolean }>>`SELECT
         EXISTS(SELECT 1 FROM client_objective_strategy_intakes WHERE tenant_id=${a.tenantId}::uuid
           AND (objective_id=${a.objectiveId}::uuid OR canonical_plan_id=${s.canonicalPlanId}::uuid
@@ -129,25 +153,7 @@ export class ObjectiveStrategyWorkOwner implements ObjectiveWorkOwnerPort {
         EXISTS(SELECT 1 FROM sp_strategy WHERE tenant_id=${a.tenantId}::uuid AND id=${s.canonicalStrategyId}::uuid) OR
         EXISTS(SELECT 1 FROM sp_version WHERE tenant_id=${a.tenantId}::uuid AND strategy_id=${s.canonicalStrategyId}::uuid) AS present`;
       if (present.length !== 1 || present[0]!.present !== false) return base;
-      const roles = await tx.$queryRaw<Array<{ role: string }>>`SELECT role::text AS role FROM tenant_memberships
-        WHERE tenant_id=${a.tenantId}::uuid AND id=${a.actorMembershipId}::uuid
-          AND user_id=${a.actorUserId}::uuid AND status::text='active'`;
-      if (roles.length !== 1 || !['standard_user', 'user_admin', 'capiro_admin'].includes(roles[0]!.role)) return base;
-      // Global IDs can already belong to a foreign RLS scope. Under the held
-      // global writer gate, the approved system owner observes only occupancy
-      // and audits this actual native viewer. No foreign metadata is returned.
-      const occupied = await this.prisma!.withSystem(async system => {
-        const observations = await system.$queryRaw<Array<{ occupied: boolean }>>`SELECT
-          EXISTS(SELECT 1 FROM public.sp_strategy WHERE id=${gate.strategyId}::uuid) OR
-          EXISTS(SELECT 1 FROM public.sp_version WHERE strategy_id=${gate.strategyId}::uuid) AS occupied`;
-        if (observations.length !== 1 || typeof observations[0]!.occupied !== 'boolean') throw Error('Unknown global occupancy');
-        await system.auditLog.create({ data: { tenantId: a.tenantId, actorUserId: a.actorUserId,
-          actorRole: roles[0]!.role, action: 'objective_strategy_intake_output_presence_observed',
-          entityType: 'canonical_strategy', entityId: gate.strategyId,
-          requestId: this.selected.get(tx)!.work.command.requestId, after: { occupied: observations[0]!.occupied } } });
-        return observations[0]!.occupied;
-      }, { timeoutMs: 3000 });
-      if (occupied) return base;
+      if (!await this.outputAbsent(tx, a, gate.strategyId)) return base;
       const jobs = await tx.$queryRaw<Array<{ id: string; clientId: string; ownerUserId: string; strategyId: string | null; input: any }>>`
         SELECT id::text AS id,client_id::text AS "clientId",owner_user_id AS "ownerUserId",
           strategy_id::text AS "strategyId",input FROM sp_draft_job
