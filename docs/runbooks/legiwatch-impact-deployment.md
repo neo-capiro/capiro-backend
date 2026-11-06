@@ -147,6 +147,13 @@ enable only after successful canary; observe a later timer-triggered run.
 Preserve the pre-change task/rule/role snapshot for rollback. Disable this exact
 rule to pause refresh. Do not modify existing live rules or the source job quota.
 
+Deploy the corresponding Core and retained Intel serving changes after the
+forward migrations. Verify the new tracker/detail endpoints and retained owner
+access checks before deploying the companion frontend. Its shared tracker
+requires the new Core contract; an independent frontend-first rollout is not
+compatible. Run the refresh canary and enable its timer only after the serving
+pair and source prerequisites pass acceptance.
+
 ## Source coverage prerequisites
 
 | Existing owner | Scope and prerequisite |
@@ -166,15 +173,42 @@ work and retained extraction do not remove that hold. No initial archive import,
 all-state API backfill, allowance increase or dark collection activation is
 performed by this change. Missing evidence must remain visible as a gap.
 
-## Acceptance still requiring a release environment
+## Local qualification and remaining acceptance
 
-Source unit/synthesis tests are not live acceptance. Required unrun gates are
-exact-head review; root build/lint/typecheck and isolated PostgreSQL tests;
-runtime-closure/image probes and exact-digest scan; snapshot-first clone migration;
-fresh secret-reference/KMS/IAM/network inspection; real source hydration and
-extraction canaries within provider allowance; an authorized Claude impact
-canary and source citations review; tenant/client/revocation negative checks;
-serving UI/API acceptance; and timer-triggered refresh after both a source
-change and a client-profile change. Record results without credentials or
-customer-linked identifiers. No claim of production-wide or all-state refresh
-is justified until those observations exist.
+The source review covered both repositories, the frozen public contract and
+the retained tracker authorization repairs. Core's combined focused suite passed
+152 tests; retained Intel tracker checks passed 49 tests. PostgreSQL 16.15 ran
+the four source SQL tests without skips and applied both new migrations unchanged.
+Thirteen synthetic migration verification groups checked grants, forced RLS,
+tenant isolation, walls/revocation, authorized CRUD and constraints. The two
+migration SHA-256 values are `73ff3f32467568aa32932c09a000245e4e997f1bac074ed2b4460292e5138442`
+and `0f902788d87dce24d3d9b47748cd7efd6a804490b6fdd0d955b62908d2f741f9`.
+Synthetic schemas and roles were removed and the local database server stopped.
+
+Frontend typecheck and production build passed, along with 91 focused tests,
+34 architecture tests, scoped lint/format checks and nine public-package tests.
+Its architecture scan retains the same 29 existing errors as its base; no new
+task boundary error was introduced. CDK typecheck, 30 compute/schedule tests
+and 32 preview-renderer tests passed. The three new API configuration tests
+passed; the existing engagement-owner configuration assertion also fails on
+the untouched backend base.
+
+Core and Intel production builds passed, and Intel typecheck passed. Core's
+broad typecheck has five diagnostics in three existing profile test
+files, reproduced identically on base `6d3250053aa6e3748d3440f5838c3b0446826d52`;
+later configurations in that chained command are not reached. The configured
+API lint command cannot execute because the installed dependency graph has no
+ESLint executable. These failures were preserved rather than weakening checks.
+The full historical Bill360 PostgreSQL migration-chain suite was not run;
+the new isolated SQL checks use minimal synthetic dependencies. Browser tests
+could not launch Chromium in this executor, so rendered interaction is unverified.
+
+Source and synthetic tests are not live acceptance. Remaining release gates
+include runtime-closure/image probes and exact-digest scan; snapshot-first clone
+migration; fresh secret-reference/KMS/IAM/network inspection; real source
+hydration and extraction canaries within provider allowance; an authorized
+Claude impact canary and citation review; deployed tenant/client/revocation
+negative checks; serving UI/API acceptance; and timer-triggered refresh after
+both a source change and a client-profile change. Record results without
+credentials or customer-linked identifiers. No claim of production-wide or
+all-state refresh is justified until those observations exist.
