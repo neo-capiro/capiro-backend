@@ -6,6 +6,7 @@ import {
   isValidCanonicalId,
   normalizeCanonicalId,
   parseBillDesignation,
+  parseBillId,
   currentCongress,
   billStatusLabel,
 } from '@capiro/shared';
@@ -52,12 +53,31 @@ export class MeriFederalLegislationTools {
    * Resolve a free-form bill reference ("H.R. 8800", "119-hr-8800") to a
    * canonical bill id, or null. Shared by the congress-bill / status / votes
    * tools so a designation query becomes a direct lookup, not a title guess.
+   * @param raw - The raw bill reference or canonical ID
+   * @param explicitCongress - Optional explicit Congress number to use when
+   *   parsing a designation (e.g., "S.2809"). For canonical IDs like "119-s-2809",
+   *   this parameter is used for validation: if the canonical ID's congress doesn't
+   *   match explicitCongress, resolution fails (returns null). If not provided,
+   *   canonical IDs are returned as-is.
    */
-  private resolveBillId(raw: string | null | undefined): string | null {
+  private resolveBillId(raw: string | null | undefined, explicitCongress?: number): string | null {
     if (!raw) return null;
     const norm = normalizeCanonicalId('billId', raw);
-    if (isValidCanonicalId('billId', norm)) return norm;
-    const parsed = parseBillDesignation(raw, currentCongress());
+    if (isValidCanonicalId('billId', norm)) {
+      // For canonical IDs, validate against explicit congress if provided
+      if (explicitCongress !== undefined) {
+        const parsed = parseBillId(norm);
+        if (parsed && parsed.congress !== explicitCongress) {
+          return null; // Congress mismatch
+        }
+      }
+      return norm;
+    }
+    // When parsing a designation like "S.2809", use the explicit congress
+    // if provided; otherwise fall back to current Congress
+    const defaultCongress = explicitCongress ?? currentCongress();
+    const parsed = parseBillDesignation(raw, defaultCongress);
+    if (parsed && explicitCongress !== undefined && parsed.congress !== explicitCongress) return null;
     return parsed ? formatBillId(parsed.congress, parsed.type, parsed.number) : null;
   }
 
@@ -95,20 +115,21 @@ export class MeriFederalLegislationTools {
 
     // Direct lookup when the query is itself a bill designation/id — a title
     // substring search would otherwise miss "H.R. 8800".
-    const directId = this.resolveBillId(search);
-    if (directId) {
-      const bill = await this.prisma.congressBill.findUnique({ where: { id: directId } });
-      if (bill) {
-        return {
-          tool: 'search_congress_bills',
-          generatedAt: new Date().toISOString(),
-          data: [bill],
-          total: 1,
-          page: 1,
-          limit,
-          resolvedBy: 'bill-id',
-        };
-      }
+    const directId = this.resolveBillId(search, congressNum);
+    // An absent or malformed literal is not permission to substitute a title
+    // match, truncate its number, or switch Congress. Keep topic search separate.
+    const queryLooksLikeBillDesignation = /^(?:\d{2,3}-(?:hr|s|hjres|sjres|hconres|sconres|hres|sres)-|(?:\d{2,3})?\s*(?:h\.?\s*r\.?|s\.?|h\.?\s*j\.?\s*res\.?|s\.?\s*j\.?\s*res\.?|h\.?\s*con\.?\s*res\.?|s\.?\s*con\.?\s*res\.?|h\.?\s*res\.?|s\.?\s*res\.?)\s*\d)/i.test(search ?? '');
+    if (directId || queryLooksLikeBillDesignation) {
+      const bill = directId ? await this.prisma.congressBill.findUnique({ where: { id: directId } }) : null;
+      return {
+        tool: 'search_congress_bills',
+        generatedAt: new Date().toISOString(),
+        data: bill ? [bill] : [],
+        total: bill ? 1 : 0,
+        page: 1,
+        limit,
+        resolvedBy: 'bill-id',
+      };
     }
 
     const bills = await this.ldaIntel.getCongressBills(

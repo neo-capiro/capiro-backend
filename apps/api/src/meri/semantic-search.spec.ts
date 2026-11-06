@@ -75,6 +75,21 @@ describe('semantic search statement (pgvector-free shape)', () => {
     return { text: flat(sql.sql), values: sql.values };
   };
 
+  test('attached-document scans use the existing per-document prefix index before loading vectors', () => {
+    const grants = statement('semantic_search_grants', { query: 'water' }).text;
+    expect(grants).toContain("ce.source_id ~>=~ (family_attachment.id::text || ':')");
+    expect(grants).toContain("ce.source_id ~<~ (family_attachment.id::text || ';')");
+    expect(statement('semantic_search_dibbs_solicitations', { query: 'water' }).text)
+      .toContain("ce.source_id ~>=~ (a.id::text || ':')");
+    expect(statement('semantic_search_dibbs_solicitations', { query: 'water' }).text)
+      .toContain('a.dibbs_solicitation_id IS NOT NULL');
+  });
+
+  test('nonfinite cosine scores cannot become admitted candidate records', () => {
+    expect(statement('semantic_search_contract_opportunities', { query: 'water' }).text)
+      .toContain('score <= 1');
+  });
+
   test.each(['semantic_search_bills', 'semantic_search_grants', 'semantic_search_contract_opportunities'] as const)('%s ranks only its public family under the stored model', (operation) => {
     const { text, values } = statement(operation, { query: 'coastal resilience' });
     expect(text).toContain('FROM context_embeddings ce');
@@ -132,9 +147,10 @@ describe('semantic search statement (pgvector-free shape)', () => {
       const attachment=text.slice(text.indexOf('), attachment AS ('),text.indexOf('), candidates AS ('));
       expect(attachment).toContain(`family_attachment.${parent} IS NOT NULL`);
       expect(attachment.indexOf('family_attachment.')).toBeLessThan(attachment.indexOf('LIMIT 200'));
-      expect(attachment).toContain('ORDER BY score DESC LIMIT 200');
-      expect(attachment).toContain('(ce.embedding <#> ce.embedding) < 0');
-      expect(attachment).not.toContain('ORDER BY ce.embedding');
+      expect(attachment).toContain('ORDER BY distance LIMIT 200');
+      expect(attachment).toContain('OFFSET 0) ce WHERE TRUE');
+      expect(attachment.indexOf('OFFSET 0')).toBeLessThan(attachment.indexOf('ORDER BY distance'));
+      expect(attachment).toContain('JOIN context_embeddings ce ON ce.id=nearest.id');
     }
     expect(statement('semantic_search_grants', { query: 'water' }).text).toContain(
       "'openForApplications', (g.status = 'posted' AND (g.close_date IS NULL OR g.close_date >= CURRENT_DATE))",
@@ -235,6 +251,14 @@ describe('semantic search projection', () => {
     parent_id, score, snippet: 'Clean water state revolving fund', record: { id: parent_id, title: 'Water' },
   });
 
+  test('a filtered bill page explicitly keeps corpus coverage separate from Congress coverage', () => {
+    const result = projectSemanticSearch('semantic_search_bills',
+      parseSemanticSearchInput('semantic_search_bills', { query: 'unmanned aircraft', congress: 119 }),
+      [], { indexed: 43424, total: 48497 }, model, '2026-11-05T00:00:00.000Z');
+    expect(result.notes.join(' ')).toContain('Coverage is corpus-wide across all Congresses');
+    expect(result.notes.join(' ')).toContain('not the number of records matching the search filters');
+  });
+
   test('cites a stable reference per record and drops rows outside the admitted score band', () => {
     const result = projectSemanticSearch(
       'semantic_search_grants', input,
@@ -277,11 +301,17 @@ describe('semantic search projection', () => {
 
   test('coverage counts indexed records of the family under the stored model against all stored records', () => {
     const bills = semanticCoverageSql('semantic_search_bills', model);
-    expect(flat(bills.sql)).toContain("FROM context_embeddings ce WHERE ce.source_type = 'bill' AND ce.tenant_id IS NULL AND ce.model = ?");
+    expect(flat(bills.sql)).toContain("WHERE ce.source_type = 'bill' AND ce.tenant_id IS NULL AND ce.client_id IS NULL AND ce.owner_user_id IS NULL AND ce.model = ?");
+    expect(flat(bills.sql)).toContain('count(DISTINCT ce.source_id)');
+    expect(flat(bills.sql)).toContain('JOIN congress_bill cb ON cb.id=ce.source_id');
     expect(flat(bills.sql)).toContain('FROM congress_bill)::int AS total');
     expect(bills.values).toEqual([model]);
-    expect(flat(semanticCoverageSql('semantic_search_grants', model).sql)).toContain('FROM federal_grant WHERE embedded_at IS NOT NULL');
-    expect(flat(semanticCoverageSql('semantic_search_contract_opportunities', model).sql)).toContain('FROM sam_opportunity WHERE embedded_at IS NOT NULL');
+    for (const operation of ['semantic_search_grants', 'semantic_search_contract_opportunities'] as const) {
+      const sql = semanticCoverageSql(operation, model);
+      expect(flat(sql.sql)).toContain('JOIN indexed_parents i ON i.parent_id=r.id::text');
+      expect(flat(sql.sql)).toContain('ce.embedding IS NOT NULL AND (ce.embedding <#> ce.embedding) < 0');
+      expect(sql.values).toEqual([model, model]);
+    }
   });
 
   test('funding results cite their passage and attachment coverage; malformed metadata degrades to null, never invented', () => {
@@ -312,7 +342,7 @@ describe('semantic search projection', () => {
     expect(grants.notes.join(' ')).toMatch(/forecasted grant is announced and not yet accepting applications/);
     expect(grants.notes.join(' ')).toMatch(/A null closeDate is an unknown deadline: read responseDateDesc/);
     expect(grants.notes.join(' ')).toMatch(/neither is money awarded/);
-    expect(grants.notes.at(-1)).toBe('1 of these records have attached documents without searchable text, with truncated text or not indexed yet (see documents); a requirement missing from the passages is a coverage gap, not proof it is absent.');
+    expect(grants.notes).toContain('1 of these records have attached documents without searchable text, with truncated text or not indexed yet (see documents); a requirement missing from the passages is a coverage gap, not proof it is absent.');
     expect(grants.notes.length).toBeLessThanOrEqual(8);
     for (const note of grants.notes) expect(note.length).toBeLessThanOrEqual(1024);
     const notices = projectSemanticSearch('semantic_search_contract_opportunities',
