@@ -391,8 +391,21 @@ async function bounded<T>(promise: Promise<T>, milliseconds: number, timeout: ()
       }, 'original deadline passed');
     const blockedBy = (waiter: number, holder: number) =>
       until(async () => {
+        // PostgreSQL may queue the second row locker behind the first waiter,
+        // so the expiry transaction need not be its immediate blocker. Prove
+        // the observed wait chain reaches that holder, including direct waits.
         const rows = await store.db.$queryRawUnsafe<Array<{ blocked: boolean }>>(
-          'SELECT $2::int = ANY(pg_blocking_pids($1::int)) AS blocked',
+          `WITH RECURSIVE blocking_chain(pid, path) AS (
+             SELECT $1::int, ARRAY[$1::int]
+             UNION ALL
+             SELECT blocker.pid, chain.path || blocker.pid
+               FROM blocking_chain chain
+               CROSS JOIN LATERAL unnest(pg_blocking_pids(chain.pid)) AS blocker(pid)
+              WHERE NOT (blocker.pid = ANY(chain.path))
+           )
+           SELECT EXISTS (
+             SELECT 1 FROM blocking_chain WHERE pid=$2::int AND cardinality(path)>1
+           ) AS blocked`,
           waiter,
           holder,
         );

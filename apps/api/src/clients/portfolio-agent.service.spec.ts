@@ -93,6 +93,7 @@ describe('bounded Portfolio Claude Agent SDK task', () => {
       'Write',
       'mcp__other__StructuredOutput',
       'mcp__other__read_source',
+      'mcp__portfolio_sources__read_sources',
     ]) {
       await expect(options.canUseTool(name, {})).resolves.toMatchObject({ behavior: 'deny' });
     }
@@ -160,6 +161,133 @@ describe('bounded Portfolio Claude Agent SDK task', () => {
     const result = service.extract({ ...request, timeoutMs: 10 });
     const assertion = expect(result).rejects.toMatchObject({ code: 'timeout' });
     await jest.advanceTimersByTimeAsync(11);
+    await assertion;
+    expect(close).toHaveBeenCalled();
+  });
+  it('pages a maximum public-web corpus overview and targeted tail evidence before structured finalization', async () => {
+    const sources = Array.from({ length: 56 }, (_, i) => ({
+      id: `source-${i}`,
+      url: `https://evidence.example/${i}`,
+      text: '😀漢\\"\u0000'.repeat(14_000) + ` Supported tail evidence ${i}.`,
+    }));
+    const handlers = new Map<string, (input: Record<string, unknown>) => Promise<any>>();
+    const tool = jest.fn((name, _description, _schema, handler) => {
+      handlers.set(name, handler);
+      return { name };
+    });
+    let overview: any[] = [];
+    let targeted: any[] = [];
+    const batchBytes: number[] = [];
+    const close = jest.fn();
+    const query = jest.fn(({ prompt }: { prompt: string }) =>
+      Object.assign(
+        (async function* () {
+          const manifest = JSON.parse(prompt);
+          const overviewResponses = await Promise.all(
+            Array.from({ length: manifest.overviewPageCount }, (_, page) =>
+              handlers.get('read_sources')!({ page }),
+            ),
+          );
+          batchBytes.push(
+            overviewResponses.reduce(
+              (sum, response) => sum + Buffer.byteLength(response.content[0].text, 'utf8'),
+              0,
+            ),
+          );
+          overview = overviewResponses.flatMap(
+            (response) => JSON.parse(response.content[0].text).sources,
+          );
+          // Read twelve chosen last pages in one native turn, including evidence
+          // well beyond the former 50K-character spill threshold.
+          const targetedResponses = await Promise.all(
+            manifest.sources
+              .slice(-12)
+              .map((source: any) =>
+                handlers.get('read_source')!({ sourceId: source.id, page: source.pageCount - 1 }),
+              ),
+          );
+          batchBytes.push(
+            targetedResponses.reduce(
+              (sum, response) => sum + Buffer.byteLength(response.content[0].text, 'utf8'),
+              0,
+            ),
+          );
+          targeted = targetedResponses.map((response) => JSON.parse(response.content[0].text));
+          for (const response of [...overviewResponses, ...targetedResponses]) {
+            expect(Buffer.byteLength(response.content[0].text, 'utf8')).toBeLessThanOrEqual(12_000);
+          }
+          yield {
+            ...success,
+            num_turns: 3,
+            structured_output: {
+              subject,
+              data: { name: 'tail evidence' },
+              evidence: [{ sourceId: 'source-55', quote: 'Supported tail evidence 55.' }],
+            },
+          };
+        })(),
+        { close },
+      ),
+    );
+    const sdk = { query, tool, createSdkMcpServer: (value: unknown) => value };
+    const service = new PortfolioAgentService(async () => sdk as never);
+    const result = await service.extract({
+      ...request,
+      task: 'public_web',
+      sources,
+      sourceOverview: true,
+      maxTurns: 8,
+      timeoutMs: 180_000,
+    });
+    expect(overview).toHaveLength(56);
+    expect(overview.map((source: any) => source.sourceId)).toEqual(
+      sources.map((source) => source.id),
+    );
+    expect(overview[55]).toMatchObject({
+      truncated: true,
+      totalCharacters: sources[55]!.text.length,
+    });
+    expect(targeted).toHaveLength(12);
+    expect(targeted[11].text).toContain('Supported tail evidence 55.');
+    expect(targeted[11].startOffset).toBeGreaterThan(50_000);
+    expect(batchBytes[0]).toBeLessThanOrEqual(72_000);
+    expect(batchBytes[1]).toBeLessThanOrEqual(144_000);
+    expect(result.data).toEqual({ name: 'tail evidence' });
+    expect(result.audit).toMatchObject({ outcome: 'success', turns: 3 });
+    const options = (query.mock.calls[0] as unknown as [{ options: Record<string, any> }])[0]
+      .options;
+    expect(options.maxTurns).toBe(8);
+    expect(options.maxBudgetUsd).toBe(0.5);
+    expect(options.allowedTools).toContain('mcp__portfolio_sources__read_sources');
+    expect(options.systemPrompt.append).toContain('at most 12 source-tool calls per turn');
+    expect(options.systemPrompt.append).toContain('Reserve your remaining turns for finalization');
+    expect(close).toHaveBeenCalled();
+  });
+  it('honors the enclosing task abort before its longer public-web timeout', async () => {
+    jest.useFakeTimers();
+    const controller = new AbortController();
+    const close = jest.fn();
+    const sdk = {
+      query: () => ({
+        [Symbol.asyncIterator]: () => ({ next: () => new Promise(() => {}) }),
+        close,
+      }),
+      tool: jest.fn(),
+      createSdkMcpServer: jest.fn(),
+    };
+    const service = new PortfolioAgentService(async () => sdk as never);
+    const assertion = expect(
+      service.extract({
+        ...request,
+        task: 'public_web',
+        sourceOverview: true,
+        maxTurns: 8,
+        timeoutMs: 180_000,
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ code: 'cancelled' });
+    setTimeout(() => controller.abort(new Error('run deadline')), 20);
+    await jest.advanceTimersByTimeAsync(21);
     await assertion;
     expect(close).toHaveBeenCalled();
   });

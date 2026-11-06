@@ -925,9 +925,12 @@ export class ClientProfileFillService {
     // not treated as a dead end.
     const website = normalizeWebsite(seedWebsite === undefined ? client.website : seedWebsite);
     const researchClient = { ...client, website,...(businessUnit?{name:`${client.name} ${businessUnit.name}`}:{}) };
-    const results = await this.searchCompany(researchClient);
-    if(portfolioScope?.purpose==='business_units')results.unshift(...await this.searchPublicWeb(`${client.name} latest annual report reportable segments Form 10-K`,8));
-    results.unshift(...await this.searchPublicWeb(`${client.name} company defense government news announcements past 12 months`, 8).catch(() => []));
+    const discoveredResults = await this.searchCompany(researchClient);
+    if(portfolioScope?.purpose==='business_units')discoveredResults.unshift(...await this.searchPublicWeb(`${client.name} latest annual report reportable segments Form 10-K`,8));
+    discoveredResults.unshift(...await this.searchPublicWeb(`${client.name} company defense government news announcements past 12 months`, 8).catch(() => []));
+    // Apply the same canonical URL deduplication and 16-result allowance after
+    // all query families are combined. News/report priority remains first.
+    const results = this.boundPublicWebResults(discoveredResults);
     const sourceCollectionDeadline = Date.now() + 90_000;
     let homepage: { url: string; html: string; text: string; description: string | null } | null = null;
     let websiteFetchError: string | null = null;
@@ -1288,10 +1291,10 @@ export class ClientProfileFillService {
     ].join(' ');
     // The SDK exposes the complete approved corpus through read_source. Do not
     // duplicate up to forty page excerpts into every model turn's context.
-    const prompt = `CLIENT: ${client.name}\nKNOWN WEBSITE: ${client.website ?? 'none'}\nRead the approved public evidence with read_source.`;
+    const prompt = `CLIENT: ${client.name}\nKNOWN WEBSITE: ${client.website ?? 'none'}\nRead the approved public evidence overview with read_sources, then any necessary full sources with read_source.`;
 
     try {
-      const {data:parsed}=await this.portfolioAgent.extract<Record<string,unknown>>({subject,signal,task:'public_web',timeoutMs:180_000,...governProfileExtraction(subject,system,prompt),schema,schemaVersion:'v1',onAudit:audit=>recordFillInferenceAudit(this.prisma,audit),sources:[...pages.map((p,i)=>({id:`page-${i}`,url:p.url,text:p.text})),...results.map((r,i)=>({id:`result-${i}`,url:r.url,text:[r.title,r.snippet,r.publishedAt].filter(Boolean).join('\n')}))]});
+      const {data:parsed}=await this.portfolioAgent.extract<Record<string,unknown>>({subject,signal,task:'public_web',timeoutMs:180_000,maxTurns:8,sourceOverview:true,...governProfileExtraction(subject,system,prompt),schema,schemaVersion:'v1',onAudit:audit=>recordFillInferenceAudit(this.prisma,audit),sources:[...pages.map((p,i)=>({id:`page-${i}`,url:p.url,text:p.text})),...results.map((r,i)=>({id:`result-${i}`,url:r.url,text:[r.title,r.snippet,r.publishedAt].filter(Boolean).join('\n')}))]});
       if (!parsed) throw new BadRequestException('Profile research returned no structured result');
       return this.normalizePublicWebExtraction(parsed);
     } catch (error) {
@@ -1414,8 +1417,12 @@ export class ClientProfileFillService {
       })),
     );
     for (const rows of batches) out.push(...rows);
+    return this.boundPublicWebResults(out);
+  }
+
+  private boundPublicWebResults(rows: NormalizedWebResult[]): NormalizedWebResult[] {
     const seen = new Set<string>();
-    return out.filter((row) => {
+    return rows.filter((row) => {
       const normalized = normalizeComparableUrl(row.url) ?? row.url;
       if (seen.has(normalized)) return false;
       seen.add(normalized);
