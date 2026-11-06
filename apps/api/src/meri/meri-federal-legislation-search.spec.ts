@@ -12,6 +12,32 @@ function svc(prisma: Fake): MeriFederalLegislationTools {
 const call = (s: MeriFederalLegislationTools, input: Fake) => s.searchCongressBills(input);
 
 describe('search_congress_bills exact bill identity fix', () => {
+  test.each(['S. 999999', '119-s-999999', '119 S999999', '119S999999'])('looks up the full absent bill identity before reporting no result: %s', async query => {
+    const direct=jest.fn(async()=>null), topic=jest.fn();
+    const out=await call(svc({congressBill:{findUnique:direct},getCongressBills:topic}),{query,congress:119});
+    expect(direct).toHaveBeenCalledTimes(1);
+    expect(direct).toHaveBeenCalledWith({where:{id:'119-s-999999'}});
+    expect(topic).not.toHaveBeenCalled();
+    expect(out).toMatchObject({data:[],total:0,resolvedBy:'bill-id'});
+  });
+
+  test.each(['S. 2809x', 'S. 2809 (118th)', 'S. 1'+' '.repeat(240)+'extra'])('reports an invalid literal without claiming a lookup: %s', async query => {
+    const direct=jest.fn(), topic=jest.fn();
+    const out=await call(svc({congressBill:{findUnique:direct},getCongressBills:topic}),{query,congress:119});
+    expect(direct).not.toHaveBeenCalled(); expect(topic).not.toHaveBeenCalled();
+    expect(out).toMatchObject({currentStatus:'invalid_request',data:[],total:0});
+    expect(out).not.toHaveProperty('resolvedBy');
+  });
+
+  test.each(['119-s-2809', 'transparency in contracting'])('projects the public bill citation for exact and topic reads: %s', async query => {
+    const bill = { id: '119-s-2809', title: 'Transparency in Contracting Act of 2025', sponsorName: 'Sen. Warren',
+      url: 'https://api.congress.gov/v3/bill/119/s/2809?format=json' };
+    const out = await call(svc({ congressBill: { findUnique: async () => bill },
+      getCongressBills: async () => ({ data: [bill], total: 1, page: 1, limit: 20 }) }), { query, congress: 119 });
+    expect(out).toMatchObject({ data: [{ ...bill, url: 'https://www.congress.gov/bill/119th-congress/senate-bill/2809' }], total: 1 });
+    expect(bill.url).toBe('https://api.congress.gov/v3/bill/119/s/2809?format=json');
+  });
+
   test.each(['S. 99999', '119-s-99999', 'S. 999999', '119S999999', '119-s-999999', 'S. 2809x'])(
     'never substitutes a title match or truncates a missing literal: %s', async query => {
       const titleSearch = jest.fn(async () => ({ data: [{ id: '119-s-999', title: 'Unrelated' }], total: 1 }));

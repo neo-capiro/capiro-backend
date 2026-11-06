@@ -143,7 +143,7 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
     try {
       await migrator.connect();
       await migrator.query("SELECT set_config('search_path',$1,false)", [QUALIFICATION_SCHEMA]);
-      for (const name of ['20281103120000_tango_dibbs_sbir_source_integration', '20281103200000_dibbs_funding_documents', '20290110120000_public_usable_embedding_coverage']) {
+      for (const name of ['20281103120000_tango_dibbs_sbir_source_integration', '20281103200000_dibbs_funding_documents', '20290110120000_public_usable_embedding_coverage', '20261026184000_tango_funding_embedding_prefix']) {
         await migrator.query(readFileSync(path.resolve(__dirname, '../../prisma/migrations', name, 'migration.sql'), 'utf8'));
       }
     } finally { await migrator.end(); }
@@ -245,6 +245,7 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
     return app!.$transaction(async tx => {
       await tx.$executeRaw`SELECT set_config('statement_timeout',${String(SEMANTIC_SEARCH_LIMITS.statementTimeoutMs)},true)`;
       await tx.$executeRaw`SELECT set_config('hnsw.ef_search',${String(SEMANTIC_SEARCH_LIMITS.candidateLimit)},true)`;
+      await tx.$executeRaw`SELECT set_config('jit','off',true)`;
       return tx.$queryRaw<SemanticSearchRow[]>(semanticSearchSql(operation, input, vector, MODEL));
     }, { timeout: SEMANTIC_SEARCH_LIMITS.statementTimeoutMs });
   }
@@ -394,6 +395,29 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
       expect([...grants,...notices].every(row=>Number.isFinite(row.score))).toBe(true);
     } finally { await admin.$executeRaw`DELETE FROM context_embeddings WHERE model=${MODEL}
       AND (source_id LIKE ${prefix+'%'} OR source_id IN (${ATT_GRANT+':zero'},${ATT_NOTICE_LOCAL+':zero'}))`; }
+  });
+
+  it('excludes attachments with a missing opportunity before the family candidate window', async () => {
+    const admin=qualification!.admin;
+    try {
+      await admin.$executeRaw`INSERT INTO opportunity_attachment (id,federal_grant_id,sam_opportunity_id,source_url)
+        SELECT ('b0000000-0000-4000-8000-' || lpad(n::text,12,'0'))::uuid,
+          CASE WHEN n<=201 THEN 'missing-grant' END,
+          CASE WHEN n>201 THEN '60000000-0000-4000-8000-000000000099'::uuid END,
+          'https://example.test/orphan/' || n::text FROM generate_series(1,402) n`;
+      await admin.$executeRaw`INSERT INTO context_embeddings
+        (source_type,source_id,model,content_text,content_hash,embedding,metadata_jsonb)
+        SELECT 'funding_attachment_chunk',id::text || ':orphan',${MODEL},'Orphan passage','synthetic',
+          ${axis(3,4)}::vector,jsonb_build_object('parentId',id::text)
+        FROM opportunity_attachment WHERE source_url LIKE 'https://example.test/orphan/%'`;
+      expect((await read('semantic_search_grants',{query:'eligibility'},axis(3,4))).map(row=>row.parent_id)).toEqual(['G-2']);
+      expect((await read('semantic_search_contract_opportunities',{query:'requirements'},axis(3,4))).map(row=>row.parent_id)).toEqual([SAM_B]);
+      expect(await coverage('semantic_search_grants')).toEqual({indexed:2,total:3});
+      expect(await coverage('semantic_search_contract_opportunities')).toEqual({indexed:3,total:3});
+    } finally {
+      await admin.$executeRaw`DELETE FROM context_embeddings WHERE source_id LIKE 'b0000000-%:orphan'`;
+      await admin.$executeRaw`DELETE FROM opportunity_attachment WHERE source_url LIKE 'https://example.test/orphan/%'`;
+    }
   });
 
   it('current catalog reads keep unknown deadlines and reject mismatched passage parent or binding', async () => {
@@ -552,6 +576,84 @@ run('semantic search statements on PostgreSQL with pgvector', () => {
       await admin.$executeRaw`DELETE FROM context_embeddings WHERE source_id LIKE '%:coverage-regression-%'`;
       await admin.$executeRaw`DELETE FROM opportunity_attachment WHERE id=${attachment}::uuid`;
       await admin.$executeRaw`UPDATE federal_grant SET embedded_at=NULL WHERE id='G-3'`;
+    }
+  });
+
+  it('keeps scaled public reads set-based under application RLS and the shared eight-second budget', async () => {
+    const admin = qualification!.admin;
+    // Realistic negative space: many stored attachments have no vector, and a
+    // different catalog has far more close passages than the candidate window.
+    // No HNSW is needed for the exact attachment rank; avoid benchmarking bulk
+    // insertion into the harness's unrelated table-wide ANN index.
+    await admin.$executeRawUnsafe('DROP INDEX context_embeddings_embedding_hnsw');
+    await admin.$executeRaw`INSERT INTO opportunity_attachment (id,sam_opportunity_id,source_url)
+      SELECT ('a0000000-0000-4000-8000-' || lpad(n::text,12,'0'))::uuid,${SAM_A}::uuid,
+        'https://example.test/empty/' || n::text FROM generate_series(1,220000) n`;
+    await admin.$executeRaw`INSERT INTO context_embeddings
+      (source_type,source_id,model,content_text,content_hash,embedding,metadata_jsonb)
+      SELECT 'funding_attachment_chunk',${catalogId(9,1)+':scale-'} || n::text,${MODEL},
+        'Off-family synthetic attachment text','synthetic',${axis(3,4)}::vector,
+        jsonb_build_object('parentId',${catalogId(9,1)}) FROM generate_series(1,24000) n`;
+    for (const attachment of [ATT_GRANT,ATT_NOTICE_LOCAL]) {
+      await admin.$executeRaw`INSERT INTO context_embeddings
+        (source_type,source_id,model,content_text,content_hash,embedding,metadata_jsonb)
+        SELECT 'funding_attachment_chunk',${attachment+':scale-'} || n::text,${MODEL},
+          'In-family synthetic attachment text','synthetic',${axis(3)}::vector,
+          jsonb_build_object('parentId',${attachment}) FROM generate_series(1,8000) n`;
+    }
+    await admin.$executeRaw`INSERT INTO congress_bill (id,congress,bill_type,bill_number,title)
+      SELECT '118-hr-scale-' || n::text,118,'hr',n::text,'Synthetic bill' FROM generate_series(1,48000) n`;
+    await admin.$executeRaw`INSERT INTO context_embeddings
+      (source_type,source_id,model,content_text,content_hash,embedding,metadata_jsonb)
+      SELECT 'bill','118-hr-scale-' || n::text,${MODEL},'Synthetic bill text','synthetic',${axis(1)}::vector,'{}'
+        FROM generate_series(1,43000) n`;
+    await admin.$executeRawUnsafe('ANALYZE context_embeddings');
+    await admin.$executeRawUnsafe('ANALYZE opportunity_attachment');
+    await admin.$executeRawUnsafe('ANALYZE congress_bill');
+    const role = await app!.$queryRaw<Array<{rolsuper:boolean;rolbypassrls:boolean;rls:boolean}>>`
+      SELECT rolsuper,rolbypassrls,row_security_active('context_embeddings') AS rls FROM pg_roles WHERE rolname=current_user`;
+    expect(role).toEqual([{rolsuper:false,rolbypassrls:false,rls:true}]);
+    type Plan = { [key:string]: unknown; Plans?: Plan[] };
+    const nodes = (plan: Plan): Plan[] => [plan,...(plan.Plans ?? []).flatMap(nodes)];
+    for (const [operation, vector, expected, indexed, total] of [
+      ['semantic_search_grants',axis(3,4),'G-2',2,3],
+      ['semantic_search_contract_opportunities',axis(3,4),SAM_B,3,3],
+      ['semantic_search_bills',axis(0),'119-hr-1',43003,48003],
+    ] as const) {
+      const input=parseSemanticSearchInput(operation,{query:'synthetic scaled search'});
+      const started=Date.now();
+      const evidence=await app!.$transaction(async tx => {
+        await tx.$executeRaw`SELECT set_config('statement_timeout','8000',true)`;
+        await tx.$executeRaw`SELECT set_config('jit','off',true)`;
+        const page=await tx.$queryRaw<SemanticSearchRow[]>(semanticSearchSql(operation,input,vector,MODEL));
+        const counts=await tx.$queryRaw<SemanticCoverageRow[]>(semanticCoverageSql(operation,MODEL));
+        return {page,counts};
+      },{timeout:SEMANTIC_SEARCH_LIMITS.statementTimeoutMs});
+      const transactionMs=Date.now()-started;
+      expect(evidence.page.map(row=>row.parent_id)).toContain(expected);
+      expect(evidence.counts).toEqual([{indexed,total}]);
+      expect(Date.now()-started).toBeLessThan(SEMANTIC_SEARCH_LIMITS.statementTimeoutMs);
+      for (const [kind,sql] of [['rank',semanticSearchSql(operation,input,vector,MODEL)],
+        ['coverage',semanticCoverageSql(operation,MODEL)]] as const) {
+        const plan=await app!.$transaction(async tx => {
+          await tx.$executeRaw`SELECT set_config('statement_timeout','8000',true)`;
+          await tx.$executeRaw`SELECT set_config('jit','off',true)`;
+          return tx.$queryRaw<Array<{'QUERY PLAN':Array<{Plan:Plan}>}>>(Prisma.sql`EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${sql}`);
+        },{timeout:SEMANTIC_SEARCH_LIMITS.statementTimeoutMs});
+        const flat=nodes(plan[0]!['QUERY PLAN'][0]!.Plan);
+        console.info(JSON.stringify({synthetic:true,operation,kind,transactionMs,elapsedMs:Date.now()-started,
+          plan:flat.map(node=>({type:node['Node Type'],index:node['Index Name'],rows:node['Actual Rows'],
+            loops:node['Actual Loops'],ms:node['Actual Total Time'],filter:node.Filter,condition:node['Index Cond']}))}));
+        // One source scan, never an entire RLS-filtered source rescan per empty document.
+        const sourceScans=flat.filter(node=>node['Relation Name']==='context_embeddings'
+          && node['Index Name']!=='context_embeddings_pkey');
+        expect(sourceScans.every(node=>Number(node['Actual Loops'])<=1)).toBe(true);
+        if(kind==='coverage') {
+          expect(flat.some(node=>node['Index Name']==='context_embeddings_public_usable_coverage_idx')).toBe(true);
+          expect(sourceScans.every(node=>!String(node.Filter ?? '').includes('<#>'))).toBe(true);
+        }
+
+      }
     }
   });
 
