@@ -99,6 +99,12 @@ import {
 import { OutreachTruthService } from './generation/outreach-truth.service.js';
 import { EvidenceSourceService } from './generation/evidence-source.service.js';
 import { AttachmentContentService } from './attachment-content.service.js';
+import {
+  assertAttachmentByteIntegrity,
+  readAttachmentObject,
+  requiresAttachmentIntegrity,
+  type AttachmentByteIdentity,
+} from './attachments/attachment-object-read.js';
 import { extractAttachmentContext } from './attachment-context-extract.js';
 import { AttachmentScannerService } from './attachment-scanner.service.js';
 import type { EnrichmentChannel } from './generation/evidence-packet.service.js';
@@ -1176,7 +1182,8 @@ export class EngagementService {
     // EvidenceSourceService must read attachment bytes but must NOT depend on this
     // service (that edge would be a cycle) nor build a second S3 client. Handing
     // it the reader here keeps one S3 client and one tenant-prefix check.
-    this.evidenceSources.setAttachmentReader((_bucket, key) => this.readAttachmentBytes(key));
+    this.evidenceSources.setAttachmentReader((_bucket, key, identity) =>
+      this.readVerifiedAttachmentBytes({ ...identity, s3Key: key }));
   }
 
   /**
@@ -4325,7 +4332,7 @@ export class EngagementService {
           continue;
         }
         await assertHearingRecordDocumentAccess(this.prisma, ctx, row, 'distribute');
-        const bytes = await this.readAttachmentBytes(row.s3Key);
+        const bytes = await this.readVerifiedAttachmentBytes(row);
         if (bytes.length > GRAPH_INLINE_ATTACHMENT_MAX) {
           skippedAttachments.push(row.fileName);
           continue;
@@ -7798,41 +7805,40 @@ export class EngagementService {
         // A removed private context must not leak its title or signed bytes.
       }
     }
-    const listed = await Promise.all(
-      accessibleRows.map(async (row) => {
-        // Phase 1 §3.h1 — no download URL for a file that may not be used, and an
-        // explicit disclosure when it was never actually scanned. A signed URL for
-        // a quarantined or threat-flagged object is the download the gate exists
-        // to prevent.
-        const verdict = this.attachmentContent.readiness(row, this.scanner.scanRequired);
-        const result = {
-          ...row,
-          uploadedByName: row.uploadedByUserId
-            ? (uploaderNameById.get(row.uploadedByUserId) ?? null)
-            : null,
-          downloadUrl: verdict.usable ? await this.createAttachmentDownloadUrl(row.s3Key) : null,
-          previewUrl: verdict.usable
-            ? await this.createAttachmentPreviewUrl(row.s3Key, row.contentType)
-            : null,
-          usable: verdict.usable,
-          ...(verdict.code ? { blockedReason: verdict.code } : {}),
-          ...(verdict.disclosure ? { scanDisclosure: verdict.disclosure } : {}),
-        };
-        await assertProspectAttachmentAccess(this.prisma, ctx, row);
-        if (row.source === 'incoming_mail') {
-          try {
-            await this.validateAttachmentParents(ctx, row);
-          } catch (error) {
-            // Current access can change while signing. Never release that row,
-            // but preserve unrelated documents and propagate operational errors.
-            if (error instanceof NotFoundException) return null;
-            throw error;
-          }
+    const listed = [];
+    // Verified signing buffers one bounded object at a time, regardless of list size.
+    for (const row of accessibleRows) {
+      // Phase 1 §3.h1 — no download URL for a file that may not be used, and an
+      // explicit disclosure when it was never actually scanned. A signed URL for
+      // a quarantined or threat-flagged object is the download the gate exists
+      // to prevent.
+      const verdict = this.attachmentContent.readiness(row, this.scanner.scanRequired);
+      const result = {
+        ...row,
+        uploadedByName: row.uploadedByUserId
+          ? (uploaderNameById.get(row.uploadedByUserId) ?? null)
+          : null,
+        ...(verdict.usable
+          ? await this.createAttachmentLinks(row)
+          : { downloadUrl: null, previewUrl: null }),
+        usable: verdict.usable,
+        ...(verdict.code ? { blockedReason: verdict.code } : {}),
+        ...(verdict.disclosure ? { scanDisclosure: verdict.disclosure } : {}),
+      };
+      await assertProspectAttachmentAccess(this.prisma, ctx, row);
+      if (row.source === 'incoming_mail') {
+        try {
+          await this.validateAttachmentParents(ctx, row);
+        } catch (error) {
+          // Current access can change while signing. Never release that row,
+          // but preserve unrelated documents and propagate operational errors.
+          if (error instanceof NotFoundException) continue;
+          throw error;
         }
-        return result;
-      }),
-    );
-    return listed.filter((row): row is NonNullable<typeof row> => row !== null);
+      }
+      listed.push(result);
+    }
+    return listed;
   }
 
   /**
@@ -7840,8 +7846,8 @@ export class EngagementService {
    * the immutable version chain that `supersedeAttachment` builds over an attachment
    * instead of deleting it, anchored on an exact attachment id.
    *
-   * Metadata plus a signed read for each released version. No byte is read by this path
-   * and no storage locator is ever exposed: a version carries the same kind of
+   * Metadata plus a signed read for each released version. Protected bytes are verified
+   * before signing; no raw storage locator is exposed: a version carries the same kind of
    * time-limited signed URL the attachment list already returns for a readable row,
    * minted from THAT version's own stored key by the same owner and only when the
    * readiness verdict says the version may be used — an unusable, quarantined, blocked or
@@ -7892,10 +7898,8 @@ export class EngagementService {
       // the exact version the caller selected, and never a link to the head's object.
       // They keep their own controls (null preview outside the inline allowlist, null when
       // no bucket is configured).
-      links: options.metadataOnly ? async () => ({ downloadUrl: null, previewUrl: null }) : async (row) => ({
-        downloadUrl: await this.createAttachmentDownloadUrl(row.s3Key),
-        previewUrl: await this.createAttachmentPreviewUrl(row.s3Key, row.contentType),
-      }),
+      links: options.metadataOnly ? async () => ({ downloadUrl: null, previewUrl: null }) :
+        (row) => this.createAttachmentLinks(row),
       // FINAL post-signing recheck for a released version: the same canonical current-access
       // owner as `authorize` (so a revocation, a deletion, a client-file deletion and a
       // prospect/scope/wall/hearing change refuse again here), then ONE narrow identity read of
@@ -8057,7 +8061,7 @@ export class EngagementService {
     const { disclosure } = this.assertAttachmentUsable(attachment);
 
     options.signal?.throwIfAborted();
-    const bytes = await this.readAttachmentBytes(attachment.s3Key, options.signal);
+    const bytes = await this.readVerifiedAttachmentBytes(attachment, options.signal);
     if (attachment.source === 'incoming_mail') await this.validateAttachmentParents(ctx, attachment);
     if(attachment.prospectId) await assertProspectAttachmentAccess(this.prisma,ctx,attachment);
     options.signal?.throwIfAborted();
@@ -9051,13 +9055,40 @@ export class EngagementService {
     return { retried: rows.length, deleted, stillFailing };
   }
 
-  private async createAttachmentDownloadUrl(s3Key: string): Promise<string | null> {
+  private async createAttachmentLinks(
+    row: AttachmentByteIdentity & { s3Key: string; contentType: string },
+  ): Promise<{ downloadUrl: string | null; previewUrl: string | null }> {
+    if (!this.bucket) return { downloadUrl: null, previewUrl: null };
+    if (!requiresAttachmentIntegrity(row)) {
+      // Legacy unscanned rows retain their existing readiness/disclosure semantics.
+      return {
+        downloadUrl: await this.createAttachmentDownloadUrl(row.s3Key),
+        previewUrl: await this.createAttachmentPreviewUrl(row.s3Key, row.contentType),
+      };
+    }
+    const object = await readAttachmentObject(this.s3, this.bucket, row.s3Key);
+    assertAttachmentByteIntegrity(row, object.bytes);
+    const versionId = object.versionId;
+    if (!versionId || !versionId.trim() || versionId === 'null') {
+      throw new ConflictException({
+        code: 'ATTACHMENT_VERSION_UNAVAILABLE',
+        message: 'The verified file version is unavailable. Re-upload the file.',
+      });
+    }
+    return {
+      downloadUrl: await this.createAttachmentDownloadUrl(row.s3Key, versionId),
+      previewUrl: await this.createAttachmentPreviewUrl(row.s3Key, row.contentType, versionId),
+    };
+  }
+
+  private async createAttachmentDownloadUrl(s3Key: string, versionId?: string): Promise<string | null> {
     if (!this.bucket) return null;
     return getSignedUrl(
       this.s3,
       new GetObjectCommand({
         Bucket: this.bucket,
         Key: s3Key,
+        ...(versionId ? { VersionId: versionId } : {}),
         // Defense-in-depth against stored-XSS / content-type confusion: force the
         // browser to DOWNLOAD the object rather than render it as a top-level
         // document, so a scriptable type that ever slipped past upload validation
@@ -9098,6 +9129,7 @@ export class EngagementService {
   private async createAttachmentPreviewUrl(
     s3Key: string,
     contentType: string,
+    versionId?: string,
   ): Promise<string | null> {
     if (!this.bucket) return null;
     const allowed = contentType.toLowerCase();
@@ -9107,6 +9139,7 @@ export class EngagementService {
       new GetObjectCommand({
         Bucket: this.bucket,
         Key: s3Key,
+        ...(versionId ? { VersionId: versionId } : {}),
         ResponseContentDisposition: 'inline',
         // Serve the ALLOWLISTED type, not whatever Content-Type happens to be
         // stored on the object. The allowlist above is checked against the
@@ -9170,7 +9203,7 @@ export class EngagementService {
           )}MB email attachment limit and cannot be sent. Remove it or share a link instead.`,
         });
       }
-      const bytes = await this.readAttachmentBytes(row.s3Key);
+      const bytes = await this.readVerifiedAttachmentBytes(row);
       if (bytes.length > GRAPH_INLINE_ATTACHMENT_MAX) {
         throw new BadRequestException({
           statusCode: HttpStatus.BAD_REQUEST,
@@ -9193,16 +9226,16 @@ export class EngagementService {
   async readAttachmentBytes(s3Key: string, signal?: AbortSignal): Promise<Buffer> {
     signal?.throwIfAborted();
     if (!this.bucket) throw new ServiceUnavailableException('ASSETS_BUCKET is not configured');
-    const object = await this.s3.send(new GetObjectCommand({ Bucket: this.bucket, Key: s3Key }), {
-      abortSignal: signal,
-    });
-    const body = object.Body as { transformToByteArray?: () => Promise<Uint8Array> } | undefined;
-    if (!body?.transformToByteArray) {
-      throw new BadRequestException('Could not read uploaded attachment from S3');
-    }
-    const bytes = await body.transformToByteArray();
-    signal?.throwIfAborted();
-    return Buffer.from(bytes);
+    return (await readAttachmentObject(this.s3, this.bucket, s3Key, signal)).bytes;
+  }
+
+  private async readVerifiedAttachmentBytes(
+    row: AttachmentByteIdentity & { s3Key: string },
+    signal?: AbortSignal,
+  ): Promise<Buffer> {
+    const bytes = await this.readAttachmentBytes(row.s3Key, signal);
+    assertAttachmentByteIntegrity(row, bytes);
+    return bytes;
   }
 
   private async transcribeAttachmentWithOpenAi(

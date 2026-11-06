@@ -25,6 +25,7 @@
  * very different drafts, and only the second is honest.
  */
 import { Injectable, Logger } from '@nestjs/common';
+import type { AttachmentByteIdentity } from '../attachments/attachment-object-read.js';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { MeetingNotesCryptoService } from '../meeting-notes-crypto.service.js';
@@ -886,7 +887,7 @@ export class EvidenceSourceService {
       };
     }
 
-    const bytes = await this.attachmentBytes(ctx, row.bucket, row.s3Key);
+    const bytes = await this.attachmentBytes(ctx, row.bucket, row.s3Key, row);
     if (!bytes) {
       return {
         failures: [
@@ -1541,6 +1542,7 @@ export class EvidenceSourceService {
     _ctx: TenantContext,
     bucket: string,
     s3Key: string,
+    identity: AttachmentByteIdentity,
   ): Promise<Buffer | null> {
     // Reading S3 is the ONE thing this service cannot do itself without pulling
     // the S3 client in; the reader is injected by the module as a callback so
@@ -1549,7 +1551,7 @@ export class EvidenceSourceService {
       this.logger.warn('no attachment byte reader configured — document evidence unavailable');
       return null;
     }
-    return this.s3Reader(bucket, s3Key).catch((e) => {
+    return this.s3Reader(bucket, s3Key, identity).catch((e) => {
       this.logger.warn(`attachment read failed for ${s3Key}: ${(e as Error).message}`);
       return null;
     });
@@ -1560,9 +1562,12 @@ export class EvidenceSourceService {
    * service does not depend on EngagementService (which would be a cycle) nor
    * construct a second S3 client.
    */
-  private s3Reader: ((bucket: string, key: string) => Promise<Buffer>) | null = null;
+  private s3Reader:
+    ((bucket: string, key: string, identity: AttachmentByteIdentity) => Promise<Buffer>) | null = null;
 
-  setAttachmentReader(reader: (bucket: string, key: string) => Promise<Buffer>): void {
+  setAttachmentReader(
+    reader: (bucket: string, key: string, identity: AttachmentByteIdentity) => Promise<Buffer>,
+  ): void {
     this.s3Reader = reader;
   }
 

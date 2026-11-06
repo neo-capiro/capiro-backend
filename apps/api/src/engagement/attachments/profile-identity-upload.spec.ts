@@ -201,6 +201,19 @@ function fixture(empty = false) {
 }
 
 describe('private document-first identity upload owner', () => {
+  test('replacement bytes never reach the identity parser even with optional scanning', async () => {
+    const h = fixture();
+    h.row.scanStatus = 'scanner_not_required';
+    h.state.content = Buffer.from('Unscanned replacement');
+    const parser = jest.spyOn((h.service as any).attachmentContent, 'extractBounded');
+    await expect(h.service.extractIdentityUploadText(ctx, h.attachmentId)).rejects.toMatchObject({
+      response: { code: 'ATTACHMENT_CONTENT_CHANGED' },
+    });
+    expect(parser).not.toHaveBeenCalled();
+    expect(h.paid).not.toHaveBeenCalled();
+    expect(h.vision).not.toHaveBeenCalled();
+  });
+
   test('binds the scanner verdict to the exact bytes verified during confirmation', async () => {
     const h = fixture(true);
     const saved = await h.service.confirmAttachment(ctx, h.confirm);

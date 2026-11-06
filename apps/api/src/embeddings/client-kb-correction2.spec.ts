@@ -1,4 +1,6 @@
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { Readable } from 'node:stream';
 import { join } from 'node:path';
 import { ClientKbService } from './client-kb.service.js';
 import { embedAndUpsert } from './embedder.js';
@@ -24,6 +26,8 @@ jest.mock('./embedder.js', () => ({
  * F6  a destroyed worker never starts the next claim in an active batch.
  */
 type Snapshot = {
+  calculatedSha256?: string | null;
+  source?: string;
   id: string;
   clientId: string | null;
   meetingId: string | null;
@@ -141,6 +145,22 @@ describe('MG-06 correction2 exclusion, epoch binding and recovery', () => {
   beforeEach(() => {
     jest.mocked(embedAndUpsert).mockReset();
     jest.mocked(embedAndUpsert).mockResolvedValue('inserted');
+  });
+
+  it('refuses replacement bytes before parsing or embedding a clean document', async () => {
+    const original = Buffer.from('Scanned evidence');
+    const f = fixture(eligible({ source: 'upload',
+      calculatedSha256: createHash('sha256').update(original).digest('hex') }));
+    delete (f.service as any).extractAttachmentTextForKb;
+    Object.assign(f.service, { bucket: 'synthetic', s3: { send: jest.fn(async () => ({
+      Body: Readable.from([Buffer.from('Unscanned replacement')]), VersionId: 'replacement-version',
+    })) } });
+    await expect(f.service.indexAttachment('tenant', 'document-1')).rejects.toMatchObject({
+      response: { code: 'ATTACHMENT_CONTENT_CHANGED' },
+    });
+    expect(jest.mocked(embedAndUpsert)).not.toHaveBeenCalled();
+    expect(f.updates.some((update) => update.extractionStatus === 'failed')).toBe(true);
+    expect(f.updates.some((update) => update.indexedAt instanceof Date)).toBe(false);
   });
 
   it('F1 refuses a stale exclusion once the row is indexable again, writing nothing', async () => {

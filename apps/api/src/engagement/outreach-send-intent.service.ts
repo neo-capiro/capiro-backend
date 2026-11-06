@@ -63,6 +63,7 @@ import {
   AttachmentContentService,
   type AttachmentReadinessRow,
 } from './attachment-content.service.js';
+import { assertAttachmentByteIntegrity } from './attachments/attachment-object-read.js';
 import { AttachmentScannerService } from './attachment-scanner.service.js';
 import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 
@@ -1262,6 +1263,7 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
   /** The columns {@link AttachmentContentService.readiness} needs, shared by both read sites. */
   private static readonly ATTACHMENT_SELECT = {
     id: true,
+    source: true,
     sourceEntityType: true,
     sourceEntityId: true,
     clientId: true,
@@ -1330,6 +1332,7 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
         unusable.push(`${row.fileName} (file content changed since it was verified)`);
         continue;
       }
+      assertAttachmentByteIntegrity(row, bytes);
       if (row.byteSize != null && bytes.length !== Number(row.byteSize)) {
         unusable.push(`${row.fileName} (file size changed since it was verified)`);
         continue;
@@ -1416,6 +1419,7 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
           `Attachment "${row.fileName}" content changed since this send was prepared; blocking send.`,
         );
       }
+      assertAttachmentByteIntegrity(row, bytes);
       if (bytes.length !== entry.byteSize) {
         throw new Error(
           `Attachment "${row.fileName}" size changed since this send was prepared; blocking send.`,
