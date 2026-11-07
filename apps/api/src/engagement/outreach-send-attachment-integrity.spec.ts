@@ -171,13 +171,20 @@ describe('resolveAttachments — usable attachments (plan §3.d3)', () => {
 
   test('EXACT bytes: the manifest hash is the real sha256 of what will be sent, not a passthrough of a stored claim', async () => {
     const h = makeCreateHarness({
-      attachmentRow: attachmentRow({ calculatedSha256: null }), // legacy row, never hashed before
+      attachmentRow: attachmentRow({ scanStatus: null, calculatedSha256: null }), // legacy unscanned row
     });
     await h.service.createIntent(ctx, { ...intentInput, attachmentIds: ['att-1'] });
     const manifest = h.createdDeliveries[0]!.attachmentManifest as unknown as Array<
       Record<string, unknown>
     >;
     expect(manifest[0]!.sha256).toBe(DEFAULT_SHA256);
+  });
+
+  test('a clean assertion without a server digest cannot release bytes', async () => {
+    const h = makeCreateHarness({ attachmentRow: attachmentRow({ calculatedSha256: null }) });
+    await expect(h.service.createIntent(ctx, { ...intentInput, attachmentIds: ['att-1'] }))
+      .rejects.toMatchObject({ response: { code: 'ATTACHMENT_CONTENT_CHANGED' } });
+    expect(h.createdDeliveries).toHaveLength(0);
   });
 
   test('scanner-not-required is usable and DISCLOSED in the manifest scan status, never labeled clean', async () => {

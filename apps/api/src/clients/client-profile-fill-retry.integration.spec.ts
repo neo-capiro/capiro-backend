@@ -55,7 +55,7 @@ describeDatabase('Fill retry leases and recovery in PostgreSQL', () => {
 
   async function setup(tx: Prisma.TransactionClient) {
     await tx.$executeRawUnsafe(`CREATE TEMP TABLE client_profile_fill_run (
-      id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid, client_id uuid, workflow_version int DEFAULT 2,
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid, client_id uuid, prospect_id uuid, workflow_version int DEFAULT 2,
       status text DEFAULT 'running', stage text DEFAULT 'research', created_by_user_id uuid,
       completed_at timestamptz, cancelled_at timestamptz, last_progress_at timestamptz,
       updated_at timestamptz DEFAULT now(), created_at timestamptz DEFAULT now(),
@@ -69,7 +69,7 @@ describeDatabase('Fill retry leases and recovery in PostgreSQL', () => {
       [EXTENSION, 'text'],
     ]) {
       await tx.$executeRawUnsafe(`CREATE TEMP TABLE ${table} (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(), run_id uuid, tenant_id uuid, client_id uuid,
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(), run_id uuid, tenant_id uuid, client_id uuid, prospect_id uuid,
         task_type text, task_key text, status text DEFAULT 'queued', depends_on ${dependencyType}[] DEFAULT '{}',
         attempt int DEFAULT 0, max_attempts int DEFAULT 3,
         input_jsonb jsonb DEFAULT '{}', output_summary_jsonb jsonb DEFAULT '{}',
@@ -80,7 +80,7 @@ describeDatabase('Fill retry leases and recovery in PostgreSQL', () => {
       ) ON COMMIT DROP`);
     }
     await tx.$executeRawUnsafe(`CREATE TEMP TABLE client_profile_fill_finding (
-      id uuid PRIMARY KEY DEFAULT gen_random_uuid(), run_id uuid, tenant_id uuid, client_id uuid,
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(), run_id uuid, tenant_id uuid, client_id uuid, prospect_id uuid,
       kind text, target_key text, source text, fact_kind text, current_value_jsonb jsonb,
       proposed_value_jsonb jsonb, evidence_jsonb jsonb, confidence double precision,
       status text, content_hash text, applied_at timestamptz, updated_at timestamptz DEFAULT now(),
@@ -194,11 +194,14 @@ describeDatabase('Fill retry leases and recovery in PostgreSQL', () => {
       const reloaded = new ClientProfileFillWorkflowService(
         {} as any, engine as any, {} as any, {} as any, {} as any, {} as any, {} as any,
       ) as any;
+      const signal = new AbortController().signal;
       for (const task of tasks)
         await reloaded.executeTask(ctx, {
           clientId, runId: created.id, taskType: task.task_type, input: task.input_jsonb,
-        }, {});
-      expect(engine.gatherPublicWeb).toHaveBeenCalledWith(ctx, clientId, created.id, 'https://research.example/');
+        }, {}, signal);
+      expect(engine.gatherPublicWeb).toHaveBeenCalledWith(
+        ctx, clientId, created.id, 'https://research.example/', undefined, signal, undefined, undefined,
+      );
       expect(engine.gatherLda).toHaveBeenCalledWith(ctx, clientId, created.id, [
         { id: 42, name: 'Imported', confidence: 1 }, { id: 73, name: 'Provisional', confidence: 0.8 },
       ]);

@@ -75,10 +75,10 @@ describe('semantic search statement (pgvector-free shape)', () => {
     return { text: flat(sql.sql), values: sql.values };
   };
 
-  test('attached-document scans use the existing per-document prefix index before loading vectors', () => {
+  test('attached-document scans preserve the source-id prefix binding', () => {
     const grants = statement('semantic_search_grants', { query: 'water' }).text;
-    expect(grants).toContain("ce.source_id ~>=~ (family_attachment.id::text || ':')");
-    expect(grants).toContain("ce.source_id ~<~ (family_attachment.id::text || ';')");
+    expect(grants).toContain("k.source_id ~>=~ (a.id::text || ':')");
+    expect(grants).toContain("k.source_id ~<~ (a.id::text || ';')");
     expect(statement('semantic_search_dibbs_solicitations', { query: 'water' }).text)
       .toContain("ce.source_id ~>=~ (a.id::text || ':')");
     expect(statement('semantic_search_dibbs_solicitations', { query: 'water' }).text)
@@ -137,20 +137,23 @@ describe('semantic search statement (pgvector-free shape)', () => {
       const { text, values } = statement(operation, { query: 'water' });
       expect(text).toContain(`ce.source_type = '${ATTACHMENT_SOURCE_TYPE}'`);
       expect(values).not.toContain(ATTACHMENT_SOURCE_TYPE);
-      // An attachment passage reaches its opportunity only through an existing attachment row of this family.
-      expect(text).toContain(`SELECT a.${parent}::text, x.content_text, x.meta, x.embedded_at, a.id, x.score FROM attachment x JOIN opportunity_attachment a ON a.id = CASE WHEN x.parent_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN x.parent_id::uuid END WHERE a.${parent} IS NOT NULL`);
+      // All real parents are selected before the candidate limit; no shared ANN window.
+      expect(text).toContain(`JOIN ${operation === 'semantic_search_grants' ? 'federal_grant' : 'sam_opportunity'} r ON r.id = a.${parent}`);
+      expect(text).toContain('attachment_keys AS MATERIALIZED');
+      expect(text).toContain('family_attachment_keys AS MATERIALIZED');
       expect(text).toContain('UNION ALL');
       expect(text).toContain('r.record, r.passage, d.documents');
       expect(text).toContain('LEFT JOIN opportunity_attachment pa ON pa.id = best.attachment_id');
       expect(text).toContain(`FROM opportunity_attachment a LEFT JOIN LATERAL (SELECT t.char_count, t.truncated FROM opportunity_document_text t WHERE t.attachment_id = a.id AND t.attachment_content_sha256 = a.content_sha256 AND t.status = 'available' AND t.extraction_method = 'local_parser' LIMIT 1) t ON TRUE`);
       expect(text).toContain(`WHERE a.${parent} = ${operation === 'semantic_search_grants' ? 'g.id' : 'o.id'}) d`);
-      const attachment=text.slice(text.indexOf('), attachment AS ('),text.indexOf('), candidates AS ('));
-      expect(attachment).toContain(`family_attachment.${parent} IS NOT NULL`);
-      expect(attachment.indexOf('family_attachment.')).toBeLessThan(attachment.indexOf('LIMIT 200'));
-      expect(attachment).toContain('ORDER BY distance LIMIT 200');
-      expect(attachment).toContain('OFFSET 0) ce WHERE TRUE');
-      expect(attachment.indexOf('OFFSET 0')).toBeLessThan(attachment.indexOf('ORDER BY distance'));
-      expect(attachment).toContain('JOIN context_embeddings ce ON ce.id=nearest.id');
+      const eligible = text.slice(text.indexOf('family_attachment_keys AS MATERIALIZED'), text.indexOf('), attachment AS ('));
+      expect(eligible).toContain(`a.${parent} IS NOT NULL`);
+      expect(eligible).not.toContain('LIMIT');
+      expect(eligible).not.toContain('ce.embedding');
+      expect(text).toContain('FROM family_attachment_keys k JOIN context_embeddings ce ON ce.id = k.id');
+      expect(text).toContain('ORDER BY distance LIMIT 200');
+      expect(text).toContain('JOIN context_embeddings ce ON ce.id = nearest.id');
+
     }
     expect(statement('semantic_search_grants', { query: 'water' }).text).toContain(
       "'openForApplications', (g.status = 'posted' AND (g.close_date IS NULL OR g.close_date >= CURRENT_DATE))",
@@ -246,6 +249,15 @@ describe('active DIBBS and SBIR semantic families', () => {
 });
 
 describe('semantic search projection', () => {
+  test('projects a public Congress citation from the exact semantic bill identity', () => {
+    const record = { id: '119-s-2809', title: 'Transparency in Contracting Act of 2025',
+      url: 'https://api.congress.gov/v3/bill/119/s/2809?format=json' };
+    const out = projectSemanticSearch('semantic_search_bills', { query: 'transparency', limit: 10 },
+      [{ parent_id: record.id, score: 0.8, snippet: 'contracting', record }], { indexed: 1, total: 1 }, model, '2026-11-06T00:00:00Z');
+    expect(out.results[0]?.record).toEqual({ ...record, url: 'https://www.congress.gov/bill/119th-congress/senate-bill/2809' });
+    expect(record.url).toContain('api.congress.gov');
+  });
+
   const input = parseSemanticSearchInput('semantic_search_grants', { query: 'water', agency: 'EPA' });
   const row = (parent_id: string, score: number) => ({
     parent_id, score, snippet: 'Clean water state revolving fund', record: { id: parent_id, title: 'Water' },
@@ -302,8 +314,8 @@ describe('semantic search projection', () => {
   test('coverage counts indexed records of the family under the stored model against all stored records', () => {
     const bills = semanticCoverageSql('semantic_search_bills', model);
     expect(flat(bills.sql)).toContain("WHERE ce.source_type = 'bill' AND ce.tenant_id IS NULL AND ce.client_id IS NULL AND ce.owner_user_id IS NULL AND ce.model = ?");
-    expect(flat(bills.sql)).toContain('count(DISTINCT ce.source_id)');
-    expect(flat(bills.sql)).toContain('JOIN congress_bill cb ON cb.id=ce.source_id');
+    expect(flat(bills.sql)).toContain('SELECT DISTINCT ce.source_id');
+    expect(flat(bills.sql)).toContain('JOIN congress_bill cb ON cb.id = i.source_id');
     expect(flat(bills.sql)).toContain('FROM congress_bill)::int AS total');
     expect(bills.values).toEqual([model]);
     for (const operation of ['semantic_search_grants', 'semantic_search_contract_opportunities'] as const) {

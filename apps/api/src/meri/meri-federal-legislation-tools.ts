@@ -9,6 +9,9 @@ import {
   parseBillId,
   currentCongress,
   billStatusLabel,
+  congressGovBillUrl,
+  parseBillSearchSelector,
+  INVALID_BILL_SEARCH_NOTE,
 } from '@capiro/shared';
 import {
   BILL_TEXT_BILLS_PER_PAGE,
@@ -37,6 +40,12 @@ interface FederalBillTextRow {
   publishedAt: Date | null;
   fetchedAt: Date;
   extractedText: string;
+}
+
+function publicBillCitation<T extends object>(bill: T): T {
+  const id = (bill as { id?: unknown }).id;
+  const url = typeof id === 'string' ? congressGovBillUrl(id) : null;
+  return url ? { ...bill, url } : bill;
 }
 
 /** Canonical public federal-legislation reads, independent of agent orchestration. */
@@ -82,6 +91,8 @@ export class MeriFederalLegislationTools {
   }
 
   public async searchCongressBills(input: Record<string, unknown>) {
+    const rawSearch = [input.query, input.search].find((value): value is string =>
+      typeof value === 'string' && value.trim().length > 0)?.trim();
     const search = optionalString(input, 'query', 240) ?? optionalString(input, 'search', 240);
     const policyArea = optionalString(input, 'policyArea', 120);
     const congressNum = input.congress ? Number(input.congress) : undefined;
@@ -113,18 +124,20 @@ export class MeriFederalLegislationTools {
       });
     }
 
-    // Direct lookup when the query is itself a bill designation/id — a title
-    // substring search would otherwise miss "H.R. 8800".
-    const directId = this.resolveBillId(search, congressNum);
-    // An absent or malformed literal is not permission to substitute a title
-    // match, truncate its number, or switch Congress. Keep topic search separate.
-    const queryLooksLikeBillDesignation = /^(?:\d{2,3}-(?:hr|s|hjres|sjres|hconres|sconres|hres|sres)-|(?:\d{2,3})?\s*(?:h\.?\s*r\.?|s\.?|h\.?\s*j\.?\s*res\.?|s\.?\s*j\.?\s*res\.?|h\.?\s*con\.?\s*res\.?|s\.?\s*con\.?\s*res\.?|h\.?\s*res\.?|s\.?\s*res\.?)\s*\d)/i.test(search ?? '');
-    if (directId || queryLooksLikeBillDesignation) {
-      const bill = directId ? await this.prisma.congressBill.findUnique({ where: { id: directId } }) : null;
+    // Parse the whole selector before the topic-input length cap. A malformed
+    // literal is not evidence that a bill was looked up and found absent.
+    const selector = parseBillSearchSelector(rawSearch, currentCongress(), congressNum);
+    if (selector.kind === 'invalid') return {
+      tool: 'search_congress_bills', generatedAt: new Date().toISOString(),
+      currentStatus: 'invalid_request', note: INVALID_BILL_SEARCH_NOTE,
+      data: [], total: 0, page: 1, limit,
+    };
+    if (selector.kind === 'exact') {
+      const bill = await this.prisma.congressBill.findUnique({ where: { id: selector.billId } });
       return {
         tool: 'search_congress_bills',
         generatedAt: new Date().toISOString(),
-        data: bill ? [bill] : [],
+        data: bill ? [publicBillCitation(bill)] : [],
         total: bill ? 1 : 0,
         page: 1,
         limit,
@@ -145,6 +158,7 @@ export class MeriFederalLegislationTools {
       tool: 'search_congress_bills',
       generatedAt: new Date().toISOString(),
       ...bills,
+      data: bills.data.map(publicBillCitation),
     };
   }
 

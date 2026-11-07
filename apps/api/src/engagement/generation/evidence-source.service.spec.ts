@@ -7,6 +7,8 @@
  * visible instead of becoming an empty string.
  */
 import { describe, expect, jest, test } from '@jest/globals';
+import { createHash } from 'node:crypto';
+import { assertAttachmentByteIntegrity } from '../attachments/attachment-object-read.js';
 import type { TenantContext } from '@capiro/shared';
 import { EvidenceSourceService, type SelectedContextItemRef } from './evidence-source.service.js';
 
@@ -420,9 +422,32 @@ describe('attachments', () => {
     s3Key: 'k',
     lifecycleStatus: 'ready',
     scanStatus: 'clean',
+    source: 'upload',
+    calculatedSha256: createHash('sha256').update('x').digest('hex'),
     verifiedContentType: 'application/pdf',
     createdAt: NOW,
   };
+
+  test('carries the persisted scan identity to the reader and refuses overwritten generation evidence', async () => {
+    const { svc, attachments } = makeService({
+      tables: { engagementAttachment: { findFirst: async () => attachmentRow } },
+    });
+    const seen: unknown[] = [];
+    svc.setAttachmentReader(async (_bucket, _key, identity) => {
+      seen.push(identity);
+      const replacement = Buffer.from('unscanned replacement');
+      assertAttachmentByteIntegrity(identity, replacement);
+      return replacement;
+    });
+    const out = await svc.resolveSelectedItems(CTX,
+      resolveInput([{ id: 'doc-a1', kind: 'document', scope: 'all' }]));
+    expect(seen).toEqual([expect.objectContaining({
+      source: 'upload', scanStatus: 'clean', calculatedSha256: attachmentRow.calculatedSha256,
+    })]);
+    expect(out.evidence).toHaveLength(0);
+    expect(out.failures[0]).toMatchObject({ code: 'DOCUMENT_READ_FAILED', severity: 'critical' });
+    expect(attachments.extractBounded).not.toHaveBeenCalled();
+  });
 
   test('incoming-mail private rows are unavailable to generation by ID before bytes or readiness', async () => {
     const { svc, attachments } = makeService({

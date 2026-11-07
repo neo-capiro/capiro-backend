@@ -979,7 +979,7 @@ async function main() {
   report.packages = blocks.filter(Boolean).map(block => Object.fromEntries(block.split('\n').filter(line => /^[PVo]:/.test(line)).map(line => [line[0], line.slice(2)])));
   assert(!report.packages.some(p => ['perl', 'util-linux'].includes(p.o || p.P)), 'Perl/util-linux origin unexpectedly installed');
   const zlib = report.packages.find(p => p.P === 'zlib'); assert(zlib, 'zlib absent');
-  assert(['=', '>'].includes(run('apk', ['version', '-t', zlib.V, '1.3.2-r1']).trim()), 'zlib vendor fix missing');
+  assert(['=', '>'].includes(run('apk', ['version', '-t', zlib.V, '1.4-r0']).trim()), 'zlib vendor fix missing');
   });
   const ownerSet = name => closure.owners.filter(owner => owner.metadata.name === name).map(owner => owner.manifest);
   const sharpOwners = ownerSet('sharp'), libsqlOwners = ownerSet('libsql');

@@ -295,7 +295,8 @@ it('bounds the core attempt by remaining run time and aborts its local signal wi
 });
 
 it('aborts model work when the heartbeat no longer owns an active task', async () => {
-  const tx = { $executeRawUnsafe: jest.fn().mockResolvedValue(0) };
+  const tx = { $queryRawUnsafe: jest.fn().mockResolvedValue([{ id: 'run' }]),
+    $executeRawUnsafe: jest.fn().mockResolvedValue(0) };
   const service = new ClientProfileFillWorkflowService(
     {withSystem: async (action: (value: typeof tx) => Promise<unknown>) => action(tx)} as never,
     {} as never, {} as never, {} as never, {} as never, {} as never, {} as never,

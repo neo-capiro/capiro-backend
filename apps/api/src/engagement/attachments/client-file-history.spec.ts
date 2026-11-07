@@ -8,6 +8,8 @@
  * below is produced by production code.
  */
 import { HttpException } from '@nestjs/common';
+import { createHash } from 'node:crypto';
+import { Readable } from 'node:stream';
 import type { TenantContext } from '@capiro/shared';
 import { EngagementService } from '../engagement.service.js';
 import {
@@ -26,7 +28,8 @@ const otherUser = id(4);
 const clientId = id(7);
 const prospectId = id(9);
 const mailMessageId = id(50);
-const hash = (n: number) => String(n % 10).repeat(64);
+const content = (n: number) => Buffer.from(`Synthetic version ${n}`);
+const hash = (n: number) => createHash('sha256').update(content(n)).digest('hex');
 
 /**
  * Truthful fixture access: these are synthetic rows indexed by design, so a missing
@@ -262,7 +265,12 @@ function harness(rows: Row[]) {
   Object.assign(service, {
     prisma,
     bucket: 'synthetic-bucket',
-    s3: { send: jest.fn(async () => ({})) },
+    s3: { send: jest.fn(async (command: any) => {
+      const row = rows.find((candidate) => candidate.s3Key === command.input.Key);
+      const bytes = content(row?.sourceVersion ?? 1);
+      return { Body: Readable.from([bytes]), ContentLength: bytes.length,
+        VersionId: `synthetic-version-${row?.sourceVersion ?? 1}` };
+    }) },
     readAttachmentBytes: jest.fn(async () => Buffer.from('synthetic bytes')),
     attachmentContent: {
       sha256: () => hash(1),
@@ -356,7 +364,7 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
     expect(restarted.originalId).toBe(at(rows, 0).id);
   });
 
-  it('releases metadata plus a signed read of each readable version: no bytes, no locators, no budget/model work and no write', async () => {
+  it('verifies each readable version once before signing, with no raw bytes, locators or write returned', async () => {
     const rows = chain(3);
     const h = harness(rows);
     const page = await h.service.listAttachmentHistory(ctx, { attachmentId: at(rows, 2).id });
@@ -368,6 +376,7 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
     );
     expect((h.service as any).createAttachmentDownloadUrl).toHaveBeenCalledTimes(3);
     expect((h.service as any).createAttachmentPreviewUrl).toHaveBeenCalledTimes(3);
+    expect((h.service as any).s3.send).toHaveBeenCalledTimes(3);
     // Still no locator of any kind in the released page: not the key, not the bucket, not
     // a storage VersionId. The only URL-shaped fields are the signed reads themselves.
     expect(JSON.stringify(page)).not.toMatch(/s3Key|bucket|VersionId|client-files\/memo-v/);
@@ -800,7 +809,8 @@ describe('engagement attachment version history (synthetic, read-only)', () => {
       previewUrl: null,
     });
     expect((h.service as any).createAttachmentDownloadUrl).toHaveBeenCalledTimes(1);
-    expect((h.service as any).createAttachmentDownloadUrl).toHaveBeenCalledWith(at(rows, 0).s3Key);
+    expect((h.service as any).createAttachmentDownloadUrl).toHaveBeenCalledWith(
+      at(rows, 0).s3Key, 'synthetic-version-1');
     expect((h.service as any).createAttachmentPreviewUrl).toHaveBeenCalledTimes(1);
   });
 

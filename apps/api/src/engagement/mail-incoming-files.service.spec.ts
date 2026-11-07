@@ -47,7 +47,7 @@ jest.doMock('../common/sanitize-signature.js', () => ({
 }));
 
 
-jest.doMock('@aws-sdk/client-s3', () => ({ PutObjectCommand: class { constructor(public input: unknown) {} }, HeadObjectCommand: class { constructor(public input: unknown) {} } }));
+jest.doMock('@aws-sdk/client-s3', () => ({ GetObjectCommand: class { constructor(public input: unknown) {} }, PutObjectCommand: class { constructor(public input: unknown) {} }, HeadObjectCommand: class { constructor(public input: unknown) {} } }));
 jest.doMock('./google/gmail-send.service.js', () => ({ GmailSendService: class {} }));
 jest.doMock('./microsoft/microsoft-graph-sync.service.js', () => ({ MicrosoftGraphSyncService: class {} }));
 
@@ -55,6 +55,7 @@ const { EngagementService } = require('./engagement.service.js') as typeof impor
 const { MailIncomingFilesService, incomingMailSelection } = require('./mail-incoming-files.service.js') as typeof import('./mail-incoming-files.service.js');
 const { readIncomingProviderFiles } = require('./mail-incoming-files.js') as typeof import('./mail-incoming-files.js');
 const { createHash } = require('node:crypto') as typeof import('node:crypto');
+const { Readable } = require('node:stream') as typeof import('node:stream');
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12,'0')}`;
 const ctx={tenantId:uuid(1),userId:uuid(2),role:'standard_user'} as never;
 const selected={threadId:uuid(3),messageId:uuid(4),updatedAt:'2026-10-27T00:00:00.000Z'};
@@ -78,7 +79,9 @@ function fixture() {
   };
   const prisma={withTenant:async(_tenant:string,run:any)=>run(tx)};
   const writer=Object.create(EngagementService.prototype) as any;
-  writer.prisma=prisma;writer.bucket='synthetic-bucket';writer.s3={send:jest.fn().mockResolvedValue({})};
+  writer.prisma=prisma;writer.bucket='synthetic-bucket';writer.s3={send:jest.fn(async()=>({
+    Body: Readable.from([Buffer.from('memo')]), ContentLength: 4, VersionId: 'synthetic-version',
+  }))};
   writer.attachmentContent={detectContentType:()=>null,contentTypeConflicts:()=>false,sha256:hash,
     readiness:(row:any)=>({usable:row.lifecycleStatus==='ready'})};
   writer.createAttachmentDownloadUrl=jest.fn().mockResolvedValue('synthetic-download');
