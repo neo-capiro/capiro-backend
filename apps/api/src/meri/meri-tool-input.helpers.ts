@@ -2,6 +2,11 @@ import { BadRequestException } from '@nestjs/common';
 
 export const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+/** Prisma contains uses LIKE/ILIKE; tool keywords are literal text, not patterns. */
+export function literalInsensitiveContains(value: string) {
+  return { contains: value.replace(/[\\%_]/g, (character) => `\\${character}`), mode: 'insensitive' as const };
+}
+
 export function requiredString(input: Record<string, unknown>, key: string, max: number): string {
   const value = optionalString(input, key, max);
   if (!value) throw new BadRequestException(`${key} is required`);

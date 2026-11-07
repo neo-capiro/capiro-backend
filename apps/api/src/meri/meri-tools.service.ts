@@ -4,7 +4,7 @@ import { readFederalDraftSource } from './federal-draft-source.js';
 import { MeriFederalLegislationTools } from './meri-federal-legislation-tools.js';
 import { BillTextService } from '../retrieval/bill-text.service.js';
 import { retainedBillTool, retainedBillReadProperties, retainedBillSearchProperties } from './meri-retained-bill-tools.js';
-import { UUID_V4_RE, requiredString, optionalString, clampInt } from './meri-tool-input.helpers.js';
+import { UUID_V4_RE, requiredString, optionalString, clampInt, literalInsensitiveContains } from './meri-tool-input.helpers.js';
 import { executeMeriLocalDispatch, type MeriLocalDispatchRegistry } from './meri-local-dispatch.js';
 import { assertTextArtifactCurrentProposal, type TextArtifactCurrentAction } from './meri-text-artifact-current-proposal.js';
 import { researchPortfolioManagementSchema, parseResearchPortfolioManagementInput } from '../research-portfolios/research-portfolio-management.js';
@@ -62,6 +62,7 @@ import {
 import type { AppConfig } from '../config/config.schema.js';
 import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
 import { serializeFederalAwardDates } from '../common/federal-award-date-serialization.js';
+import { stateAbbrForFips, stateFipsForAbbr } from '../common/us-states.js';
 import { EngagementService } from '../engagement/engagement.service.js';
 import { IntelligenceService } from '../intelligence/intelligence.service.js';
 import { ActionRecommendationReadService } from '../intelligence/actions/action-recommendation-read.service.js';
@@ -1432,8 +1433,8 @@ export class MeriToolsService {
         limit: int('Max results (1-50)'),
       }),
       search_federal_grants: obj({
-        query: str('Keyword search across title/description/agency'),
-        agency: str('Agency filter'),
+        query: str('Literal keyword search across title/description/agency'),
+        agency: str('Literal agency substring filter'),
         status: str('posted | closed | forecasted'),
         limit: int('Max results (1-50)'),
       }),
@@ -1445,7 +1446,7 @@ export class MeriToolsService {
         limit: int('Max results (1-50, default 20)'),
       }),
       search_gao_reports: obj({
-        query: str('Keyword search across title/summary/topics/agencies'),
+        query: str('Literal keyword search across title/summary or exact topic/agency tags'),
         reportType: str('Report type filter'),
         limit: int('Max results (1-50)'),
       }),
@@ -1505,7 +1506,7 @@ export class MeriToolsService {
       get_state_rule_status: obj(
         {
           query: str(
-            'Rule/notice id ("FL-31100933"), a Federal Register document number ("2026-01234"), or a title keyword',
+            'Rule/notice id ("FL-31100933"), a Federal Register document number ("2026-01234"), or a literal title/abstract keyword',
           ),
           state: str("Two-letter state code — scopes a keyword search to that state's register"),
         },
@@ -1548,8 +1549,13 @@ export class MeriToolsService {
       }),
       query_economic_data: obj({
         source: str('census | bls | bea'),
-        state: str('Two-letter state code'),
-        district: str('Congressional district'),
+        state: str('Two-letter state or territory code: Census district demographics or BEA Regional state aggregate. BEA defaults to Regional when state is supplied; incompatible datasets are refused.'),
+        district: str('Congressional district; Census only'),
+        seriesId: str('Exact BLS series identifier; BLS only'),
+        query: str('Literal BLS title/survey keyword or BEA description keyword; not supported by Census'),
+        datasetName: str('Exact BEA dataset name; BEA only'),
+        dataset: str('Alias for datasetName; datasetName takes precedence'),
+        year: int('Exact stored BLS or BEA year; not supported by Census'),
         limit: int('Max results (1-50)'),
       }),
       get_district_nexus_context: obj({
@@ -4755,12 +4761,12 @@ export class MeriToolsService {
     const where: Record<string, unknown> = {};
     if (query) {
       where.OR = [
-        { title: { contains: query, mode: 'insensitive' } },
-        { description: { contains: query, mode: 'insensitive' } },
-        { agency: { contains: query, mode: 'insensitive' } },
+        { title: literalInsensitiveContains(query) },
+        { description: literalInsensitiveContains(query) },
+        { agency: literalInsensitiveContains(query) },
       ];
     }
-    if (agency) where.agency = { contains: agency, mode: 'insensitive' };
+    if (agency) where.agency = literalInsensitiveContains(agency);
     if (status) where.status = status;
 
     const [data, total] = await Promise.all([
@@ -4842,8 +4848,8 @@ export class MeriToolsService {
     const where: Record<string, unknown> = {};
     if (query) {
       where.OR = [
-        { title: { contains: query, mode: 'insensitive' } },
-        { summary: { contains: query, mode: 'insensitive' } },
+        { title: literalInsensitiveContains(query) },
+        { summary: literalInsensitiveContains(query) },
         { topics: { hasSome: [query] } },
         { agencies: { hasSome: [query] } },
       ];
@@ -5617,8 +5623,8 @@ export class MeriToolsService {
     const stateMatches = await this.prisma.stateRule.findMany({
       where: {
         OR: [
-          { title: { contains: query, mode: 'insensitive' } },
-          { abstract: { contains: query, mode: 'insensitive' } },
+          { title: literalInsensitiveContains(query) },
+          { abstract: literalInsensitiveContains(query) },
         ],
         ...(state ? { state } : {}),
       },
@@ -5629,8 +5635,8 @@ export class MeriToolsService {
       : await this.prisma.federalRegisterDocument.findMany({
           where: {
             OR: [
-              { title: { contains: query, mode: 'insensitive' } },
-              { abstract: { contains: query, mode: 'insensitive' } },
+              { title: literalInsensitiveContains(query) },
+              { abstract: literalInsensitiveContains(query) },
             ],
           },
           take: 6,
@@ -5887,15 +5893,36 @@ export class MeriToolsService {
   }
 
   private async queryEconomicData(input: Record<string, unknown>) {
+    for (const key of ['source', 'state', 'district', 'seriesId', 'query', 'datasetName', 'dataset']) {
+      if (input[key] !== undefined && input[key] !== null && typeof input[key] !== 'string') {
+        throw new BadRequestException(`${key} must be a string or null.`);
+      }
+    }
     const source = optionalString(input, 'source', 20) ?? 'census';
-    const state = optionalString(input, 'state', 2);
+    const state = optionalString(input, 'state', 2)?.toUpperCase();
     const district = optionalString(input, 'district', 10);
+    const seriesId = optionalString(input, 'seriesId', 60);
+    const query = optionalString(input, 'query', 240);
+    const selectedDataset = optionalString(input, 'datasetName', 60) ?? optionalString(input, 'dataset', 60);
+    let year: number | undefined;
+    if (input.year !== undefined && input.year !== null && !(typeof input.year === 'string' && !input.year.trim())) {
+      if (typeof input.year !== 'number' && typeof input.year !== 'string') {
+        throw new BadRequestException('year must be a stored integer year.');
+      }
+      year = Number(input.year);
+      if (!Number.isInteger(year) || year < -2147483648 || year > 2147483647) {
+        throw new BadRequestException('year must be a stored integer year.');
+      }
+    }
     const limit = clampInt(input.limit, 1, 50, 20);
 
     switch (source.toLowerCase()) {
       case 'census': {
+        if (seriesId || query || selectedDataset || year !== undefined) {
+          throw new BadRequestException('Census supports state and district selectors only.');
+        }
         const where: Record<string, unknown> = {};
-        if (state) where.state = state.toUpperCase();
+        if (state) where.state = state;
         if (district) where.district = district;
 
         const data = await this.prisma.withSystem((tx) =>
@@ -5928,15 +5955,17 @@ export class MeriToolsService {
       }
 
       case 'bls': {
-        const seriesId = optionalString(input, 'seriesId', 60);
-        const query = optionalString(input, 'query', 240);
+        if (state || district || selectedDataset) {
+          throw new BadRequestException('BLS supports seriesId, query and year selectors only.');
+        }
 
         const seriesWhere: Record<string, unknown> = {};
         if (seriesId) seriesWhere.id = seriesId;
+        if (year !== undefined) seriesWhere.dataPoints = { some: { year } };
         if (query) {
           seriesWhere.OR = [
-            { title: { contains: query, mode: 'insensitive' } },
-            { surveyName: { contains: query, mode: 'insensitive' } },
+            { title: literalInsensitiveContains(query) },
+            { surveyName: literalInsensitiveContains(query) },
           ];
         }
 
@@ -5945,6 +5974,7 @@ export class MeriToolsService {
             where: seriesWhere,
             include: {
               dataPoints: {
+                ...(year !== undefined ? { where: { year } } : {}),
                 orderBy: [{ year: 'desc' }, { period: 'desc' }],
                 take: 12,
               },
@@ -5957,6 +5987,7 @@ export class MeriToolsService {
           tool: 'query_economic_data',
           source: 'bls',
           generatedAt: new Date().toISOString(),
+          ...(year !== undefined ? { appliedYear: year } : {}),
           data: series.map((s) => ({
             seriesId: s.id,
             title: s.title,
@@ -5972,15 +6003,22 @@ export class MeriToolsService {
       }
 
       case 'bea': {
-        const datasetName =
-          optionalString(input, 'datasetName', 60) ?? optionalString(input, 'dataset', 60);
-        const query = optionalString(input, 'query', 240);
-        const year = input.year ? Number(input.year) : undefined;
+        if (district || seriesId) {
+          throw new BadRequestException('BEA does not support district or BLS seriesId selectors.');
+        }
+        const datasetName = selectedDataset ?? (state ? 'Regional' : null);
+        const stateFips = state ? stateFipsForAbbr(state) : undefined;
+        if (state && (!stateFips || datasetName !== 'Regional')) {
+          throw new BadRequestException('A BEA state selector requires a known state or territory and the Regional dataset.');
+        }
 
         const where: Record<string, unknown> = {};
         if (datasetName) where.datasetName = datasetName;
-        if (year) where.year = year;
-        if (query) where.description = { contains: query, mode: 'insensitive' };
+        if (year !== undefined) where.year = year;
+        // BEA Regional aggregate codes use state FIPS plus 000; county rows
+        // retain their own five-digit codes and must not consume this page.
+        if (stateFips) where.geoFips = `${stateFips}000`;
+        if (query) where.description = literalInsensitiveContains(query);
 
         const data = await this.prisma.withSystem((tx) =>
           tx.beaData.findMany({
@@ -5994,6 +6032,8 @@ export class MeriToolsService {
           tool: 'query_economic_data',
           source: 'bea',
           generatedAt: new Date().toISOString(),
+          ...(state ? { appliedState: state } : {}),
+          ...(year !== undefined ? { appliedYear: year } : {}),
           data: data.map((d) => ({
             datasetName: d.datasetName,
             tableName: d.tableName,
@@ -6002,6 +6042,9 @@ export class MeriToolsService {
             period: d.period,
             value: d.value,
             units: d.units,
+            geoFips: d.geoFips ?? null,
+            state: d.geoFips && /^\d{2}000$/.test(d.geoFips)
+              ? stateAbbrForFips(d.geoFips.slice(0, 2)) ?? null : null,
           })),
         };
       }
