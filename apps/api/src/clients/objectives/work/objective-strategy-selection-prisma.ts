@@ -62,7 +62,11 @@ export async function insertObjectiveStrategySelectionWithinTx(tx: Tx, a: WorkAu
   const r = stored.receipt, s = stored.source;
   if (r.command !== 'retry' || r.workAction !== 'objective.strategy.draft' || !r.consent ||
       r.authorizationRequestId !== r.consent.id || stored.actorUserId !== a.actorUserId ||
-      r.controlVersionBefore !== 0 || r.controlVersionAfter !== 1 || r.targetAuthorizationRequestId !== null)
+      !Number.isInteger(r.controlVersionBefore) || r.controlVersionBefore < 0 ||
+      r.controlVersionAfter !== r.controlVersionBefore + 1 ||
+      (r.controlVersionBefore === 0 ? r.targetAuthorizationRequestId !== null :
+        r.targetAuthorizationRequestId === null || workUuid(r.targetAuthorizationRequestId) !== r.targetAuthorizationRequestId ||
+        r.targetAuthorizationRequestId === r.consent.id))
     return workFailure('AUTHORITY_UNAVAILABLE', r.requestId);
   const draft = objectiveStrategySelectedDraft(request, s), fingerprint = objectiveStrategyRequestCodec.digest(draft),
     key = objectiveStrategyRequestCodec.requestKey(a.tenantId, a.clerkUserId, draft.requestId),
