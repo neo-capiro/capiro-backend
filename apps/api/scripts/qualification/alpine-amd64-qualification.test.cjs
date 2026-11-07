@@ -42,7 +42,7 @@ test('ARM candidate copies the complete existing gate closure and runs it before
   assert.equal(source.split(`FROM ${pin}`).length - 1, 2);
   assert.equal(source.split('COPY apps/api/scripts/qualification/qualification-platform.cjs /qualification/qualification-platform.cjs').length - 1, 2);
   assert.equal(source.split('ENV CAPIRO_QUALIFICATION_ARCH=arm64').length - 1, 2);
-  assert.equal(source.split('"zlib>=1.3.2-r1"').length - 1, 2);
+  assert.equal(source.split('"zlib>=1.4-r0"').length - 1, 2);
   assert.match(source, /PRISMA_CLI_BINARY_TARGETS=linux-musl-arm64-openssl-3\.0\.x/);
   const repair = source.indexOf('RUN --network=none node /qualification/derived-owner-repair.cjs');
   const user = source.indexOf('USER capiro');

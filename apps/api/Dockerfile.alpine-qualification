@@ -25,7 +25,7 @@ FROM public.ecr.aws/docker/library/node:24.22.1-alpine3.24@sha256:398bcf38afb035
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 ENV CAPIRO_QUALIFICATION_ARCH=arm64
-RUN apk add --no-cache "zlib>=1.3.2-r1"
+RUN apk add --no-cache "zlib>=1.4-r0"
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /workspace
 
@@ -104,7 +104,7 @@ ENV NODE_OPTIONS=--enable-source-maps
 ENV CAPIRO_QUALIFICATION_ARCH=arm64
 RUN addgroup -S -g 1001 capiro \
  && adduser -S -D -H -u 1001 -G capiro -s /sbin/nologin capiro \
- && apk add --no-cache wget ca-certificates dumb-init openssl "zlib>=1.3.2-r1"
+ && apk add --no-cache wget ca-certificates dumb-init openssl "zlib>=1.4-r0"
 # tsx (used by entrypoint.sh to run scripts/sync-*.ts as ECS one-off tasks)
 # needs writable scratch space for its IPC server. Keep image-local fallbacks for
 # writable-root deployments, but default to Fargate's writable /dev/shm tmpfs.
