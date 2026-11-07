@@ -190,6 +190,78 @@ describe('profile identity acquisition and explicit confirmation', () => {
     );
   });
 
+  it.each([false, true])(
+    'returns source-supported website identity with document present=%s without creating or selecting a company',
+    async (withDocument) => {
+      const f = fixture();
+      const website = {
+        ...found,
+        sourceType: 'person_confirmed_website' as const,
+        identifiers: [],
+        sourceCandidate: {
+          source: 'website' as const,
+          externalId: 'https://fixture.example/about',
+          website: 'https://fixture.example/',
+          name: selector.name,
+        },
+      };
+      const document = {
+        ...found,
+        sourceType: 'person_confirmed_document' as const,
+        identifiers: [],
+        sourceCandidate: {
+          source: 'document' as const,
+          externalId: request.requestId,
+          name: selector.name,
+        },
+        evidence: [
+          {
+            label: 'Uploaded document',
+            source: 'document',
+            attachmentId: request.requestId,
+            excerpt: selector.name,
+            observedAt: '2026-11-07T00:00:00Z',
+          },
+        ],
+      };
+      f.sources.discover.mockResolvedValue({
+        candidates: withDocument ? [document, website] : [website],
+        sourceGaps: [],
+      });
+      const input = {
+        website: 'https://fixture.example/',
+        ...(withDocument ? { name: selector.name, attachmentId: request.requestId } : {}),
+      };
+      const result = await f.service.preview(ctx, input);
+      expect(result.status).toBe(withDocument ? 'exact' : 'ambiguous');
+      expect(result.requiresUserConfirmation).toBe(true);
+      expect(result.candidates).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ sourceCandidate: website.sourceCandidate }),
+        ]),
+      );
+      if (withDocument) {
+        expect(result.candidates).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              sourceCandidate: document.sourceCandidate,
+              evidence: document.evidence,
+            }),
+          ]),
+        );
+      }
+      expect(f.sources.discover).toHaveBeenCalledWith(
+        ctx,
+        expect.objectContaining(input),
+        undefined,
+      );
+      expect(f.registration.registerGlobalPublicEntity).not.toHaveBeenCalled();
+      expect(f.resolver.registerTenantPrivateEntity).not.toHaveBeenCalled();
+      expect(f.claims.retain).not.toHaveBeenCalled();
+      expect(f.tx.auditLog.create).not.toHaveBeenCalled();
+    },
+  );
+
   it('offers known identities for document-derived names without silently merging a name-only match', async () => {
     const f = fixture();
     f.sources.discover.mockResolvedValue({

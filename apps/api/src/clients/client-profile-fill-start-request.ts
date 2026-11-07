@@ -16,6 +16,11 @@ export type ResearchStartRequest = { schemaVersion: 1; requestId: string; sha256
 export function researchStartRequest(
   ctx: TenantContext, clientId: string, input: StartClientProfileFillWorkflowInput, subject: ProfileSubject = {kind: 'client', id: clientId},
 ): ResearchStartRequest | undefined {
+  if (input.discoverLda !== undefined && typeof input.discoverLda !== 'boolean')
+    throw new BadRequestException('Invalid LDA discovery selection');
+  if (input.discoverLda && (subject.kind !== 'client' || !input.sources?.includes('lda') ||
+    input.purpose || input.capabilityId || input.businessUnitId || input.ldaClientIds?.length))
+    throw new BadRequestException('Automatic LDA discovery requires client LDA research without selected identities');
   if (input.requestId === undefined) return undefined;
   if (!isUUID(input.requestId)) throw new BadRequestException('Invalid research request ID');
   if (input.businessUnitId && !isUUID(input.businessUnitId)) throw new BadRequestException('Invalid business unit ID');
@@ -25,6 +30,7 @@ export function researchStartRequest(
     sources: input.sources === undefined ? null : [...new Set(input.sources)].sort(),
     attachmentIds: [...new Set(input.attachmentIds ?? [])].sort(),
     ldaClientIds: [...new Set(input.ldaClientIds ?? [])].sort((a, b) => a - b),
+    ...(input.discoverLda ? {discoverLda: true} : {}),
     website: researchWebsite(input.website),
     // Omitted preserves the exact historic request digest for replay.
     ...(portfolioResearchScope(input) ? {portfolioScope: portfolioResearchScope(input)} : {}),

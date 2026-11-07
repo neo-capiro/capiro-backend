@@ -39,6 +39,7 @@ export class ProfileIdentityWebService {
     private readonly agent: PortfolioAgentService,
   ) {}
   async discover(ctx: TenantContext, input: ProfileIdentityInput, signal?: AbortSignal) {
+    signal?.throwIfAborted();
     const sourceGaps: string[] = [],
       urls = new Set<string>();
     if (input.website)
@@ -60,8 +61,10 @@ export class ProfileIdentityWebService {
             urls.add(candidate.sourceUrl);
         }
       } catch {
+        signal?.throwIfAborted();
         sourceGaps.push('Public identity and state-record search could not be checked.');
       }
+    signal?.throwIfAborted();
     const sources: ProfileSuggestionSource[] = [];
     for (const result of await Promise.allSettled(
       [...urls].map((url) => this.reader.website(url, signal)),
@@ -102,6 +105,7 @@ export class ProfileIdentityWebService {
     sources: ProfileSuggestionSource[],
     signal?: AbortSignal,
   ) {
+    signal?.throwIfAborted();
     try {
       const { data } = await this.agent.extract<{ candidates: WebsiteIdentity[] }>({
         subject: { kind: 'draft', id: randomUUID() },
@@ -130,9 +134,13 @@ export class ProfileIdentityWebService {
             });
           }),
       });
+      signal?.throwIfAborted();
       const candidates = verifiedWebsiteIdentities(data.candidates, sources);
       return { candidates, sourceGaps: [] };
     } catch (error) {
+      // A cancelled HTTP preview is not an unavailable evidence source. Stop
+      // acquisition before the caller can start another registry or model read.
+      signal?.throwIfAborted();
       if (!(error instanceof PortfolioAgentError)) throw error;
       return {
         candidates: [],

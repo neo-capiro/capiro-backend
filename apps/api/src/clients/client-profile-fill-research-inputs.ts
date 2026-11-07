@@ -2,10 +2,21 @@ import { readPortfolioResearchScope, type PortfolioResearchScope } from './portf
 import { readResearchBusinessUnit, type ResearchBusinessUnit } from './profile-capability-discovery-input.js';
 import { BadRequestException } from '@nestjs/common';
 import { normalizeWebsite } from './client-profile-fill.helpers.js';
+import { fingerprintName, sharesDistinctiveToken } from '../intelligence/entity-resolution.service.js';
 
 /** Research selections are run inputs, never confirmed client identities. */
 export type ResearchLdaIdentity = { id: number; name: string; confidence: number };
-export type ResearchInputs = { portfolioScope?: PortfolioResearchScope; businessUnit?: ResearchBusinessUnit; website?: string | null; ldaIdentities?: ResearchLdaIdentity[] };
+export type ResearchInputs = { portfolioScope?: PortfolioResearchScope; businessUnit?: ResearchBusinessUnit; website?: string | null; ldaIdentities?: ResearchLdaIdentity[]; ldaCandidates?: ResearchLdaIdentity[] };
+
+/** Discovery proposes a bounded subset; these IDs never become selected history inputs. */
+export function discoverResearchLdaCandidates(name: string, offered: ResearchLdaIdentity[], selectedIds: number[]) {
+  const fingerprint = fingerprintName(name);
+  if (!fingerprint) return [];
+  return offered.filter(candidate => !selectedIds.includes(candidate.id) &&
+    candidate.confidence >= 0.7 && sharesDistinctiveToken(fingerprint, fingerprintName(candidate.name)))
+    .sort((a, b) => b.confidence - a.confidence || a.id - b.id).slice(0, 3)
+    .map(({id, name, confidence}) => ({id, name, confidence}));
+}
 
 export function researchWebsite(value?: string | null): string | null {
   if (!value?.trim()) return null;
@@ -15,11 +26,11 @@ export function researchWebsite(value?: string | null): string | null {
 }
 
 export function researchTaskInput(
-  type: string, website: string | null, ldaIdentities: ResearchLdaIdentity[], businessUnit?: ResearchBusinessUnit, portfolioScope?: PortfolioResearchScope,
+  type: string, website: string | null, ldaIdentities: ResearchLdaIdentity[], businessUnit?: ResearchBusinessUnit, portfolioScope?: PortfolioResearchScope, ldaCandidates?: ResearchLdaIdentity[],
 ): Record<string, unknown> {
   if (type === 'public_web') return { researchInputVersion: 1, website, ...(businessUnit ? {businessUnit} : {}), ...(portfolioScope ? {portfolioScope} : {}) };
   if (type === 'client_document' && (businessUnit || portfolioScope)) return {researchInputVersion: 1, ...(businessUnit ? {businessUnit} : {}), ...(portfolioScope ? {portfolioScope} : {})};
-  if (type === 'lda') return { researchInputVersion: 1, ldaIdentities };
+  if (type === 'lda') return { researchInputVersion: 1, ldaIdentities, ...(ldaCandidates ? {ldaCandidates} : {}) };
   return {};
 }
 
@@ -59,6 +70,14 @@ export function readResearchInputs(input: Record<string, unknown>, taskType: str
     });
     if (new Set(result.ldaIdentities.map(row => row.id)).size !== result.ldaIdentities.length)
       throw new BadRequestException('Duplicate saved research identities');
+  }
+  if ('ldaCandidates' in input) {
+    if (taskType !== 'lda' || !Array.isArray(input.ldaCandidates) || input.ldaCandidates.length > 3)
+      throw new BadRequestException('Invalid saved LDA candidates');
+    // Use the same recorded identity validation; candidates cannot be history selections.
+    result.ldaCandidates = readResearchInputs({researchInputVersion: 1, ldaIdentities: input.ldaCandidates}, 'lda').ldaIdentities;
+    if (result.ldaCandidates?.some(candidate => result.ldaIdentities?.some(identity => identity.id === candidate.id)))
+      throw new BadRequestException('An LDA candidate is already selected');
   }
   return result;
 }

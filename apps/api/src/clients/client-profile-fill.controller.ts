@@ -1,5 +1,5 @@
 import type { Request } from 'express';
-import { withProfilePreviewAbort } from './profile-preview-abort.js';
+import { PROFILE_IDENTITY_PREVIEW_TIMEOUT_MS, withProfilePreviewAbort } from './profile-preview-abort.js';
 import {
   BadRequestException,
   Body,
@@ -83,6 +83,11 @@ class StartClientProfileFillDto {
   @IsInt({ each: true })
   @Min(1, { each: true })
   ldaClientIds?: number[];
+
+  /** Initial profile research may propose LDA identities; it never confirms them. */
+  @IsOptional()
+  @IsBoolean()
+  discoverLda?: boolean;
 
   /** Optional research-only website. Saved with the run; canonical client
    * website changes require a separate finding review/application. */
@@ -226,7 +231,7 @@ export class ClientProfileFillController {
  @Put('profile') saveProfile(@CurrentTenant()ctx:TenantContext,@Param()params:Record<string,string>,@Body()body:unknown){return this.service.save(ctx,routeSubject(params),body);}
  @Post('facts/:factId/resolve') @Roles('user_admin')
  resolveFact(@CurrentTenant()ctx:TenantContext,@Param()params:Record<string,string>,@Body()body:{requestId:string;expectedVersion:number;resolution:'keep_current'|'accept_proposed'}){return this.service.resolveFact(ctx,routeSubject(params),params.factId!,body);}
- @Post('identity/preview') identify(@CurrentTenant()ctx:TenantContext,@Body()body:unknown,@Req()request:Request){return withProfilePreviewAbort(request, signal=>this.service.identify(ctx,body,signal));}
+ @Post('identity/preview') identify(@CurrentTenant()ctx:TenantContext,@Body()body:unknown,@Req()request:Request){return withProfilePreviewAbort(request, signal=>this.service.identify(ctx,body,signal),PROFILE_IDENTITY_PREVIEW_TIMEOUT_MS);}
  @Post('identity/confirm') confirmIdentity(@CurrentTenant()ctx:TenantContext,@Param()params:Record<string,string>,@Body()body:{requestId:string;expectedVersion:string;canonicalEntityId:string}){return this.service.confirmIdentity(ctx,routeSubject(params),body);}
  @Get('references') references(@CurrentTenant()ctx:TenantContext,@Query('kind')kind:string,@Query('q')q?:string){return this.service.references(ctx,kind,q);}
  @Post('refresh-now') @HttpCode(HttpStatus.ACCEPTED)
@@ -249,7 +254,7 @@ export class ClientProfileFillController {
 @Roles('standard_user')
 export class ProfileBuildEntryController{
  constructor(private readonly service:ProfileBuildService){}
- @Post('identity-preview') identify(@CurrentTenant()ctx:TenantContext,@Body()body:unknown,@Req()request:Request){return withProfilePreviewAbort(request, signal=>this.service.identify(ctx,body,signal));}
+ @Post('identity-preview') identify(@CurrentTenant()ctx:TenantContext,@Body()body:unknown,@Req()request:Request){return withProfilePreviewAbort(request, signal=>this.service.identify(ctx,body,signal),PROFILE_IDENTITY_PREVIEW_TIMEOUT_MS);}
  @Post('identity-confirm') confirmSource(@CurrentTenant()ctx:TenantContext,@Body()body:unknown,@Req()request:Request){return withProfilePreviewAbort(request, signal=>this.service.confirmSourceIdentity(ctx,body,signal));}
  @Get('references') references(@CurrentTenant()ctx:TenantContext,@Query('kind')kind:string,@Query('q')q?:string){return this.service.references(ctx,kind,q);}
 }

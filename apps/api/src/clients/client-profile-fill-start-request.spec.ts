@@ -14,6 +14,22 @@ test('start identity is deterministic for equivalent selected sets', () => {
     attachmentIds: [...input.attachmentIds].reverse(), ldaClientIds: [73, 42, 42] };
   expect(researchStartRequest(ctx, clientId, same)).toEqual(researchStartRequest(ctx, clientId, input));
 });
+
+test('automatic LDA discovery is a distinct durable command while absent and false preserve old digests', () => {
+  const automatic = {...input, ldaClientIds: [], discoverLda: true};
+  const manual = {...automatic, discoverLda: false};
+  expect(researchStartRequest(ctx, clientId, automatic)!.sha256)
+    .not.toBe(researchStartRequest(ctx, clientId, manual)!.sha256);
+  const {discoverLda: _mode, ...legacy} = manual;
+  expect(researchStartRequest(ctx, clientId, manual)).toEqual(researchStartRequest(ctx, clientId, legacy));
+  const [, , Dto] = Reflect.getMetadata('design:paramtypes', ClientProfileFillController.prototype, 'start');
+  expect(validateSync(Object.assign(new Dto(), automatic), {whitelist: true, forbidNonWhitelisted: true})).toEqual([]);
+  expect(validateSync(Object.assign(new Dto(), {...automatic, discoverLda: 'true'}))).not.toEqual([]);
+  for (const invalid of [input, {...automatic, sources: ['public_web' as const]},
+    {...automatic, purpose: 'capabilities' as const}, {...automatic, businessUnitId: randomUUID()}])
+    expect(() => researchStartRequest(ctx, clientId, {...invalid, discoverLda: true})).toThrow('Automatic LDA discovery');
+  expect(() => researchStartRequest(ctx, clientId, automatic, {kind: 'prospect', id: clientId})).toThrow('Automatic LDA discovery');
+});
 test.each(['tenant', 'actor', 'client', 'sources', 'attachment', 'identity', 'website'] as const)(
   'the immutable command includes its %s selection', field => {
     const actor = { ...ctx }, command = structuredClone(input);

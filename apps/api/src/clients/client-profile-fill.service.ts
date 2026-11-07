@@ -708,7 +708,7 @@ export class ClientProfileFillService {
     return count;
   }
 
-  private async gatherLda(ctx: TenantContext, clientId: string, runId: string, selections?: ResearchLdaIdentity[], subject: ProfileSubject = {kind:'client',id:clientId}) {
+  private async gatherLda(ctx: TenantContext, clientId: string, runId: string, selections?: ResearchLdaIdentity[], subject: ProfileSubject = {kind:'client',id:clientId}, discoveredCandidates?: ResearchLdaIdentity[]) {
     const client = await this.getClientSnapshot(ctx.tenantId, clientId, subject);
     const existing: Array<{externalId:string;externalName:string;confidence:number|null}> = subject.kind==='prospect' ? [] : await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clientIntelMapping.findMany({
@@ -716,13 +716,24 @@ export class ClientProfileFillService {
         select: { externalId: true, externalName: true, confidence: true },
       }),
     );
-    const confirmedIds=selections===undefined?await this.prisma.withTenantUser(ctx.tenantId,ctx.userId,tx=>readOfficialProfileIdentities(tx,ctx,subject)):[];
-    const canonicalIds=confirmedIds.filter(i=>i.type==='lda_client_id'&&!existing.some(mapping=>mapping.externalId===i.value));
+    const confirmedIds=selections===undefined||discoveredCandidates!==undefined?await this.prisma.withTenantUser(ctx.tenantId,ctx.userId,tx=>readOfficialProfileIdentities(tx,ctx,subject)):[];
+    const canonicalIds=confirmedIds.filter(i=>i.type==='lda_client_id'&&Number.isSafeInteger(Number(i.value))&&Number(i.value)<=2147483647&&!existing.some(mapping=>mapping.externalId===i.value));
     if(canonicalIds.length){
       const rows=await this.prisma.$queryRawUnsafe<Array<{id:number;name:string}>>(`SELECT id,name FROM lda_client WHERE id=ANY($1::int[])`,canonicalIds.map(i=>Number(i.value)));
       existing.push(...rows.map(row=>({externalId:String(row.id),externalName:row.name,confidence:null})));
     }
     let count = 0;
+    for (const candidate of discoveredCandidates ?? []) {
+      if (await this.addFinding(ctx.tenantId, clientId, runId, {
+        kind: 'lda_identity', targetKey: `lda:${candidate.id}`, source: 'lda',
+        factKind: 'recommendation', status: 'pending', currentValue: null,
+        proposedValue: {externalId: String(candidate.id), externalName: candidate.name},
+        confidence: candidate.confidence,
+        evidence: [{label: 'Possible LDA company match — identity review required before researching its lobbying history',
+          url: `https://lda.gov/api/v1/clients/${candidate.id}/`, source: 'Senate LDA client records',
+          metadata: {ldaClientId: candidate.id, runId, discoveryMode: 'name_candidate', identityConfirmed: false}}],
+      }, subject)) count++;
+    }
     if (selections !== undefined) {
       for (const selection of selections) {
         const externalId = String(selection.id);

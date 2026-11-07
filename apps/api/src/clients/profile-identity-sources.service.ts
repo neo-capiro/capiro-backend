@@ -26,19 +26,21 @@ export class ProfileIdentitySourcesService {
   ) {}
 
   async discover(ctx: TenantContext, input: ProfileIdentityInput, signal?: AbortSignal) {
+    signal?.throwIfAborted();
     const candidates: DiscoveredProfileIdentity[] = [],
       sourceGaps: string[] = [];
     if (input.attachmentId) {
-      const source = await this.reader.identityDocument(ctx, input.attachmentId, signal);
-      const extracted = await this.web.fromDocument(ctx, input.name, source, signal);
+      const extracted = await this.documentCandidates(ctx, input, signal);
       candidates.push(...extracted.candidates);
       sourceGaps.push(...extracted.sourceGaps);
     }
+    signal?.throwIfAborted();
     if (!input.name && input.website) {
       const extracted = await this.web.discover(ctx, input, signal);
       candidates.push(...extracted.candidates);
       sourceGaps.push(...extracted.sourceGaps);
     }
+    signal?.throwIfAborted();
     const names = input.name
       ? [input.name]
       : [...new Set(candidates.map((candidate) => candidate.sourceCandidate.name))].slice(0, 4);
@@ -52,7 +54,9 @@ export class ProfileIdentitySourcesService {
             : undefined,
         ),
         this.secCandidates(name, input.identifiers?.find((id) => id.type === 'cik')?.value),
-        this.web.discover(ctx, { ...input, name }, signal),
+        input.attachmentId && input.name
+          ? Promise.resolve({ candidates: [], sourceGaps: [] })
+          : this.web.discover(ctx, { ...input, name }, signal),
       ]),
     );
     results.forEach((result, index) => {
@@ -66,9 +70,45 @@ export class ProfileIdentitySourcesService {
     });
     signal?.throwIfAborted();
     if (input.attachmentId) await this.reader.identityDocument(ctx, input.attachmentId, signal);
+    signal?.throwIfAborted();
     if (!names.length)
       sourceGaps.push('No source-supported company name was found in the provided source.');
     return { candidates, sourceGaps: [...new Set(sourceGaps)] };
+  }
+
+  private async documentCandidates(
+    ctx: TenantContext,
+    input: ProfileIdentityInput,
+    signal?: AbortSignal,
+  ) {
+    // Authorize and verify the document bytes before any external acquisition.
+    const source = await this.reader.identityDocument(ctx, input.attachmentId!, signal);
+    signal?.throwIfAborted();
+    // With a supplied name, the website does not depend on document inference.
+    // Both reads share the preview lifetime and each runs only once.
+    const results = await Promise.allSettled([
+      this.web.fromDocument(ctx, input.name, source, signal),
+      ...(input.name ? [this.web.discover(ctx, input, signal)] : []),
+    ]);
+    signal?.throwIfAborted();
+    const document = results[0]!,
+      website = results[1];
+    if (document.status === 'rejected') throw document.reason;
+    const result = document.value;
+    return {
+      candidates: [
+        ...result.candidates,
+        ...(website?.status === 'fulfilled' ? website.value.candidates : []),
+      ],
+      sourceGaps: [
+        ...result.sourceGaps,
+        ...(website?.status === 'fulfilled'
+          ? website.value.sourceGaps
+          : website
+            ? ['Company and state-record websites could not be checked.']
+            : []),
+      ],
+    };
   }
 
   private async samCandidates(input: ProfileIdentityInput) {
