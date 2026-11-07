@@ -23,7 +23,7 @@ import {
   locateBillTextPassages,
   type BillTextSearchRow,
 } from './meri-bill-text-search.js';
-import { UUID_V4_RE, requiredString, optionalString, clampInt } from './meri-tool-input.helpers.js';
+import { UUID_V4_RE, requiredString, optionalString, clampInt, literalInsensitiveContains } from './meri-tool-input.helpers.js';
 
 interface FederalBillTextRow {
   revisionId: string;
@@ -683,7 +683,7 @@ export class MeriFederalLegislationTools {
     const where: Record<string, unknown> = {};
     if (billId) where.billId = billId.toLowerCase().trim();
     if (congress) where.congress = congress;
-    if (query) where.title = { contains: query, mode: 'insensitive' };
+    if (query) where.title = literalInsensitiveContains(query);
 
     const estimates = await this.prisma.cboCostEstimate.findMany({
       where,

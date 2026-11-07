@@ -30,6 +30,18 @@ const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
 const VISIBLE_CLIENT_FILTER = { status: { not: 'archived' }, profileStatus: 'ACTIVE' } as const;
 
+/** Forecasts have free-text place of performance, not authoritative state/district fields. */
+export function assertSupportedForecastQuery(query: FederalMarketQuery | Record<string, unknown>) {
+  for (const key of ['state', 'district', 'recipient', 'dateFrom', 'dateTo'] as const) {
+    const value = query[key];
+    if (value != null && !(typeof value === 'string' && !value.trim())) {
+      throw new BadRequestException(
+        'Procurement forecasts do not support state, district, recipient, dateFrom or dateTo filters.',
+      );
+    }
+  }
+}
+
 interface ClientFederalScope {
   /** District Nexus / award-history rail exclusivity — never OR UEI with names. */
   contract: AwardIdentityRail;
@@ -456,6 +468,7 @@ export class FederalMarketService {
   async listForecasts(
     query: FederalMarketQuery,
   ): Promise<FederalMarketPage<FederalForecastMarketRow>> {
+    assertSupportedForecastQuery(query);
     const { page, pageSize, offset } = paging(query);
     const clauses: Prisma.Sql[] = [];
     if (query.q) {
@@ -468,7 +481,6 @@ export class FederalMarketService {
       clauses.push(
         Prisma.sql`COALESCE(organization_agency_name, agency, department_name) ILIKE ${`%${query.agency}%`}`,
       );
-    if (query.state) clauses.push(Prisma.sql`place_of_performance ILIKE ${`%${query.state}%`}`);
     if (query.fiscalYear != null) clauses.push(Prisma.sql`fiscal_year = ${query.fiscalYear}`);
     const where = whereSql(clauses);
     const [countRows, rows] = await Promise.all([

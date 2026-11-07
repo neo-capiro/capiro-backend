@@ -276,6 +276,21 @@ export class ProgramElementReadService {
         ? Prisma.sql`EXISTS (SELECT 1 FROM program_element_watch pw WHERE pw.tenant_id = ${tenantId}::uuid AND pw.user_id = ${userId}::uuid AND pw.pe_code = pe.pe_code)`
         : Prisma.sql`FALSE`;
 
+    // Reuse the exact catalog eligibility predicate for an empty page count.
+    const listWhere = Prisma.sql`
+        WHERE pe.retired_at IS NULL
+          AND (${service ? Prisma.sql`pe.service ILIKE ${service}` : Prisma.sql`TRUE`})
+          AND (${budgetActivity ? Prisma.sql`pe.budget_activity ILIKE ${budgetActivity}` : Prisma.sql`TRUE`})
+          AND (${lineType ? Prisma.sql`EXISTS (SELECT 1 FROM program_element_intelligence_cache ic WHERE ic.pe_code = pe.pe_code AND ic.line_type = ${lineType})` : Prisma.sql`TRUE`})
+          AND (${capability ? Prisma.sql`EXISTS (SELECT 1 FROM capability_budget_line_match cm JOIN capability c ON c.id = cm.capability_id WHERE cm.pe_code = pe.pe_code AND cm.status = 'accepted' AND c.slug = ${capability})` : Prisma.sql`TRUE`})
+          AND (${fy ? Prisma.sql`EXISTS (SELECT 1 FROM program_element_year fy_row WHERE fy_row.pe_code = pe.pe_code AND fy_row.fy = ${fy})` : Prisma.sql`TRUE`})
+          AND (${hasDataOnly ? hasDataExpr : Prisma.sql`TRUE`})
+          AND (${watchedOnly ? watchedExpr : Prisma.sql`TRUE`})
+          AND (
+            ${q ? Prisma.sql`pe.title ILIKE ${`%${q}%`} OR pe.pe_code ILIKE ${`%${q}%`} OR similarity(pe.title, ${q}) > 0.2` : Prisma.sql`TRUE`}
+          )
+    `;
+
     // The redesigned finder shows per-row money, a 6-yr funding sparkline, a bill
     // count, the watch flag and the most-material live signal. The page of PEs is
     // selected + counted first (cheap base columns), then enriched via LATERALs and
@@ -296,17 +311,7 @@ export class ProgramElementReadService {
           CASE WHEN ${q ? 1 : 0} = 1 THEN GREATEST(similarity(pe.title, ${q ?? ''}), 0) ELSE 0 END AS score,
           COUNT(*) OVER()::int AS total_count
         FROM program_element pe
-        WHERE pe.retired_at IS NULL
-          AND (${service ? Prisma.sql`pe.service ILIKE ${service}` : Prisma.sql`TRUE`})
-          AND (${budgetActivity ? Prisma.sql`pe.budget_activity ILIKE ${budgetActivity}` : Prisma.sql`TRUE`})
-          AND (${lineType ? Prisma.sql`EXISTS (SELECT 1 FROM program_element_intelligence_cache ic WHERE ic.pe_code = pe.pe_code AND ic.line_type = ${lineType})` : Prisma.sql`TRUE`})
-          AND (${capability ? Prisma.sql`EXISTS (SELECT 1 FROM capability_budget_line_match cm JOIN capability c ON c.id = cm.capability_id WHERE cm.pe_code = pe.pe_code AND cm.status = 'accepted' AND c.slug = ${capability})` : Prisma.sql`TRUE`})
-          AND (${fy ? Prisma.sql`EXISTS (SELECT 1 FROM program_element_year fy_row WHERE fy_row.pe_code = pe.pe_code AND fy_row.fy = ${fy})` : Prisma.sql`TRUE`})
-          AND (${hasDataOnly ? hasDataExpr : Prisma.sql`TRUE`})
-          AND (${watchedOnly ? watchedExpr : Prisma.sql`TRUE`})
-          AND (
-            ${q ? Prisma.sql`pe.title ILIKE ${`%${q}%`} OR pe.pe_code ILIKE ${`%${q}%`} OR similarity(pe.title, ${q}) > 0.2` : Prisma.sql`TRUE`}
-          )
+        ${listWhere}
         ORDER BY
           CASE WHEN ${q ? 1 : 0} = 1 THEN GREATEST(similarity(pe.title, ${q ?? ''}), 0) ELSE 0 END DESC,
           pe.service ASC NULLS LAST,
@@ -417,11 +422,22 @@ export class ProgramElementReadService {
     // Run inside the tenant transaction when we have one so the per-user watch
     // EXISTS clears RLS on program_element_watch; the program_element catalog itself
     // is global reference data and is unaffected by the tenant GUC.
-    const rows = ctx?.tenantId
-      ? await this.prisma.withTenant(ctx.tenantId, (tx) => tx.$queryRaw<ListRow[]>(listSql))
-      : await this.prisma.$queryRaw<ListRow[]>(listSql);
-
-    const total = rows[0]?.totalCount ?? 0;
+    const readPage = async (tx: Pick<Prisma.TransactionClient, '$queryRaw'>) => {
+      const rows = await tx.$queryRaw<ListRow[]>(listSql);
+      // COUNT OVER needs a page row to carry its value. An offset past the
+      // last row is not evidence that the matching catalog is empty.
+      const total = rows.length
+        ? rows[0]!.totalCount
+        : (await tx.$queryRaw<Array<{ totalCount: number }>>(Prisma.sql`
+            SELECT COUNT(*)::int AS "totalCount"
+            FROM program_element pe
+            ${listWhere}
+          `))[0]?.totalCount ?? 0;
+      return { rows, total };
+    };
+    const { rows, total } = ctx?.tenantId
+      ? await this.prisma.withTenant(ctx.tenantId, readPage)
+      : await readPage(this.prisma);
     return {
       data: rows.map(({ totalCount: _ignored, ...rest }) => ({ ...projectPeListRow(rest) })),
       total,

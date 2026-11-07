@@ -169,8 +169,7 @@ describe('FederalMarketMeriToolsService', () => {
       expect(service.anthropicSchemas().some((schema) => schema.name === name)).toBe(true);
       expect(service.has(name)).toBe(true);
       const result = await service.execute(ctx, name, {
-        state: 'VA',
-        district: '10',
+        ...(name === 'search_procurement_forecasts' ? {} : { state: 'VA', district: '10' }),
         query: 'autonomy',
       });
       const handler = method === 'geography' ? geography.geography : market[method];
