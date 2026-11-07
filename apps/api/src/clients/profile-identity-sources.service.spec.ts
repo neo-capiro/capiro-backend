@@ -62,6 +62,142 @@ function fixture() {
   };
 }
 describe('identity source acquisition and fresh confirmation reads', () => {
+  it.each(['AbortError', 'TimeoutError'])(
+    'starts no later registry or website work after document %s cancellation',
+    async (name) => {
+      const f = fixture();
+      const controller = new AbortController();
+      const reason = new DOMException('Preview ended', name);
+      f.web.fromDocument.mockImplementation(async () => {
+        controller.abort(reason);
+        return { candidates: [], sourceGaps: ['Identity source evidence could not be extracted.'] };
+      });
+      await expect(
+        f.service.discover(
+          ctx,
+          {
+            name: '',
+            website: 'https://fixture.example/',
+            attachmentId: '10000000-0000-4000-8000-000000000007',
+          },
+          controller.signal,
+        ),
+      ).rejects.toBe(reason);
+      expect(f.reader.identityDocument).toHaveBeenCalledTimes(1);
+      expect(f.sam.lookupByName).not.toHaveBeenCalled();
+      expect(f.prisma.ldaClient.findMany).not.toHaveBeenCalled();
+      expect(f.prisma.secFiling.findMany).not.toHaveBeenCalled();
+      expect(f.web.discover).not.toHaveBeenCalled();
+    },
+  );
+  it('overlaps named website acquisition with document inference after verifying the same upload', async () => {
+    const f = fixture();
+    const attachmentId = '10000000-0000-4000-8000-000000000007';
+    let finishDocument!: (result: { candidates: unknown[]; sourceGaps: string[] }) => void;
+    f.web.fromDocument.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishDocument = resolve;
+        }),
+    );
+    const documentCandidate = {
+      sourceCandidate: {
+        source: 'document',
+        externalId: attachmentId,
+        name: row.legalBusinessName,
+      },
+      sourceType: 'person_confirmed_document',
+      identifiers: [],
+      claims: [],
+      evidence: [{ attachmentId, excerpt: 'Fixture Engineering designs sensors.' }],
+    };
+    const websiteCandidate = {
+      ...documentCandidate,
+      sourceCandidate: {
+        source: 'website',
+        externalId: 'https://fixture.example/about',
+        name: row.legalBusinessName,
+      },
+      sourceType: 'person_confirmed_website',
+      evidence: [],
+    };
+    f.web.discover.mockResolvedValue({ candidates: [websiteCandidate], sourceGaps: [] });
+    const pending = f.service.discover(ctx, {
+      name: row.legalBusinessName,
+      website: 'https://fixture.example/',
+      attachmentId,
+    });
+    await new Promise(setImmediate);
+    expect(f.web.discover).toHaveBeenCalledTimes(1);
+    expect(f.reader.identityDocument).toHaveBeenCalledTimes(1);
+    finishDocument({ candidates: [documentCandidate], sourceGaps: [] });
+    const result = await pending;
+    expect(result.candidates).toContainEqual(documentCandidate);
+    expect(result.candidates).toContainEqual(websiteCandidate);
+    expect(f.web.discover).toHaveBeenCalledTimes(1);
+    expect(f.reader.identityDocument).toHaveBeenCalledTimes(2);
+    expect(f.reader.identityDocument.mock.calls).toEqual([
+      [ctx, attachmentId, undefined],
+      [ctx, attachmentId, undefined],
+    ]);
+  });
+  it('keeps named website failure explicit after verifying the document', async () => {
+    const f = fixture();
+    const attachmentId = '10000000-0000-4000-8000-000000000007';
+    f.web.discover.mockRejectedValue(new Error('website unavailable'));
+    const result = await f.service.discover(ctx, { name: row.legalBusinessName, attachmentId });
+    expect(result.sourceGaps).toContain('Company and state-record websites could not be checked.');
+    expect(f.web.discover).toHaveBeenCalledTimes(1);
+    expect(f.reader.identityDocument).toHaveBeenCalledTimes(2);
+  });
+  it('starts no inference or public reads after the document reader observes cancellation', async () => {
+    const f = fixture();
+    const controller = new AbortController();
+    const reason = new DOMException('Client disconnected', 'AbortError');
+    const source = await f.reader.identityDocument();
+    f.reader.identityDocument.mockClear().mockImplementation(async () => {
+      controller.abort(reason);
+      return source;
+    });
+    await expect(
+      f.service.discover(
+        ctx,
+        {
+          name: row.legalBusinessName,
+          attachmentId: source.attachmentId,
+        },
+        controller.signal,
+      ),
+    ).rejects.toBe(reason);
+    expect(f.web.fromDocument).not.toHaveBeenCalled();
+    expect(f.sam.lookupByName).not.toHaveBeenCalled();
+  });
+  it('discovers a website-only identity from its text and uses its supported name for registries', async () => {
+    const f = fixture();
+    const candidate = {
+      sourceCandidate: {
+        source: 'website',
+        externalId: 'https://fixture.example/about',
+        name: row.legalBusinessName,
+        website: 'https://fixture.example/',
+      },
+      sourceType: 'person_confirmed_website',
+      identifiers: [],
+      claims: [],
+      evidence: [],
+    };
+    f.web.discover.mockResolvedValue({ candidates: [candidate], sourceGaps: [] });
+    const result = await f.service.discover(ctx, { name: '', website: 'https://fixture.example/' });
+    expect(result.candidates).toContainEqual(candidate);
+    expect(f.sam.lookupByName).toHaveBeenCalledWith(row.legalBusinessName);
+    expect(f.reader.identityDocument).not.toHaveBeenCalled();
+    expect(f.web.fromDocument).not.toHaveBeenCalled();
+    expect(f.web.discover.mock.calls[0]).toEqual([
+      ctx,
+      { name: '', website: 'https://fixture.example/' },
+      undefined,
+    ]);
+  });
   it('starts a nameless document flow with actual extracted company text, then public sources for that name', async () => {
     const f = fixture(),
       attachmentId = '10000000-0000-4000-8000-000000000007';
