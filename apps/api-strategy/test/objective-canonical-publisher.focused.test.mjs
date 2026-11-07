@@ -31,14 +31,15 @@ async function load(path, imports = [], edits = []) {
 const nest = moduleUrl(`export class HttpException extends Error {
   constructor(response,status){super(response.message);this.response=response;this.status=status;}
   getResponse(){return this.response;}getStatus(){return this.status;}}
-export class BadRequestException extends Error{};export class ConflictException extends Error{};
+export class BadRequestException extends HttpException{constructor(response){super(response,400);}};export class ConflictException extends Error{};
 export const Injectable=()=>value=>value;`);
 const prismaLabel = moduleUrl('export class PrismaService{}');
 const contextLabel = moduleUrl('export class StrategyContextPlaneClient{}');
 const enums = moduleUrl(`export const STRATEGY_TYPES=${JSON.stringify(['appropriations','authorization','regulatory','coalition','procurement','earmark','amendment'])};`);
 const applicationUrl = await load('../src/planner/objective-canonical-application.ts', [["'@capiro/shared/objective-planner-owner-codec'", objectivePlannerOwnerCodecUrl]]);
 const generationUrl = await load('../src/meri/objective-canonical-generation.ts', [["'../planner/objective-canonical-application.js'", applicationUrl]]);
-const objectiveUrl = await load('../src/meri/objective-generation.types.ts', [["'@nestjs/common'", nest], ["'../strategy/dto/create-strategy.dto.js'", enums], ["'@capiro/shared/objective-strategy-intake'", objectiveStrategyIntakeUrl]]);
+const intakeUrl = await load('../../../packages/shared/src/strategy-intake.ts');
+const objectiveUrl = await load('../src/meri/objective-generation.types.ts', [["'@capiro/shared/strategy-intake'", intakeUrl], ["'@nestjs/common'", nest], ["'../strategy/dto/create-strategy.dto.js'", enums], ["'@capiro/shared/objective-strategy-intake'", objectiveStrategyIntakeUrl]]);
 const producerUrl = await load('../src/meri/objective-canonical-producer.ts', [
   ["'../planner/objective-canonical-application.js'", applicationUrl], ["'./objective-canonical-generation.js'", generationUrl], ["'./objective-generation.types.js'", objectiveUrl],
 ]);
@@ -49,6 +50,7 @@ const jobInputUrl = await load('../src/meri/objective-canonical-job-input.ts', [
   ["'../planner/objective-canonical-application.js'", applicationUrl], ["'./objective-canonical-generation.js'", generationUrl],
 ]);
 const factoryUrl = await load('../src/meri/objective-canonical-request.ts', [
+  ["'@capiro/shared/strategy-intake'", intakeUrl],
   ["'../planner/objective-canonical-application.js'", applicationUrl], ["'./objective-canonical-generation.js'", generationUrl],
 ]);
 // The actual pure basis checker is exercised below. Its DB/history owner
@@ -68,6 +70,7 @@ const regenerationFactoryUrl = await load('../src/meri/objective-canonical-regen
   ["'./objective-canonical-basis.js'", pureBasisUrl], ["'./objective-canonical-request.js'", factoryUrl],
 ]);
 const requestLedgerUrl = await load('../src/meri/objective-canonical-request-ledger.ts', [
+  ["'@capiro/shared/strategy-intake'", intakeUrl],
   ["'../planner/objective-canonical-application.js'", applicationUrl], ["'./objective-canonical-generation.js'", generationUrl],
   ["'./objective-canonical-producer-ledger.js'", ownerLedgerUrl], ["'./objective-canonical-request.js'", factoryUrl],
   ["'./objective-canonical-regeneration-request.js'", regenerationFactoryUrl],
@@ -151,10 +154,12 @@ const serviceUrl = await load('../src/meri/objective-canonical-request.service.t
   ["'./objective-canonical-regeneration-request.js'", regenerationFactoryUrl],
   ["'./objective-canonical-request-ledger.js'", requestLedgerUrl], ["'./objective-canonical-basis.js'", basisLabel],
   ["'./objective-canonical-owner-directory.js'", ownersUrl], ["'./strategy-context-plane.client.js'", contextLabel],
+  ["'./objective-generation.types.js'", objectiveUrl],
 ], [['@Injectable()\n', ''], [constructor, '  constructor(prisma, authority, contextPlane, owners) {\n' +
   '    this.prisma = prisma; this.authority = authority; this.contextPlane = contextPlane; this.owners = owners;\n  }']]);
 const producerConstructor = '  constructor(private readonly prisma: PrismaService, private readonly authority: ObjectiveCanonicalWorkloadAuthority) {}';
 const producerServiceUrl = await load('../src/meri/objective-canonical-producer.service.ts', [
+  ["'@capiro/shared/strategy-intake'", intakeUrl],
   ["'@capiro/shared/objective-strategy-intake'", objectiveStrategyIntakeUrl],
   ["'@nestjs/common'", nest], ["'../prisma/prisma.service.js'", prismaLabel], ["'../planner/objective-canonical-authority.js'", authorityUrl],
   ["'../planner/objective-canonical-application.js'", applicationUrl],
@@ -170,6 +175,8 @@ const { ObjectiveCanonicalRequestService } = await import(serviceUrl);
 const { ObjectiveCanonicalProducerService } = await import(producerServiceUrl);
 const { ObjectiveCanonicalWorkloadAuthority } = await import(authorityUrl);
 const { ObjectiveCanonicalOwnerDirectory } = await import(ownersUrl);
+const { BadRequestException } = await import(nest);
+const { validObjectiveOutcome, SAFE_FAILURES } = await import(objectiveUrl);
 const id = n => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
 const copy = value => structuredClone(value), hash = char => char.repeat(64);
 const NOW = Date.parse('2026-10-16T06:00:00.000Z');
@@ -193,7 +200,7 @@ function facts() {
   const request = { requestId: id(11), clientId: id(3), objective: { objectiveId: id(4), objectiveVersion: 2 }, type: 'authorization' };
   const pending = { reobservedAt: null, state: 'pending', packetId: null, compiledAt: null, sourceDigest: null, coverageDigest: null, inputDigest: null, issues: [] };
   const job = { tenantId: id(2), id: id(10), clientId: id(3), ownerUserId: admission.clerkUserId, status: 'queued', attempt: 1,
-    claimedBy: null, claimedAt: null, strategyId: null, deadlineMs: String(admission.effectExpiresAtMs),
+    claimedBy: null, claimedAt: null, strategyId: null, stage: 'queued', errorMessage: null, deadlineMs: String(admission.effectExpiresAtMs),
     requestKey: `objective-v1:${app.applicationHash([id(2), admission.clerkUserId, id(11)])}`,
     input: { bearer: null, canonicalGeneration: ownerLedger.generationMarker(admission),
       dto: { clientId: id(3), type: 'authorization', goal: '  Exact queued goal\n', meriContext: ' Actual context ', ownerUserId: 'user_fixture', targetDate: '2028-02-29', attachmentIds: [] },
@@ -380,7 +387,7 @@ class PublisherFixture {
         findFirst: async ({ where }) => { event('readJob'); return matches(staged.job, where) ? copy(staged.job) : null; },
         updateMany: async ({ where, data }) => {
           event('updateJob'); if (!matches(staged.job, where) || this.updateCount !== 1) return { count: 0 };
-          Object.assign(staged.job, copy(data)); return { count: 1 };
+          Object.assign(staged.job, copy(data)); if (this.afterUpdate) await this.afterUpdate(this); return { count: 1 };
         },
       },
       spPlannerResource: {
@@ -408,6 +415,101 @@ class PublisherFixture {
   lookup() { return this.callScope.run({ txDepth: 0 }, () => this.service.lookup(http, body.generationJobId)); }
   accept() { return this.callScope.run({ txDepth: 0 }, () => this.producerService.accept(http, copy(body))); }
 }
+
+const incomplete = (issues = [{ group: 'target_recommendations', code: 'REQUIRED_FIELDS_EXCEED_PACKET_BUDGET', message: 'unsafe upstream content' }]) =>
+  new BadRequestException({ code: 'OBJECTIVE_CONTEXT_INCOMPLETE', message: 'unsafe upstream content', issues });
+async function failedReceipt(call) {
+  try { await call(); assert.fail('expected committed context failure'); }
+  catch (error) {
+    assert.equal(error.getStatus(), 409); const receipt = error.getResponse();
+    assert.equal(receipt.outcome, 'failed'); assert.equal(receipt.generationJobId, body.generationJobId);
+    assert.equal(receipt.objectiveReceiptSha256, app.applicationHash(receipt.objectiveReceipt));
+    return receipt;
+  }
+}
+
+test('definite Core context failures commit the public failure receipt before POST409 and replay without compilation', async () => {
+    const x = new PublisherFixture(); x.compileHook = () => { throw incomplete(); };
+    const result = await failedReceipt(() => x.publish()), job = x.data.job, before = copy(x.data);
+    assert.equal(job.status, 'failed'); assert.equal(job.stage, 'failed'); assert.equal(job.attempt, 1);
+    assert.equal(job.claimedBy, null); assert.equal(x.stored(), undefined); assert.equal(x.data.rows.size, 1);
+    assert.equal(result.sourceAdmissionSha256, generation.canonicalGenerationAdmissionSha256(x.admission));
+    assert.equal(result.objectiveReceipt.failure.message, SAFE_FAILURES.OBJECTIVE_CONTEXT_INCOMPLETE);
+    assert.equal(validObjectiveOutcome(result.objectiveReceipt, job.status, job.strategyId, job.errorMessage), true);
+    assert.deepEqual(result.objectiveReceipt.context.issues, [{ group: 'target_recommendations',
+      code: 'REQUIRED_FIELDS_EXCEED_PACKET_BUDGET', message: 'Required fields do not fit the approved context budget.' }]);
+    assert.equal(JSON.stringify(result).includes('unsafe upstream'), false);
+    x.now = x.admission.effectExpiresAtMs + 1; x.cancelled = true;
+    assert.deepEqual(await failedReceipt(() => x.publish()), result); assert.deepEqual(await failedReceipt(() => x.lookup()), result);
+    assert.deepEqual(x.data, before); assert.equal(x.compileCount, 1);
+    x.member = false; await assert.rejects(() => x.lookup(), httpError('AUTHORITY_UNAVAILABLE'));
+});
+
+test('unknown errors and malformed Core failures never create a terminal receipt', async () => {
+  for (const error of [Error('socket'), Object.assign(Error('aborted'), { name: 'AbortError' }),
+    new BadRequestException({ code: 'OTHER', issues: [] }), { getResponse: () => ({ code: 'OBJECTIVE_CONTEXT_INCOMPLETE' }) }]) {
+    const x = new PublisherFixture(), before = copy(x.data); x.compileHook = () => { throw error; };
+    await assert.rejects(() => x.publish(), httpError('OUTCOME_UNCONFIRMED'));
+    assert.deepEqual(x.data, before);
+  }
+  const x = new PublisherFixture(); x.compileHook = () => { throw incomplete([{ group: 'private', code: 'unsafe', message: 'unsafe' }]); };
+  const failure = await failedReceipt(() => x.publish());
+  assert.deepEqual(failure.objectiveReceipt.context.issues, [{ group: 'government_targets', code: 'REQUIRED_CONTEXT_UNAVAILABLE',
+    message: 'Required context could not be completely observed.' }]);
+});
+
+test('a recheck context error is uncertain readback, not a definite compile refusal',async()=>{
+  const x = new PublisherFixture(), before = copy(x.data); x.recheckHook = () => { throw incomplete(); };
+  await assert.rejects(() => x.publish(), httpError('OUTCOME_UNCONFIRMED'));
+  assert.deepEqual(x.data, before); assert.equal(x.events.some(e => e.method === 'updateJob'), false);
+});
+
+test('failed receipt write requires unchanged original input, consent, expiry, claim and successful CAS', async () => {
+  for (const change of [x => { x.cancelled = true; }, x => { x.now = x.admission.effectExpiresAtMs; },
+    x => { x.data.job.input.dto.goal = 'changed'; }, x => { x.data.job.attempt = 2; },
+    x => { x.member = false; }, x => { x.updateCount = 0; }]) {
+    const x = new PublisherFixture(); let before;
+    x.compileHook = () => { change(x); before = copy(x.data); throw incomplete(); };
+    await assert.rejects(() => x.publish(), error => { assert.equal(error.getResponse().outcome, 'unconfirmed'); return true; });
+    assert.deepEqual(x.data, before); assert.equal(x.stored(), undefined);
+  }
+});
+
+test('competing successful and failed compilations preserve the first committed outcome', { timeout: 5000 }, async () => {
+  for (const failureFirst of [false, true]) {
+    const x = new PublisherFixture(); let entered, release;
+    const firstEntered = new Promise(resolve => { entered = resolve; });
+    const gate = new Promise(resolve => { release = resolve; }); let calls = 0;
+    x.compileHook = async () => { if (++calls === 1) { entered(); await gate; if (!failureFirst) throw incomplete(); }
+      else if (failureFirst) throw incomplete(); };
+    const first = failureFirst ? failedReceipt(() => x.publish()) : x.publish(); await firstEntered;
+    const second = failureFirst ? await failedReceipt(() => x.publish()) : await x.publish(); release();
+    assert.deepEqual(await first, second); assert.equal(x.events.filter(e => e.method === 'updateJob').length, 1);
+    assert.equal(x.data.job.status, failureFirst ? 'failed' : 'queued');
+    assert.equal(x.stored() !== undefined, !failureFirst);
+  }
+});
+
+test('deadline or current-read loss after staging the failed receipt rolls the same transaction back', async () => {
+  for (const change of [x => { x.now = x.admission.effectExpiresAtMs; }, x => { x.member = false; }, x => { x.claimDenied = true; }]) {
+    const x = new PublisherFixture(), before = copy(x.data); x.compileHook = () => { throw incomplete(); }; x.afterUpdate = change;
+    await assert.rejects(() => x.publish(), httpError('AUTHORITY_UNAVAILABLE'));
+    assert.deepEqual(x.data, before); assert.equal(x.events.at(-1).method, 'rollback');
+  }
+});
+
+test('tampered or already accepted failure receipts remain unconfirmed', async () => {
+  for (const change of [x => { x.data.job.input.objectiveGeneration.receipt.failure.code = 'OBJECTIVE_GENERATION_FAILED'; },
+    x => { x.data.job.input.objectiveGeneration.receipt.source.objectiveId = id(99); },
+    x => { x.data.job.input.objectiveGeneration.receipt.context.issues[0].message = 'unsafe'; },
+    x => { x.data.job.errorMessage = 'unsafe'; }, x => { x.data.job.attempt = 2; },
+    x => { const admission = x.data.rows.values().next().value; x.data.rows.set(x.acceptanceId(),
+      { ...copy(admission), id: x.acceptanceId(), kind: generation.GENERATION_ACCEPTANCE, data: { unexpected: true } }); }]) {
+    const x = new PublisherFixture(); x.compileHook = () => { throw incomplete(); }; await failedReceipt(() => x.publish()); change(x);
+    const before = copy(x.data); await assert.rejects(() => x.lookup(), httpError('OUTCOME_UNCONFIRMED'));
+    assert.deepEqual(x.data, before);
+  }
+});
 
 test('custody covers the actual service, request ledger, factory, job helper and authority/fences with declared DI edits', t => {
   for (const path of ['objective-canonical-request.service.ts','objective-canonical-request-ledger.ts','objective-canonical-job-input.ts',
