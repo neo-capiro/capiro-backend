@@ -63,10 +63,12 @@ describe('initial native selected Strategy owner', () => {
     f.s.source.sourceObjectiveVersion = 2;
     await expect(f.owner.policyWithinTx(f.tx, a, 'objective.strategy.draft', f.s)).rejects.toMatchObject({ code: 'AUTHORITY_UNAVAILABLE' });
   });
-  test('a read gate and shared state never qualify absence or issuance', async () => {
+  test('a status read takes no write inventory locks and never qualifies absence or issuance', async () => {
     const f = fixture(); await f.owner.lockReadWithinTx(f.tx, f.ctx,
       { clientId: a.clientId, objectiveId: a.objectiveId, workAction: 'objective.strategy.draft' });
     expect((await f.owner.reconcileWithinTx(f.tx, a, 'objective.strategy.draft', f.s)).state).toBe('outcome_unconfirmed');
+    expect(f.trace).toEqual([]);
+    expect(f.prisma.withSystem).not.toHaveBeenCalled();
     await expect(f.owner.policyWithinTx(f.tx, a, 'objective.strategy.draft', f.s)).rejects.toMatchObject({ code: 'AUTHORITY_UNAVAILABLE' });
   });
   test.each(['present', 'foreign-occupied', 'job', 'hidden-receipt', 'unknown-kind', 'resource-overflow'])('refuses %s owner ambiguity', async variant => {

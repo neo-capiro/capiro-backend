@@ -1,5 +1,6 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { OBJECTIVE_REQUIRED_CONTEXT_POLICY } from '@capiro/shared/objective-context-budget';
 import { digest, SHA256, UUID, SAFE_FAILURES, type ObjectiveAdmission } from './objective-generation.types.js';
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import type { CurrentObjectiveEvidence } from '../strategy/objective-saved-citations.js';
@@ -159,7 +160,7 @@ export class StrategyContextPlaneClient {
           !Array.isArray(admission.contactIds) || !admission.contactIds.every(id => typeof id === 'string' && id.length <= 128) ||
           !Array.isArray(admission.coverage) ||
           typeof admission.historyObservedAt !== 'string' || !Number.isFinite(Date.parse(admission.historyObservedAt)) ||
-          digest({ manifest: admission.coverage, history: governed.retrieval.coverage, policy: 'objective-v1-required-lossless' }) !== admission.context.coverageDigest ||
+          digest({ manifest: admission.coverage, history: governed.retrieval.coverage, policy: OBJECTIVE_REQUIRED_CONTEXT_POLICY }) !== admission.context.coverageDigest ||
           digest({ sourceDigest: admission.context.sourceDigest, coverageDigest: admission.context.coverageDigest,
             packetId: admission.context.packetId, requestId: admission.requestId, type: admission.type,
             localDigest: admission.localDigest, externalDigest: admission.externalDigest,
