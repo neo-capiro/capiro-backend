@@ -270,6 +270,13 @@ test('private prompt checks both exact UTF8 and JSON escaped bounds before publi
   }
 });
 
+test('initial publication preserves the JSON domain refusal for unpaired prompt surrogates', () => {
+  for (const prompt of ['source\ud800', 'source\udfff']) {
+    const f = fixture(); f.prompt = prompt; f.context.promptSha256 = sha(prompt);
+    refused(() => create(f), 'INPUT_INVALID');
+  }
+});
+
 test('whole publication refuses oversized metadata even when prompt and typed request independently fit', () => {
   const f = fixture(); f.prompt = '\\'.repeat((OBJECTIVE_PROMPT_MAX_JSON_BYTES - 2) / 2);
   f.context.promptSha256 = sha(f.prompt);

@@ -196,7 +196,7 @@ export function canonicalRequestPublicationParts(raw: CanonicalRequestPublicatio
   if (mode === 'initial' ? a.expectedStrategyVersionId !== null : a.expectedStrategyVersionId === null) return unavailable();
   const input = normalizedInput(clone(v.dto), a.canonical.clientId);
   if (typeof v.prompt !== 'string' || !v.prompt.trim()) return invalid();
-  const prompt = v.prompt;
+  const prompt = unicode(v.prompt);
   if (!objectivePromptFitsBudget(prompt)) throw new ObjectiveContextBudgetError();
   const promptSha256 = createHash('sha256').update(prompt, 'utf8').digest('hex');
   const c = object(clone(v.context), ['schemaVersion', 'tenantId', 'clerkUserId', 'requestId', 'source', 'intent',
