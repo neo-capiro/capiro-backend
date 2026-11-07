@@ -15,9 +15,10 @@ RUN test "$(dpkg --print-architecture)" = arm64 \
 WORKDIR /build
 COPY capture-cargo.py export-build-components.py /build/
 RUN chmod 0755 /build/capture-cargo.py
+# Extract the verified sources with Python's explicit data filter.
 RUN wget --https-only -O curl.tar.xz https://curl.se/download/curl-8.23.0.tar.xz \
     && echo '8dadd7d2536a314f982ad05a651b713f426bf7d02cc2c76cffb9796f2218e6c5  curl.tar.xz' | sha256sum -c - \
-    && tar -xf curl.tar.xz \
+    && python3 -m tarfile --filter=data -e curl.tar.xz \
     && cd curl-8.23.0 \
     && ./configure --prefix=/opt/capiro/curl --libdir=/opt/capiro/curl/lib \
        --with-openssl --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt \
@@ -30,7 +31,7 @@ RUN wget --https-only -O curl.tar.xz https://curl.se/download/curl-8.23.0.tar.xz
     && ! grep -Ei 'ldap|sasl|not found' /build/curl-linkage.txt
 RUN wget --https-only -O clamav.tar.gz https://github.com/Cisco-Talos/clamav/releases/download/clamav-1.5.4/clamav-1.5.4.tar.gz \
     && echo '1af1117a228f1b5bc7fa91a0dabc37848a99e7d25188e9be8043332ce721dfd3  clamav.tar.gz' | sha256sum -c - \
-    && tar -xf clamav.tar.gz \
+    && python3 -m tarfile --filter=data -e clamav.tar.gz \
     && python3 /build/export-build-components.py prepare \
     && cmake -S clamav-1.5.4 -B clamav-build \
        -D cargo_EXECUTABLE:FILEPATH=/build/capture-cargo.py \
