@@ -1,5 +1,5 @@
 import { ClientProfileFillService } from './client-profile-fill.service.js';
-import { readOfficialProfileIdentities } from './profile-official-facts.js';
+import { acceptOfficialProfileFact, readOfficialProfileIdentities } from './profile-official-facts.js';
 import type { TenantContext } from '@capiro/shared';
 jest.mock('./profile-subject.js', () => ({
   ...jest.requireActual('./profile-subject.js'),
@@ -53,6 +53,19 @@ function fixture() {
   return service;
 }
 beforeEach(() => jest.mocked(readOfficialProfileIdentities).mockReset());
+it('an LDA identity recommendation cannot be automatically accepted even with an official filings proof', async () => {
+  const project = jest.fn();
+  const tx = {$queryRawUnsafe: jest.fn()};
+  const outcome = await acceptOfficialProfileFact({tx: tx as any, afterCommit: []}, ctx,
+    {kind: 'client', id: 'client-fixture'},
+    {id: 'finding-fixture', runId: 'run-fixture', kind: 'lda_identity', targetKey: 'lda:73', source: 'lda',
+      proposedValue: {externalId: '73', externalName: 'Synthetic candidate'}, evidence: []},
+    {kind: 'lda_filings', identity: {type: 'lda_client_id', value: '73'}, sourceRecordId: '73',
+      sourceUrl: 'https://lda.gov/api/v1/clients/73/', observedAt: '2026-11-07T00:00:00Z'}, project);
+  expect(outcome).toBe('pending');
+  expect(tx.$queryRawUnsafe).not.toHaveBeenCalled();
+  expect(project).not.toHaveBeenCalled();
+});
 it('uses the existing exact SAM client and autoaccept proof only for UEI, CAGE and status, not classification suggestions', async () => {
   jest.mocked(readOfficialProfileIdentities).mockResolvedValue([{ type: 'uei', value: uei }]);
   const service = fixture();
@@ -140,5 +153,19 @@ it('uses confirmed canonical LDA IDs for an unseeded source task', async () => {
     1,
     { kind: 'client', id: 'client-fixture' },
   );
+  expect(service.addFinding).not.toHaveBeenCalled();
+});
+it('automatic discovery retains confirmed history without widening its frozen IDs or proposing the confirmed identity again', async () => {
+  jest.mocked(readOfficialProfileIdentities).mockResolvedValue([
+    {type: 'lda_client_id', value: '12'}, {type: 'lda_client_id', value: '99'},
+  ]);
+  const service = fixture();
+  service.prisma.$queryRawUnsafe.mockResolvedValue([
+    {id: 12, name: 'Confirmed synthetic company'}, {id: 99, name: 'Later confirmed identity'},
+  ]);
+  await service.gatherLda(ctx, 'client-fixture', 'run-fixture', [{id: 12, name: 'Confirmed synthetic company', confidence: 1}], undefined, []);
+  expect(service.addLdaHistory).toHaveBeenCalledTimes(1);
+  expect(service.addLdaHistory).toHaveBeenCalledWith(ctx.tenantId, 'client-fixture', 'run-fixture', '12', 'Confirmed synthetic company', 1,
+    {kind: 'client', id: 'client-fixture'});
   expect(service.addFinding).not.toHaveBeenCalled();
 });

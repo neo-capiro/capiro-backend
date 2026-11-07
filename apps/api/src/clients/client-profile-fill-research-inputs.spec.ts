@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { ClientProfileFillWorkflowService } from './client-profile-fill-workflow.service.js';
 import { ClientProfileFillService } from './client-profile-fill.service.js';
-import { readResearchInputs, researchTaskInput } from './client-profile-fill-research-inputs.js';
+import { discoverResearchLdaCandidates, readResearchInputs, researchTaskInput } from './client-profile-fill-research-inputs.js';
 import { createPortfolioSourceReader } from './portfolio-source-reader.js';
 import { governedRun } from './profile-extraction-context.js';
 import type { ClientProfileFillGovernedContext } from './client-profile-fill-context-plane.service.js';
@@ -107,7 +107,8 @@ function engine() {
   service.addLdaHistory = jest.fn(async () => true);
   service.ldaCandidates = jest.fn();
   service.searchPublicWeb = jest.fn(async () => []);
-  service.prisma = { withTenant: async (_tenant: string, run: any) => run({
+  service.prisma = { withTenantUser: async (_tenant: string, _actor: string, read: any) => read({$queryRawUnsafe: async () => []}),
+    withTenant: async (_tenant: string, run: any) => run({
     clientIntelMapping: { findMany: async () => [
       { externalId: '42', externalName: 'Existing identity', confidence: 1 },
       { externalId: '99', externalName: 'Later mapping', confidence: 1 },
@@ -144,6 +145,79 @@ test('explicit empty LDA selections do not run name matching or newly confirmed 
   expect(await service.gatherLda(ctx, clientId, runId, [])).toBe(0);
   expect(service.addLdaHistory).not.toHaveBeenCalled();
   expect(service.ldaCandidates).not.toHaveBeenCalled();
+});
+
+test('a fresh website-selected profile snapshots provisional LDA candidates without selecting their history', async () => {
+  const h = workflow();
+  const candidate = {id: 73, name: 'Synthetic Zipline International Inc', confidence: 0.9};
+  h.service.getSetup.mockResolvedValue({clientName: 'Synthetic Zipline', website: 'https://research.example/',
+    selectedIdentities: [], suggestedIdentities: [candidate, {id: 74, name: 'Unrelated Services', confidence: 0.95}]});
+  await h.service.startRun(ctx, clientId, {sources: ['public_web', 'sam_gov', 'lda'],
+    ldaClientIds: [], website: 'https://research.example/', discoverLda: true});
+  const run = h.writes.find(row => row.sql.includes('INSERT INTO client_profile_fill_run'))!;
+  expect(JSON.parse(run.args[5] as string)).toMatchObject({discoverLda: true, selectedLdaIds: [], appendedLdaIds: []});
+  const task = h.writes.find(row => row.sql.includes('INSERT INTO client_profile_fill_task') && row.args[4] === 'lda')!;
+  const saved = JSON.parse(task.args[7] as string);
+  expect(saved).toEqual({researchInputVersion: 1, ldaIdentities: [], ldaCandidates: [candidate]});
+  h.service.getSetup.mockResolvedValue({selectedIdentities: [{id: 99}], suggestedIdentities: [{id: 100}]});
+  await h.service.executeTask(ctx, {clientId, runId, taskType: 'lda', input: structuredClone(saved)}, {});
+  expect(h.engine.gatherLda).toHaveBeenCalledWith(ctx, clientId, runId, [], undefined, [candidate]);
+  expect(h.intelligence.createManualMapping).not.toHaveBeenCalled();
+  expect(h.prepopulation.prepopulate).not.toHaveBeenCalled();
+});
+
+test.each([undefined, false])('manual empty selections never opt into discovery (mode=%s)', async discoverLda => {
+  const h = workflow();
+  await h.service.startRun(ctx, clientId, {sources: ['lda'], ldaClientIds: [], discoverLda});
+  const task = h.writes.find(row => row.sql.includes('INSERT INTO client_profile_fill_task'))!;
+  expect(JSON.parse(task.args[7] as string)).toEqual({researchInputVersion: 1, ldaIdentities: selected});
+});
+
+test('automatic candidates stay bounded, distinct from selected IDs, and reject malformed saved inputs', () => {
+  const candidates = Array.from({length: 6}, (_, index) => ({id: index + 1, name: `Synthetic Zipline ${index}`, confidence: 0.9}));
+  expect(discoverResearchLdaCandidates('Synthetic Zipline', candidates, [1]).map(row => row.id)).toEqual([2, 3, 4]);
+  expect(discoverResearchLdaCandidates('Synthetic Zipline', [{id: 7, name: 'Different Business', confidence: 0.99}], [])).toEqual([]);
+  const task = {researchInputVersion: 1, ldaIdentities: [], ldaCandidates: candidates.slice(0, 1)};
+  expect(readResearchInputs(task, 'lda')).toMatchObject({ldaCandidates: candidates.slice(0, 1)});
+  expect(() => readResearchInputs({...task, ldaCandidates: candidates}, 'lda')).toThrow('Invalid saved LDA candidates');
+  expect(() => readResearchInputs({...task, ldaIdentities: candidates.slice(0, 1)}, 'lda')).toThrow('already selected');
+  expect(() => readResearchInputs({...task, ldaCandidates: [{id: 7, name: 'Invalid', confidence: 2}]}, 'lda')).toThrow('Invalid saved research identity');
+});
+
+test('discovered LDA matches emit only pending identity recommendations, never history, mapping or automatic proof', async () => {
+  const service = engine();
+  const candidate = {id: 73, name: 'Synthetic Zipline International Inc', confidence: 0.9};
+  expect(await service.gatherLda(ctx, clientId, runId, [], undefined, [candidate])).toBe(1);
+  expect(service.addFinding).toHaveBeenCalledTimes(1);
+  expect(service.addFinding).toHaveBeenCalledWith(ctx.tenantId, clientId, runId, expect.objectContaining({
+    kind: 'lda_identity', status: 'pending', factKind: 'recommendation', confidence: 0.9,
+    proposedValue: {externalId: '73', externalName: candidate.name},
+    evidence: [expect.objectContaining({metadata: expect.objectContaining({discoveryMode: 'name_candidate', identityConfirmed: false})})],
+  }), {kind: 'client', id: clientId});
+  const finding = service.addFinding.mock.calls[0][3];
+  expect(finding).not.toHaveProperty('officialProof');
+  expect(JSON.stringify(finding)).not.toContain('PUBLIC_VERIFIED');
+  expect(service.addLdaHistory).not.toHaveBeenCalled();
+  expect(service.ldaCandidates).not.toHaveBeenCalled();
+});
+
+test('setup includes a confirmed canonical LDA identifier before any legacy mapping exists', async () => {
+  const tx = {client: {findFirst: jest.fn(async () => ({id: clientId, name: 'Synthetic Zipline', website: 'https://research.example/', ldaClientIds: [999]}))},
+    clientIntelMapping: {findMany: jest.fn(async () => [])},
+    $queryRawUnsafe: jest.fn(async (sql: string) => sql.includes('JOIN entity_identifiers')
+      ? ['91', '2147483648', '9007199254740992'].map(value => ({type: 'lda_client_id', value})) : [])};
+  const service = Object.create(ClientProfileFillWorkflowService.prototype) as any;
+  service.prisma = {withTenantUser: async (_tenant: string, _actor: string, read: any) => read(tx),
+    $queryRawUnsafe: jest.fn(async (sql: string, ids: number[]) => sql.includes('WHERE c.id = ANY')
+      ? ids.map(id => ({id, name: id === 91 ? 'Synthetic Zipline International Inc' : 'Legacy unconfirmed input', filingCount: 2})) : [])};
+  const result = await service.getSetup(ctx, clientId, true);
+  expect(result.selectedIdentities).toEqual([expect.objectContaining({id: 91, name: 'Synthetic Zipline International Inc', selected: true})]);
+  expect(result.suggestedIdentities).toEqual([]);
+  expect(service.prisma.$queryRawUnsafe.mock.calls[0][1]).toEqual([91]);
+  tx.$queryRawUnsafe.mockClear();
+  const manual = await service.getSetup(ctx, clientId);
+  expect(manual.selectedIdentities.map((row: {id: number}) => row.id)).toEqual([999]);
+  expect(tx.$queryRawUnsafe).not.toHaveBeenCalled();
 });
 test('web research uses its seed while finding current values remain canonical', async () => {
   const service = engine();

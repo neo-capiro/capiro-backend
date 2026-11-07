@@ -84,6 +84,11 @@ class StartClientProfileFillDto {
   @Min(1, { each: true })
   ldaClientIds?: number[];
 
+  /** Initial profile research may propose LDA identities; it never confirms them. */
+  @IsOptional()
+  @IsBoolean()
+  discoverLda?: boolean;
+
   /** Optional research-only website. Saved with the run; canonical client
    * website changes require a separate finding review/application. */
   @IsOptional()

@@ -2,6 +2,7 @@ import { portfolioResearchScope, authorizePortfolioResearchScope, type Portfolio
 import { PortfolioRelationshipsService } from './portfolio/portfolio-relationships.service.js';
 import { PortfolioOfficeAutoRefresh } from './portfolio/portfolio-office-auto-refresh.js';
 import { requireProfileSubject } from './profile-subject.js';
+import { readOfficialProfileIdentities } from './profile-official-facts.js';
 import { assertSharedProfileEvidence, visibleProfileFindings } from './profile-shared-evidence.js';
 import { readApprovedResearchBusinessUnit, type ResearchBusinessUnit } from './profile-capability-discovery-input.js';
 import { requireOwnerClient } from './client-ordered-owner.access.js';
@@ -37,7 +38,7 @@ import { buildFillRunSummary, requeueFillReviewChecks } from './client-profile-f
 import { runWithGovernedCrmFillBundle } from './governed-client-profile-fill.factory.js';
 import { resolveFillRunActor } from './client-profile-fill-worker-actor.js';
 import { runWithFillTask } from './client-profile-fill-execution.js';
-import { readResearchInputs, researchTaskInput, researchWebsite, type ResearchLdaIdentity } from './client-profile-fill-research-inputs.js';
+import { discoverResearchLdaCandidates, readResearchInputs, researchTaskInput, researchWebsite, type ResearchLdaIdentity } from './client-profile-fill-research-inputs.js';
 import { readResearchStart, researchStartRequest } from './client-profile-fill-start-request.js';
 import { createResearchRun } from './client-profile-fill-run-create.js';
 import type { ProfileSubject } from './profile-subject.js';
@@ -76,6 +77,7 @@ export interface StartClientProfileFillWorkflowInput {
   sources?: ClientProfileFillSource[];
   attachmentIds?: string[];
   ldaClientIds?: number[];
+  discoverLda?: boolean;
   website?: string | null;
 }
 
@@ -94,7 +96,7 @@ interface FillEngineInternals {
   gatherPublicWeb(ctx: TenantContext, clientId: string, runId: string, website?: string | null, subject?: ProfileSubject, signal?: AbortSignal, businessUnit?: ResearchBusinessUnit, scope?: PortfolioResearchScope): Promise<number>;
   gatherSyncedEmail(ctx: TenantContext, clientId: string, runId: string): Promise<number>;
   gatherSam(ctx: TenantContext, clientId: string, runId: string): Promise<number>;
-  gatherLda(ctx: TenantContext, clientId: string, runId: string, identities?: ResearchLdaIdentity[]): Promise<number>;
+  gatherLda(ctx: TenantContext, clientId: string, runId: string, identities?: ResearchLdaIdentity[], subject?: ProfileSubject, candidates?: ResearchLdaIdentity[]): Promise<number>;
   gatherProgramElements(ctx: TenantContext, clientId: string, runId: string): Promise<number>;
   gatherBillRecommendations(ctx: TenantContext, clientId: string, runId: string): Promise<number>;
   gatherCapabilityDocument(
@@ -327,8 +329,8 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
     if (this.timer) clearInterval(this.timer);
   }
 
-  async getSetup(ctx: TenantContext, clientId: string) {
-    const { client, mappings } = await this.prisma.withTenantUser(
+  async getSetup(ctx: TenantContext, clientId: string, discoverLda = false) {
+    const { client, mappings, officialIdentities } = await this.prisma.withTenantUser(
       ctx.tenantId,
       ctx.userId,
       async (tx) => {
@@ -347,7 +349,10 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
           select: { externalId: true, externalName: true },
           orderBy: { confidence: 'desc' },
         });
-        return { client, mappings };
+        const officialIdentities = discoverLda
+          ? await readOfficialProfileIdentities(tx, ctx, {kind: 'client', id: clientId})
+          : [];
+        return { client, mappings, officialIdentities };
       },
     );
 
@@ -356,7 +361,10 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
       const id = Number(mapping.externalId);
       if (Number.isInteger(id) && id > 0) mappingNameById.set(id, mapping.externalName);
     }
-    const selectedIds = [...new Set([...client.ldaClientIds, ...mappingNameById.keys()])].sort(
+    const selectedIds = [...new Set(discoverLda
+      ? officialIdentities.filter(identity => identity.type === 'lda_client_id').map(identity => Number(identity.value))
+        .filter(id => Number.isSafeInteger(id) && id > 0 && id <= 2147483647)
+      : [...client.ldaClientIds, ...mappingNameById.keys()])].sort(
       (a, b) => a - b,
     );
     const selectedRows = selectedIds.length
@@ -469,7 +477,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
       if (active) return this.getRun(ctx, clientId, active.id);
     }
 
-    const setup = await this.getSetup(ctx, clientId);
+    const setup = input.discoverLda ? await this.getSetup(ctx, clientId, true) : await this.getSetup(ctx, clientId);
     const sources = this.normalizeSources(input.sources ?? (requestedScope ? ['public_web'] : undefined));
     const attachmentIds = preAttachmentIds;
     const requestedLdaIds = this.normalizeLdaIds(input.ldaClientIds);
@@ -506,6 +514,9 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
       const identity = allowedIdentities.get(id)!;
       return { id, name: identity.name, confidence: identity.confidence };
     });
+    const ldaCandidates = input.discoverLda
+      ? discoverResearchLdaCandidates(setup.clientName, setup.suggestedIdentities, selectedLdaIds)
+      : undefined;
 
     const bundle = await this.contextPlane.resolve(ctx, {
       clientId,
@@ -513,7 +524,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
       attachmentId: attachmentIds[0] ?? null,
     });
     const plan = buildClientProfileFillTaskPlan({ sources, attachmentIds }).map(task => ({
-      ...task, input: { ...task.input, ...researchTaskInput(task.taskType, website, researchIdentities, businessUnit, portfolioScope) },
+      ...task, input: { ...task.input, ...researchTaskInput(task.taskType, website, researchIdentities, businessUnit, portfolioScope, ldaCandidates) },
     }));
     if (!plan.length) throw new BadRequestException('No Profile research tasks were selected');
     const sourceStates: Record<string, unknown> = Object.fromEntries(
@@ -531,6 +542,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
       ...(portfolioScope ? {portfolioScope, purpose: portfolioScope.purpose, capabilityId: portfolioScope.capabilityId ?? null} : {}),
       ...(businessUnit ? {businessUnit} : {}),
       researchInputVersion: 1,
+      ...(input.discoverLda ? {discoverLda: true} : {}),
       website,
       selectedLdaIds,
       appendedLdaIds,
@@ -1066,6 +1078,8 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
       case 'sam_gov':
         return this.engine.gatherSam(ctx, task.clientId, task.runId);
       case 'lda':
+        if (research.ldaCandidates)
+          return this.engine.gatherLda(ctx, task.clientId, task.runId, research.ldaIdentities, undefined, research.ldaCandidates);
         return this.engine.gatherLda(ctx, task.clientId, task.runId, research.ldaIdentities);
       case 'program_elements':
         return this.engine.gatherProgramElements(ctx, task.clientId, task.runId);
