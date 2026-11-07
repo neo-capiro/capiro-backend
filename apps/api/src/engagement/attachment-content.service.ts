@@ -45,6 +45,7 @@ export interface AttachmentReadinessRow {
   id: string;
   fileName: string;
   contentType: string;
+  source?: string;
   lifecycleStatus: string;
   scanStatus: string | null;
   verifiedContentType?: string | null;
@@ -99,13 +100,14 @@ export class AttachmentContentService {
   /**
    * Whether an attachment's bytes may be used, given the scan-required flag.
    *
-   * When scanning is NOT required, a quarantined/pending row is still usable —
+   * When scanning is NOT required, an ordinary quarantined/pending row is usable —
    * otherwise the feature would be dead in every environment without a scanner —
    * but the verdict always carries a `disclosure` string so the caller can SAY
-   * the file was not scanned. Silence would imply it was clean.
+   * the file was not scanned. Identity uploads still require ready, clean bytes.
    */
   readiness(row: AttachmentReadinessRow, scanRequired: boolean): ReadinessVerdict {
     const scan = (row.scanStatus ?? null) as AttachmentScanStatus | null;
+    const profileIdentity = row.source === 'profile_identity';
 
     // Lifecycle states that are unusable regardless of the flag: a deleted or
     // threat-blocked object must never be readable, and there is no environment
@@ -139,7 +141,17 @@ export class AttachmentContentService {
       };
     }
 
-    if (!scanRequired) {
+    // Identity uploads require both a ready lifecycle and a real clean verdict,
+    // independently of the optional-scan policy for ordinary attachments.
+    if (profileIdentity && !['ready', 'legacy_ready'].includes(row.lifecycleStatus)) {
+      return {
+        usable: false,
+        code: 'ATTACHMENT_QUARANTINED',
+        disclosure: 'This identity document is not ready for use.',
+      };
+    }
+
+    if (!scanRequired && !profileIdentity) {
       // Usable, but never silently: report the honest disclosure for every state
       // that is not a real clean verdict.
       return { usable: true, code: null, disclosure: scanStatusDisclosure(scan) };
