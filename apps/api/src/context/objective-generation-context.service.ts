@@ -1,4 +1,5 @@
 import { objectiveIntentFromSnapshot, parseObjectiveGenerationIntent } from '@capiro/shared/strategy-intake';
+import { OBJECTIVE_REQUIRED_CONTEXT_POLICY } from '@capiro/shared/objective-context-budget';
 import { readObjectiveCanonicalStrategyTypeWithinTx } from '@capiro/shared/objective-strategy-intake';
 import {
   BadRequestException,
@@ -25,6 +26,7 @@ import {
   OBJECTIVE_BACKGROUND_FIELDS,
   ObjectivePacketBudgetError,
   objectivePacketAddition,
+  requireObjectivePromptBudget,
   readObjectiveBackground,
 } from './objective-generation-background.js';
 import type {
@@ -462,7 +464,9 @@ export class ObjectiveGenerationContextService {
       const { recordsText, intentText } = objectivePacketAddition(groups, observed.intent, prompt, input.generationType);
       // Compose from typed parts. Literal header/tag text inside authorized data
       // cannot redirect insertion or undercount the existing prompt budgets.
-      governed.prompt = prompt.compose(intentText, recordsText);
+      const completePrompt = prompt.compose(intentText, recordsText);
+      requireObjectivePromptBudget(completePrompt);
+      governed.prompt = completePrompt;
     } catch (error) {
       if (error instanceof ObjectivePacketBudgetError)
         throw new ObjectiveContextIncomplete(error.group, 'REQUIRED_FIELDS_EXCEED_PACKET_BUDGET');
@@ -471,7 +475,7 @@ export class ObjectiveGenerationContextService {
     const coverageDigest = objectiveDigest({
       manifest,
       history: governed.retrieval.coverage,
-      policy: 'objective-v1-required-lossless',
+      policy: OBJECTIVE_REQUIRED_CONTEXT_POLICY,
     });
     const inputDigest = objectiveDigest({
       sourceDigest: observed.sourceDigest,

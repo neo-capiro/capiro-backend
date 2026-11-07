@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { stripTypeScriptTypes } from 'node:module';
 import { objectivePlannerOwnerCodecUrl } from './objective-strategy-request-loader.mjs';
+import { ObjectiveContextBudgetError, OBJECTIVE_PROMPT_MAX_UTF8_BYTES } from '../../../packages/shared/src/objective-context-budget.ts';
 
 const custody = [];
 const sha = value => createHash('sha256').update(value, 'utf8').digest('hex');
@@ -120,6 +121,12 @@ function fixture() {
 requestedAtMs: start + 1_000, effectExpiresAtMs: start + 1_200_000 };
 }
 const verify = (p, f) => check(p, { admission: f.admission, dto: f.dto });
+test('regeneration retains a full large required prompt and fails closed beyond the same private capacity', () => {
+  const f = fixture(); f.prompt = 'retained source é\n'.repeat(36_000); f.context.promptSha256 = sha(f.prompt);
+  const p = create(f); assert.equal(p.executionContext.prompt, f.prompt); assert.deepEqual(verify(p, f), p);
+  f.prompt = 'é'.repeat(OBJECTIVE_PROMPT_MAX_UTF8_BYTES / 2) + 'x'; f.context.promptSha256 = sha(f.prompt);
+  assert.throws(() => create(f), ObjectiveContextBudgetError);
+});
 function initialFixture() {
   const { basis: _basis, ...f } = fixture(); f.admission.expectedStrategyVersionId = null; return f;
 }
