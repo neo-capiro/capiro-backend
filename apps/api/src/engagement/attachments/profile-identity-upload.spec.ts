@@ -201,18 +201,36 @@ function fixture(empty = false) {
 }
 
 describe('private document-first identity upload owner', () => {
-  test('replacement bytes never reach the identity parser even with optional scanning', async () => {
+  test('replacement bytes after a clean scan never reach the identity parser even with optional scanning', async () => {
     const h = fixture();
-    h.row.scanStatus = 'scanner_not_required';
     h.state.content = Buffer.from('Unscanned replacement');
     const parser = jest.spyOn((h.service as any).attachmentContent, 'extractBounded');
     await expect(h.service.extractIdentityUploadText(ctx, h.attachmentId)).rejects.toMatchObject({
       response: { code: 'ATTACHMENT_CONTENT_CHANGED' },
     });
+    expect(h.read).toHaveBeenCalledTimes(1);
     expect(parser).not.toHaveBeenCalled();
     expect(h.paid).not.toHaveBeenCalled();
     expect(h.vision).not.toHaveBeenCalled();
+    expect(h.record).not.toHaveBeenCalled();
   });
+
+  test.each([null, 'scanner_not_required'])(
+    'a %s scan verdict refuses identity extraction before reading bytes even with optional scanning',
+    async (scanStatus) => {
+      const h = fixture();
+      h.row.scanStatus = scanStatus;
+      const parser = jest.spyOn((h.service as any).attachmentContent, 'extractBounded');
+      await expect(h.service.extractIdentityUploadText(ctx, h.attachmentId)).rejects.toMatchObject({
+        response: { error: 'ATTACHMENT_NEVER_SCANNED' },
+      });
+      expect(h.read).not.toHaveBeenCalled();
+      expect(parser).not.toHaveBeenCalled();
+      expect(h.paid).not.toHaveBeenCalled();
+      expect(h.vision).not.toHaveBeenCalled();
+      expect(h.record).not.toHaveBeenCalled();
+    },
+  );
 
   test('binds the scanner verdict to the exact bytes verified during confirmation', async () => {
     const h = fixture(true);
