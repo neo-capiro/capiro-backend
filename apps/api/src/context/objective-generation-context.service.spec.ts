@@ -224,6 +224,72 @@ describe('Objective required context observation and budget coverage', () => {
   );
   // Supplementary retrieval pagination is no longer a refusal (see the partial
   // coverage test below); required groups and observation issues still refuse.
+  test('a normal recommendation cache exceeding one record budget binds every recommendation losslessly', async () => {
+    const f = fixture();
+    const cache = f.state.sources.target_recommendations[0]!;
+    cache.recommendations_jsonb = Array.from({ length: 12 }, (_, i) => ({
+      memberId: `recommended-member-${i}`, office: `Recommended office ${i}`, party: 'I', state: 'CA',
+      chamber: 'House', committee: `RECOMMENDED_COMMITTEE_${i}`, score: 0.9 - i / 100,
+      tags: ['committee', 'district'], billCount: i + 1,
+      evidence: { ref: `SYNTHETIC_REFERENCE_${i}`, text: `Recommendation support ${i}` },
+    }));
+    Object.assign(cache, { cache_annotation: 'KEEP_UNKNOWN_METADATA' });
+    expect(JSON.stringify(cache).length).toBeGreaterThan(1600);
+    const observed = await f.service.observe(f.input);
+    const admission = f.service.bind(f.input, observed, f.bundle, 'a'.repeat(64), [], f.prompt);
+    expect(f.bundle.governedContext.prompt).toContain(`[target_recommendations]\n${JSON.stringify(cache)}`);
+    for (const sentinel of ['COMMITTEE', 'FACILITY', 'TENANT_NOTE', 'CURRENT_OFFICE', 'CURRENT_EMAIL'])
+      expect(f.bundle.governedContext.prompt).toContain(sentinel);
+    const coverage = admission.coverage.find(group => group.group === 'target_recommendations')!;
+    expect(coverage).toMatchObject({ expectedRecords: 1, readRecords: 1, enumerationComplete: true });
+    for (let i = 0; i < 12; i++)
+      expect(coverage.fields).toContainEqual(expect.objectContaining({
+        field: `recommendations_jsonb.${i}.memberId`, sourceReference: cache.id, disposition: 'included',
+      }));
+    expect(admission.localDigest).toBe(objectiveDigest(observed.sources));
+    expect(admission.context.coverageDigest).toBe(objectiveDigest({
+      manifest: admission.coverage, history: f.bundle.governedContext.retrieval.coverage,
+      policy: 'objective-v1-required-lossless',
+    }));
+    expect(admission.context.state).toBe('complete');
+
+    cache.recommendations_jsonb[11]!.tags.push('CHANGED_LAST_RECOMMENDATION');
+    const changed = await f.service.observe(f.input);
+    const rebound = f.service.bind(f.input, changed, f.bundle, 'a'.repeat(64), [], f.prompt);
+    expect(rebound.localDigest).not.toBe(admission.localDigest);
+    expect(rebound.context.inputDigest).not.toBe(admission.context.inputDigest);
+  });
+  test.each([[], null, { legacy: 'KEEP_LEGACY_SHAPE' }])(
+    'empty or non-array recommendation caches preserve their complete original JSON: %p', async value => {
+      const f = fixture();
+      const cache = f.state.sources.target_recommendations[0]!;
+      Object.assign(cache, { recommendations_jsonb: value });
+      const observed = await f.service.observe(f.input);
+      f.service.bind(f.input, observed, f.bundle, 'a'.repeat(64), [], f.prompt);
+      expect(f.bundle.governedContext.prompt).toContain(`[target_recommendations]\n${JSON.stringify(cache)}`);
+    },
+  );
+  test.each(['recommendation', 'metadata', 'aggregate'])(
+    'recommendation cache still refuses an oversized %s without truncating required context', async which => {
+      const f = fixture();
+      const cache = f.state.sources.target_recommendations[0]!;
+      if (which === 'recommendation') cache.recommendations_jsonb[0]!.tags = ['x'.repeat(1601)];
+      if (which === 'metadata') cache.computed_at = 'x'.repeat(1601);
+      if (which === 'aggregate') cache.recommendations_jsonb = Array.from({ length: 200 }, (_, i) => ({
+        memberId: `member-${i}`, score: 1, tags: ['committee', 'district', 'x'.repeat(100)], billCount: 1,
+      }));
+      const observed = await f.service.observe(f.input);
+      const originalPrompt = f.bundle.governedContext.prompt;
+      expect(() => f.service.bind(f.input, observed, f.bundle, 'a'.repeat(64), [], f.prompt))
+        .toThrow(expect.objectContaining({ response: expect.objectContaining({
+          code: 'OBJECTIVE_CONTEXT_INCOMPLETE', issues: [expect.objectContaining({
+            group: which === 'aggregate' ? 'government_targets' : 'target_recommendations',
+            code: 'REQUIRED_FIELDS_EXCEED_PACKET_BUDGET',
+          })],
+        }) }));
+      expect(f.bundle.governedContext.prompt).toBe(originalPrompt);
+    },
+  );
   test.each(['record-budget', 'total-budget', 'missing-key', 'directory-error'])(
     'refuses %s without dispatch',
     async (which) => {

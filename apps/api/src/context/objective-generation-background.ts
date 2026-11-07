@@ -163,7 +163,7 @@ export class ObjectivePacketBudgetError extends Error {
 }
 export const OBJECTIVE_EMPTY_STEERING = '(no approved steering items selected)';
 /** Count the actual typed prompt parts, never parse delimiter text inside data.
- * Existing bounds are unchanged; successful projection never slices a record. */
+ * Bound each logical record; successful projection never slices a record. */
 export function objectivePacketAddition(
   groups: Record<string, unknown[]>, intent: unknown,
   original: { retrieval: string; steering: string },
@@ -174,7 +174,16 @@ export function objectivePacketAddition(
     if (group === 'relationship_history') continue;
     for (const record of records) {
       const text = `[${group}]\n${JSON.stringify(record)}`;
-      if (text.length > 1600) throw new ObjectivePacketBudgetError(group);
+      // The recommendation owner caches its ranked collection in one DB row.
+      // Apply the record bound to each recommendation with its cache metadata,
+      // not to the collection container. Render the original row unchanged;
+      // all recommendations still count toward the shared 24,000-character cap.
+      const parts = group === 'target_recommendations' && record !== null && typeof record === 'object' &&
+        'recommendations_jsonb' in record && Array.isArray(record.recommendations_jsonb) && record.recommendations_jsonb.length
+        ? record.recommendations_jsonb.map(recommendation => ({ ...record, recommendations_jsonb: [recommendation] }))
+        : [record];
+      if (parts.some(part => `[${group}]\n${JSON.stringify(part)}`.length > 1600))
+        throw new ObjectivePacketBudgetError(group);
       blocks.push(text);
     }
   }
