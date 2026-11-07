@@ -449,6 +449,7 @@ export class OutreachContextReferenceService {
         id: locator.id,
         fileName: row.fileName,
         contentType: row.contentType,
+        source: row.source,
         lifecycleStatus: row.lifecycleStatus,
         scanStatus: row.scanStatus,
       },

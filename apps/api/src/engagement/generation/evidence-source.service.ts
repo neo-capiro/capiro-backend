@@ -853,6 +853,7 @@ export class EvidenceSourceService {
         id: row.id,
         fileName: row.fileName,
         contentType: row.contentType,
+        source: row.source,
         lifecycleStatus: row.lifecycleStatus,
         scanStatus: row.scanStatus,
         verifiedContentType: row.verifiedContentType,
