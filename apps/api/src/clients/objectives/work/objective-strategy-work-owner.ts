@@ -89,10 +89,16 @@ export class ObjectiveStrategyWorkOwner implements ObjectiveWorkOwnerPort {
     if (request.command.workAction !== ACTION || !this.enabled || this.duration === null) return;
     await this.lock(tx, ctx, request.clientId, request.objectiveId);
   }
-  async lockReadWithinTx(tx: Tx, ctx: TenantContext, request: WorkReadRequest): Promise<void> {
-    if (request.workAction !== ACTION || !this.enabled || this.duration === null) return;
+  async lockReadWithinTx(tx: Tx, _ctx: TenantContext, request: WorkReadRequest): Promise<void> {
+    if (request.workAction !== ACTION) return;
+    // Status reads never establish absence or issuance authority. The service
+    // still checks current access and holds its canonical/control SHARE locks;
+    // acquiring the write-side inventory here would make an unrelated job's
+    // row lock (or the write inventory limit) fail an otherwise valid read.
     this.selected.delete(tx);
-    await this.lock(tx, ctx, request.clientId, request.objectiveId);
+    this.gates.delete(tx);
+    this.eligible.delete(tx);
+    this.lockedState.delete(tx);
   }
   private key(a: WorkAuthority, state: WorkState) { return workDigest({ a, state }); }
   private async outputAbsent(tx: Tx, a: WorkAuthority, strategyId: string): Promise<boolean> {

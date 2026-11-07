@@ -3,6 +3,7 @@ import { StrategyContextPlaneClient, operationFor } from './strategy-context-pla
 import type { StrategyGovernedTurnContext } from './strategy-governed-context.types.js';
 import { objectiveFixture } from './objective-generation.fixture.js';
 import { digest } from './objective-generation.types.js';
+import { OBJECTIVE_REQUIRED_CONTEXT_POLICY } from '@capiro/shared/objective-context-budget';
 
 const CLIENT = '11111111-1111-4111-8111-111111111111';
 
@@ -200,7 +201,7 @@ describe('Objective Context Plane receiving validation', () => {
     const f = objectiveFixture();
     const g = governed(); g.contextPacket.packetId = f.admission.context.packetId;
     g.contextPacket.clientId = f.request.clientId; g.contextPacket.compiledAt = f.admission.context.compiledAt;
-    f.admission.context.coverageDigest = digest({ manifest: f.admission.coverage, history: g.retrieval.coverage, policy: 'objective-v1-required-lossless' });
+    f.admission.context.coverageDigest = digest({ manifest: f.admission.coverage, history: g.retrieval.coverage, policy: OBJECTIVE_REQUIRED_CONTEXT_POLICY });
     f.admission.context.inputDigest = digest({ sourceDigest: f.admission.context.sourceDigest, coverageDigest: f.admission.context.coverageDigest,
       packetId: f.admission.context.packetId, requestId: f.admission.requestId, type: f.admission.type,
       localDigest: f.admission.localDigest, externalDigest: f.admission.externalDigest, historyDigest: f.admission.historyDigest,
@@ -221,7 +222,7 @@ describe('Objective Context Plane receiving validation', () => {
     f.g.contextPacket.degraded = true;
     Object.assign(f.g.retrieval.coverage, { complete: false, paginationComplete: false, truncated: true });
     // Core binds the actual partial coverage into coverageDigest/inputDigest.
-    f.admission.context.coverageDigest = digest({ manifest: f.admission.coverage, history: f.g.retrieval.coverage, policy: 'objective-v1-required-lossless' });
+    f.admission.context.coverageDigest = digest({ manifest: f.admission.coverage, history: f.g.retrieval.coverage, policy: OBJECTIVE_REQUIRED_CONTEXT_POLICY });
     f.admission.context.inputDigest = digest({ sourceDigest: f.admission.context.sourceDigest, coverageDigest: f.admission.context.coverageDigest,
       packetId: f.admission.context.packetId, requestId: f.admission.requestId, type: f.admission.type,
       localDigest: f.admission.localDigest, externalDigest: f.admission.externalDigest, historyDigest: f.admission.historyDigest,
