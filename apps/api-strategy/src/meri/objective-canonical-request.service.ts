@@ -1,4 +1,5 @@
 import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
+import { ObjectiveContextBudgetError } from '@capiro/shared/objective-context-budget';
 import type { Request } from 'express';
 import type { Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -95,7 +96,7 @@ export class ObjectiveCanonicalRequestService {
         fresh.expectedStrategyVersionId !== a.expectedStrategyVersionId || fresh.effectExpiresAtMs < a.effectExpiresAtMs ||
         await this.now(tx) >= a.effectExpiresAtMs) return fail('SOURCE_STALE');
   }
-  /** A definite Core compile refusal is accounted by this existing job owner.
+  /** A definite Core compile or final publication capacity refusal is accounted by this existing job owner.
    * Lost replies and all other errors remain unknown. The queued-job lock makes
    * a committed publication/failure win before this transaction changes a row. */
   private async contextFailure(grant: CanonicalGenerationGrant, subject: CanonicalGenerationSubject,
@@ -203,7 +204,14 @@ export class ObjectiveCanonicalRequestService {
         await this.effect(tx, grant, subject, a);
         if (await this.now(tx) >= publication.request.originalExpiresAtMs) return fail();
         return checked.publication;
-      }, { timeoutMs: 15_000 });
+      }, { timeoutMs: 15_000 }).catch(error => {
+        if (!(error instanceof ObjectiveContextBudgetError)) throw error;
+        // The publication transaction rolled back before any request ledger or
+        // accepted run. Reuse the job owner's existing race-safe failure receipt.
+        return this.contextFailure(grant, subject, a, input.inputHash, [{
+          group: 'government_targets', code: 'REQUIRED_FIELDS_EXCEED_PACKET_BUDGET',
+        }]);
+      });
     });
     // Throw only AFTER a failure receipt committed, including exact replays.
     if ('outcome' in result) throw new HttpException(result, 409);

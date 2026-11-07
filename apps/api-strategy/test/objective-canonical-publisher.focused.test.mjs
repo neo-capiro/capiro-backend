@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { stripTypeScriptTypes } from 'node:module';
 import { objectiveStrategyIntakeUrl, objectivePlannerOwnerCodecUrl } from './objective-strategy-request-loader.mjs';
+import { OBJECTIVE_PROMPT_MAX_UTF8_BYTES } from '../../../packages/shared/src/objective-context-budget.ts';
 import { AsyncLocalStorage } from 'node:async_hooks';
 
 // Actual service/ledger/factory/job/fence source; synthetic owner, SQL-response
@@ -456,6 +457,18 @@ test('unknown errors and malformed Core failures never create a terminal receipt
   const failure = await failedReceipt(() => x.publish());
   assert.deepEqual(failure.objectiveReceipt.context.issues, [{ group: 'government_targets', code: 'REQUIRED_CONTEXT_UNAVAILABLE',
     message: 'Required context could not be completely observed.' }]);
+});
+
+test('final publication capacity refusal commits the existing safe failure receipt after rollback without accepting a request', async () => {
+  const x = new PublisherFixture();
+  x.prompt = 'x'.repeat(OBJECTIVE_PROMPT_MAX_UTF8_BYTES + 1); x.typed.promptSha256 = sha(x.prompt);
+  const result = await failedReceipt(() => x.publish());
+  assert.equal(x.data.job.status, 'failed'); assert.equal(x.stored(), undefined);
+  assert.equal(x.data.rows.size, 1); assert.equal(result.objectiveReceipt.result, null);
+  assert.deepEqual(result.objectiveReceipt.context.issues, [{ group: 'government_targets',
+    code: 'REQUIRED_FIELDS_EXCEED_PACKET_BUDGET', message: 'Required fields do not fit the approved context budget.' }]);
+  assert.deepEqual(await failedReceipt(() => x.lookup()), result);
+  assert.equal(x.compileCount, 1);
 });
 
 test('a recheck context error is uncertain readback, not a definite compile refusal',async()=>{

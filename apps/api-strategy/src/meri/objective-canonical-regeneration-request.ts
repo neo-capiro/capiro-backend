@@ -1,4 +1,5 @@
 import { applicationHash, CanonicalApplicationError, type CanonicalToken } from '../planner/objective-canonical-application.js';
+import { OBJECTIVE_PUBLICATION_MAX_BYTES, ObjectiveContextBudgetError } from '@capiro/shared/objective-context-budget';
 import { canonicalGenerationAdmissionSha256, parseCanonicalGenerationAdmission } from './objective-canonical-generation.js';
 import { checkCanonicalStrategyBasis, type CanonicalStrategyBasis } from './objective-canonical-basis.js';
 import { canonicalRequestPublicationParts, privateRequestJcsSha256,
@@ -86,7 +87,7 @@ export function createCanonicalRegenerationRequestPublication(
   const publication: CanonicalRegenerationRequestPublication = { schemaVersion: 1,
     sourceAdmissionSha256: canonicalGenerationAdmissionSha256(a), request,
     requestSha256: privateRequestJcsSha256(request), executionContext: p.executionContext };
-  if (Buffer.byteLength(JSON.stringify(publication), 'utf8') > CANONICAL_REGENERATION_REQUEST_MAX_BYTES) return invalid();
+  if (Buffer.byteLength(JSON.stringify(publication), 'utf8') > OBJECTIVE_PUBLICATION_MAX_BYTES) throw new ObjectiveContextBudgetError();
   return freeze(publication);
 }
 

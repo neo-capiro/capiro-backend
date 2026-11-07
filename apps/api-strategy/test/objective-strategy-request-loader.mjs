@@ -2,7 +2,15 @@
 // No hash, parser, owner or authority implementation is recreated here.
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import { stripTypeScriptTypes } from 'node:module';
+import { stripTypeScriptTypes, registerHooks } from 'node:module';
+
+// These exact browser/prompt contracts are pure source modules. Data-URL fixture
+// modules cannot resolve workspace package exports through a filesystem parent.
+registerHooks({ resolve(specifier, context, nextResolve) {
+  if (['@capiro/shared/strategy-intake', '@capiro/shared/objective-context-budget'].includes(specifier))
+    return nextResolve(new URL(`../../../packages/shared/src/${specifier.split('/').at(-1)}.ts`, import.meta.url).href, context);
+  return nextResolve(specifier, context);
+} });
 
 const data = source => `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
 const custody = [];

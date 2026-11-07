@@ -7,6 +7,8 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { stripTypeScriptTypes } from 'node:module';
 import { objectivePlannerOwnerCodecUrl } from './objective-strategy-request-loader.mjs';
+import { ObjectiveContextBudgetError, OBJECTIVE_PROMPT_MAX_UTF8_BYTES, OBJECTIVE_PROMPT_MAX_JSON_BYTES,
+  OBJECTIVE_PUBLICATION_MAX_BYTES } from '../../../packages/shared/src/objective-context-budget.ts';
 
 const custody = [];
 const sha = text => createHash('sha256').update(text, 'utf8').digest('hex');
@@ -252,9 +254,41 @@ test('invalid enums, dates, over-limit raw fields and malformed exact hashes ref
     const f = fixture(); change(f); refused(() => create(f));
   }
 });
-test('whole publication byte limit refuses a prompt that fits its own bound but exceeds the full envelope', () => {
-  const f = fixture(); f.prompt = 'x'.repeat(2 * 1024 * 1024); f.context.promptSha256 = sha(f.prompt);
-  refused(() => create(f), 'INPUT_INVALID');
+test('complete large required prompt retains exact bytes, hashes and historical reconstruction', () => {
+  const f = fixture(); f.prompt = 'source evidence é\n'.repeat(38_000); f.context.promptSha256 = sha(f.prompt);
+  const p = create(f); assert.equal(p.executionContext.prompt, f.prompt);
+  assert.equal(p.executionContext.promptSha256, sha(f.prompt)); assert.deepEqual(verify(p, f), p);
+});
+
+test('private prompt checks both exact UTF8 and JSON escaped bounds before publishing', () => {
+  for (const prompt of ['é'.repeat(OBJECTIVE_PROMPT_MAX_UTF8_BYTES / 2),
+    '\\'.repeat((OBJECTIVE_PROMPT_MAX_JSON_BYTES - 2) / 2)]) {
+    const f = fixture(); f.prompt = prompt; f.context.promptSha256 = sha(prompt);
+    assert.equal(create(f).executionContext.prompt, prompt);
+    f.prompt += 'x'; f.context.promptSha256 = sha(f.prompt);
+    assert.throws(() => create(f), ObjectiveContextBudgetError);
+  }
+});
+
+test('initial publication preserves the JSON domain refusal for unpaired prompt surrogates', () => {
+  for (const prompt of ['source\ud800', 'source\udfff']) {
+    const f = fixture(); f.prompt = prompt; f.context.promptSha256 = sha(prompt);
+    refused(() => create(f), 'INPUT_INVALID');
+  }
+});
+
+test('whole publication refuses oversized metadata even when prompt and typed request independently fit', () => {
+  const f = fixture(); f.prompt = '\\'.repeat((OBJECTIVE_PROMPT_MAX_JSON_BYTES - 2) / 2);
+  f.context.promptSha256 = sha(f.prompt);
+  f.owners = Array.from({ length: 100 }, (_, i) => ({ ownerRef: `owner:${i}:` + '🧭'.repeat(118), clerkUserId: 'user_fixture' }));
+  f.context.evidence = Array.from({ length: 256 }, (_, i) => ({ ...f.context.evidence[0],
+    sourceId: id(i + 1000), ref: `profile-fill:${id(i + 1000)}:${hash('c')}` }));
+  // With a short prompt the same typed request is admissible; the complete
+  // serialized publication is the additional boundary exercised here.
+  const short = clone(f); short.prompt = 'short'; short.context.promptSha256 = sha(short.prompt);
+  const p = create(short);
+  assert.ok(Buffer.byteLength(JSON.stringify({ ...p, executionContext: { ...p.executionContext, prompt: f.prompt } })) > OBJECTIVE_PUBLICATION_MAX_BYTES);
+  assert.throws(() => create(f), ObjectiveContextBudgetError);
 });
 test('candidate request byte limit refuses an otherwise shaped wide request before publishing it', () => {
   const f = fixture(); f.dto.goal = 'é'.repeat(4000); f.context.intent.governmentProblem = 'é'.repeat(4000);
