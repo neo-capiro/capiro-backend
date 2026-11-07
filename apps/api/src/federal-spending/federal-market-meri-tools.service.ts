@@ -2,7 +2,7 @@ import { MERI_FEDERAL_MARKET_TOOL_DEFINITIONS } from '@capiro/shared';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { FederalMarketGeographyService } from './federal-market-geography.service.js';
-import { FederalMarketService } from './federal-market.service.js';
+import { assertSupportedForecastQuery, FederalMarketService } from './federal-market.service.js';
 import type { FederalMarketPage, FederalMarketQuery } from './federal-market.types.js';
 import { resolveEvidenceAccuracyModeForTenant } from '../common/meri-evidence-accuracy-flags.js';
 import { serializeFederalAwardDates } from '../common/federal-award-date-serialization.js';
@@ -85,7 +85,9 @@ const schemas: Record<FederalMarketMeriToolName, JsonSchema> = {
   },
   search_procurement_forecasts: {
     type: 'object',
-    properties: commonProperties,
+    properties: Object.fromEntries(
+      Object.entries(commonProperties).filter(([key]) => key !== 'state' && key !== 'district'),
+    ),
   },
   get_district_federal_market: {
     type: 'object',
@@ -206,6 +208,7 @@ export class FederalMarketMeriToolsService {
 
   async execute(ctx: TenantContext, name: FederalMarketMeriToolName, rawInput: unknown) {
     const input = objectInput(rawInput);
+    if (name === 'search_procurement_forecasts') assertSupportedForecastQuery(input);
     if (name === 'search_contract_vehicles' && Object.hasOwn(input, 'fiscalYear')) {
       throw new BadRequestException('fiscalYear is not supported for contract vehicles');
     }

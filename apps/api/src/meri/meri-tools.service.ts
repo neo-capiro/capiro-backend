@@ -6105,6 +6105,9 @@ export class MeriToolsService {
   }
 
   private async scrapeWebPage(input: Record<string, unknown>) {
+    if (typeof input.url === 'string' && input.url.length > 2000) {
+      throw new BadRequestException('url must not exceed 2000 characters');
+    }
     const rawUrl = requiredString(input, 'url', 2000);
     const mode = optionalString(input, 'mode', 20) ?? 'summary';
     const maxChars = clampInt(input.maxChars, 500, 20000, mode === 'extract' ? 12000 : 4000);
