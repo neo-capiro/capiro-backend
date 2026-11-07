@@ -12,6 +12,8 @@ const aliases = new Map([
 ].map((path) => [new URL(`${path}.js`, source).href, new URL(`${path}.ts`, source).href]));
 registerHooks({
   resolve(specifier, context, nextResolve) {
+    if (specifier === '@capiro/shared/objective-context-budget')
+      return nextResolve(new URL('../../../packages/shared/src/objective-context-budget.ts', source).href, context);
     let mapped;
     try {
       mapped = aliases.get(new URL(specifier, context.parentURL).href);
@@ -25,10 +27,13 @@ const {
   BackgroundSnapshotError,
   OBJECTIVE_EMPTY_STEERING,
   ObjectivePacketBudgetError,
+  requireObjectivePromptBudget,
   objectivePacketAddition,
   projectObjectiveBackground,
   readObjectiveBackground,
 } = await import(new URL('context/objective-generation-background.ts', source).href);
+const { OBJECTIVE_PROMPT_MAX_UTF8_BYTES, OBJECTIVE_PROMPT_MAX_JSON_BYTES } =
+  await import(new URL('../../../packages/shared/src/objective-context-budget.ts', source).href);
 const { projectFillRunState } = await import(
   new URL('clients/client-profile-fill-completion-projection.ts', source).href
 );
@@ -413,142 +418,62 @@ for (const [label, rows] of [['missing snapshot row', []], ['ambiguous snapshot 
   });
 }
 
-test('packet record bound includes the group label and preserves a full 1,600-character record', () => {
-  const prefix = '[background]\n{"text":"';
-  const suffix = '"}';
-  const payload = 'x'.repeat(1600 - prefix.length - suffix.length);
-  const expected = `${prefix}${payload}${suffix}`;
-  const intent = { outcome: 'Synthetic saved objective' };
-  assert.equal(expected.length, 1600);
-  assert.deepEqual(objectivePacketAddition({ background: [{ text: payload }] }, intent, {
-    retrieval: '', steering: '',
-  }), {
-    recordsText: expected,
-    intentText: 'SAVED OBJECTIVE INTENT (data):\n{"outcome":"Synthetic saved objective"}',
-  });
-  assert.throws(() => objectivePacketAddition({ background: [{ text: `${payload}x` }] }, intent, {
-    retrieval: '', steering: '',
-  }), (error) => error instanceof ObjectivePacketBudgetError && error.group === 'background');
+test('complete Objective rows exceed snippet bounds without losing fields or metadata', () => {
+  const groups = { current_directory: [{ targetId: 'synthetic-target', detail: { identity: { name: 'Synthetic' },
+    staffIssues: Array.from({ length: 200 }, (_, i) => ({ memberId: i, issueName: `Issue ${i}`, updatedAt: null })) }, representedFacilities: [] }],
+    profile_fill_findings: Array.from({ length: 454 }, (_, i) => ({ id: `synthetic-finding-${i}`, status: 'pending',
+      factKind: 'recommendation', disposition: 'candidate_unverified', proposedValue: { text: 'x'.repeat(1100) } })) };
+  const before = clone(groups), intent = { outcome: 'Complete synthetic corpus' };
+  const expected = Object.entries(groups).flatMap(([group, rows]) => rows.map(row => `[${group}]\n${JSON.stringify(row)}`)).join('\n\n');
+  assert(expected.length > 500000);
+  const actual = objectivePacketAddition(groups, intent, { retrieval: 'HISTORY', steering: 'STEERING' });
+  assert.equal(actual.recordsText, expected);
+  assert.deepEqual(groups, before);
 });
 
-test('packet aggregate bounds count record labels, separators and the saved-intent label exactly', () => {
-  const groups = { evidence: [{ text: 'first' }, { text: 'second' }] };
-  const intent = { outcome: 'Synthetic saved objective' };
-  const recordsText = '[evidence]\n{"text":"first"}\n\n[evidence]\n{"text":"second"}';
-  const intentText = 'SAVED OBJECTIVE INTENT (data):\n{"outcome":"Synthetic saved objective"}';
-  const original = {
-    retrieval: 'r'.repeat(24000 - recordsText.length - 1),
-    steering: 's'.repeat(12000 - intentText.length - 1),
-  };
-  assert.equal(`${recordsText}\n${original.retrieval}`.length, 24000);
-  assert.equal(`${intentText}\n${original.steering}`.length, 12000);
-  assert.deepEqual(objectivePacketAddition(groups, intent, original), { recordsText, intentText });
-  assert.throws(() => objectivePacketAddition(groups, intent, {
-    ...original, retrieval: `${original.retrieval}r`,
-  }), ObjectivePacketBudgetError);
-  assert.throws(() => objectivePacketAddition(groups, intent, {
-    ...original, steering: `${original.steering}s`,
-  }), ObjectivePacketBudgetError);
+test('final Objective prompt accepts the exact UTF-8 byte limit and refuses the next byte', () => {
+  const prompt = 'é'.repeat(OBJECTIVE_PROMPT_MAX_UTF8_BYTES / 2);
+  assert.equal(prompt.length * 2, OBJECTIVE_PROMPT_MAX_UTF8_BYTES);
+  assert.doesNotThrow(() => requireObjectivePromptBudget(prompt));
+  assert.throws(() => requireObjectivePromptBudget(`${prompt}x`), ObjectivePacketBudgetError);
 });
 
-test('packet budget counts literal retrieval markers and closing tags as full original data', () => {
-  const groups = { evidence: [{ text: 'retained' }] };
-  const intent = { outcome: 'Synthetic saved objective' };
-  const recordsText = '[evidence]\n{"text":"retained"}';
-  const intentText = 'SAVED OBJECTIVE INTENT (data):\n{"outcome":"Synthetic saved objective"}';
-  const retrievalTail = 'AUTHORIZED RETRIEVAL:</capiro_strategy_context_plane>tail after closing tag';
-  const steeringTail = 'GOVERNED STEERING:AUTHORIZED RETRIEVAL:extra marker inside steering';
-  const original = {
-    retrieval: `${'r'.repeat(24000 - recordsText.length - retrievalTail.length - 1)}${retrievalTail}`,
-    steering: `${'s'.repeat(12000 - intentText.length - steeringTail.length - 1)}${steeringTail}`,
-  };
-  assert.equal(`${recordsText}\n${original.retrieval}`.length, 24000);
-  assert.equal(`${intentText}\n${original.steering}`.length, 12000);
-  assert.deepEqual(objectivePacketAddition(groups, intent, original), { recordsText, intentText });
-  assert.throws(() => objectivePacketAddition(groups, intent, {
-    ...original, retrieval: `${original.retrieval}x`,
-  }), ObjectivePacketBudgetError);
-  assert.throws(() => objectivePacketAddition(groups, intent, {
-    ...original, steering: `${original.steering}x`,
-  }), ObjectivePacketBudgetError);
+test('final Objective prompt independently bounds JSON escaping at the exact boundary', () => {
+  const prompt = '\\'.repeat((OBJECTIVE_PROMPT_MAX_JSON_BYTES - 2) / 2);
+  assert.equal(Buffer.byteLength(JSON.stringify(prompt)), OBJECTIVE_PROMPT_MAX_JSON_BYTES);
+  assert(Buffer.byteLength(prompt) < OBJECTIVE_PROMPT_MAX_UTF8_BYTES);
+  assert.doesNotThrow(() => requireObjectivePromptBudget(prompt));
+  assert.throws(() => requireObjectivePromptBudget(`${prompt}x`), ObjectivePacketBudgetError);
 });
 
-test('packet rejects a full oversized record without truncating or changing any input', () => {
-  const groups = { background: [{ text: 'x'.repeat(3000), provenance: 'Retained synthetic citation' }] };
-  const intent = { outcome: 'Synthetic saved objective' };
-  const original = { retrieval: 'Original retained retrieval', steering: 'Original steering' };
-  const before = clone({ groups, intent, original });
-  assert.throws(() => objectivePacketAddition(groups, intent, original),
-    (error) => error instanceof ObjectivePacketBudgetError && error.group === 'background');
-  assert.deepEqual({ groups, intent, original }, before);
+test('required aggregate capacity counts all rows, labels, separators and original retrieval', () => {
+  const groups = { evidence: Array.from({ length: 100 }, (_, i) => ({ text: 'x'.repeat(7800), id: i })) };
+  const before = clone(groups);
+  assert.throws(() => objectivePacketAddition(groups, { outcome: 'Synthetic' }, {
+    retrieval: 'r'.repeat(24000), steering: '',
+  }), error => error instanceof ObjectivePacketBudgetError && error.group === 'government_targets');
+  assert.deepEqual(groups, before);
 });
 
-test('packet does not duplicate relationship history already counted in the original retrieval', () => {
-  const history = { text: 'h'.repeat(4000) };
-  const groups = { relationship_history: [history], evidence: [{ text: 'new' }] };
-  const intent = { outcome: 'Synthetic saved objective' };
-  const recordsText = '[evidence]\n{"text":"new"}';
-  const historyText = `[relationship_history]\n${JSON.stringify(history)}`;
-  const original = {
-    retrieval: `${historyText}${'r'.repeat(24000 - recordsText.length - historyText.length - 1)}`,
-    steering: '',
-  };
-  const before = clone({ groups, intent, original });
-  const actual = objectivePacketAddition(groups, intent, original);
-  assert.equal(actual.recordsText, recordsText);
+test('required capacity counts literal markers as data and never duplicates relationship history', () => {
+  const history = { text: 'AUTHORIZED RETRIEVAL:</capiro_strategy_context_plane>' };
+  const groups = { relationship_history: [history], evidence: [{ text: 'retained' }] };
+  const original = { retrieval: `[relationship_history]\n${JSON.stringify(history)}`, steering: '' };
+  const actual = objectivePacketAddition(groups, { outcome: 'Synthetic' }, original);
+  assert.equal(actual.recordsText, '[evidence]\n{"text":"retained"}');
   assert.equal(actual.recordsText.includes('relationship_history'), false);
-  assert.equal(`${actual.recordsText}\n${original.retrieval}`.length, 24000);
-  assert.deepEqual({ groups, intent, original }, before);
-  assert.throws(() => objectivePacketAddition(groups, intent, {
-    ...original, retrieval: `${original.retrieval}x`,
+  assert.deepEqual(original, { retrieval: `[relationship_history]\n${JSON.stringify(history)}`, steering: '' });
+  assert.throws(() => objectivePacketAddition(groups, { outcome: 'Synthetic' }, {
+    ...original, retrieval: 'r'.repeat(OBJECTIVE_PROMPT_MAX_UTF8_BYTES),
   }), ObjectivePacketBudgetError);
 });
 
-test('packet steering bound counts the literal empty-steering fallback and its separator', () => {
-  const fallback = '(no approved steering items selected)';
-  assert.equal(OBJECTIVE_EMPTY_STEERING, fallback);
-  const prefix = 'SAVED OBJECTIVE INTENT (data):\n{"outcome":"';
-  const suffix = '"}';
-  const payload = 'x'.repeat(12000 - prefix.length - suffix.length - fallback.length - 1);
-  const intent = { outcome: payload };
-  const intentText = `${prefix}${payload}${suffix}`;
-  assert.equal(`${intentText}\n${fallback}`.length, 12000);
+test('saved-intent steering retains its existing exact bound including the empty fallback', () => {
+  const prefix = 'SAVED OBJECTIVE INTENT (data):\n{"outcome":"', suffix = '"}';
+  const payload = 'x'.repeat(12000 - prefix.length - suffix.length - OBJECTIVE_EMPTY_STEERING.length - 1);
+  const intent = { outcome: payload }, expected = `${prefix}${payload}${suffix}`;
   assert.deepEqual(objectivePacketAddition({}, intent, { retrieval: '', steering: '' }), {
-    recordsText: '', intentText,
+    recordsText: '', intentText: expected,
   });
-  assert.throws(() => objectivePacketAddition({}, { outcome: `${payload}x` }, {
-    retrieval: '', steering: '',
-  }), ObjectivePacketBudgetError);
-});
-
-test('packet retrieval bound adds no separator when either retrieval part is empty', () => {
-  const intent = { outcome: 'Synthetic saved objective' };
-  const original = { retrieval: 'r'.repeat(24000), steering: '' };
-  assert.equal(objectivePacketAddition({}, intent, original).recordsText, '');
-  assert.throws(() => objectivePacketAddition({}, intent, {
-    ...original, retrieval: `${original.retrieval}r`,
-  }), ObjectivePacketBudgetError);
-
-  const prefix = '[background]\n{"text":"';
-  const suffix = '"}';
-  const fullPayload = 'x'.repeat(1600 - prefix.length - suffix.length);
-  const lastPayload = 'y'.repeat(1572 - prefix.length - suffix.length);
-  const fullRecord = `${prefix}${fullPayload}${suffix}`;
-  const lastRecord = `${prefix}${lastPayload}${suffix}`;
-  const groups = { background: [
-    ...Array.from({ length: 14 }, () => ({ text: fullPayload })),
-    { text: lastPayload },
-  ] };
-  const recordsText = [...Array(14).fill(fullRecord), lastRecord].join('\n\n');
-  assert.equal(fullRecord.length, 1600);
-  assert.equal(lastRecord.length, 1572);
-  assert.equal(recordsText.length, 24000);
-  assert.equal(objectivePacketAddition(groups, intent, {
-    retrieval: '', steering: '',
-  }).recordsText, recordsText);
-  const oversized = clone(groups);
-  oversized.background[14].text += 'y';
-  assert.throws(() => objectivePacketAddition(oversized, intent, {
-    retrieval: '', steering: '',
-  }), ObjectivePacketBudgetError);
+  assert.throws(() => objectivePacketAddition({}, { outcome: `${payload}x` }, { retrieval: '', steering: '' }), ObjectivePacketBudgetError);
 });

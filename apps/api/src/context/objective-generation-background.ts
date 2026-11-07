@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { objectivePromptFitsBudget } from '@capiro/shared/objective-context-budget';
 import { projectFillRunState } from '../clients/client-profile-fill-completion-projection.js';
 
 /** Retained client-owned research artifacts, not a raw source/mailbox read or
@@ -162,8 +163,12 @@ export class ObjectivePacketBudgetError extends Error {
   }
 }
 export const OBJECTIVE_EMPTY_STEERING = '(no approved steering items selected)';
-/** Count the actual typed prompt parts, never parse delimiter text inside data.
- * Bound each logical record; successful projection never slices a record. */
+export function requireObjectivePromptBudget(prompt: string): void {
+  if (!objectivePromptFitsBudget(prompt)) throw new ObjectivePacketBudgetError('government_targets');
+}
+/** Required Objective records are a complete source observation, not retrieval
+ * snippets. Preserve every original row and bound the complete prompt in bytes;
+ * the ordinary resolver still owns its independent 1,600/24,000 snippet bounds. */
 export function objectivePacketAddition(
   groups: Record<string, unknown[]>, intent: unknown,
   original: { retrieval: string; steering: string },
@@ -174,16 +179,6 @@ export function objectivePacketAddition(
     if (group === 'relationship_history') continue;
     for (const record of records) {
       const text = `[${group}]\n${JSON.stringify(record)}`;
-      // The recommendation owner caches its ranked collection in one DB row.
-      // Apply the record bound to each recommendation with its cache metadata,
-      // not to the collection container. Render the original row unchanged;
-      // all recommendations still count toward the shared 24,000-character cap.
-      const parts = group === 'target_recommendations' && record !== null && typeof record === 'object' &&
-        'recommendations_jsonb' in record && Array.isArray(record.recommendations_jsonb) && record.recommendations_jsonb.length
-        ? record.recommendations_jsonb.map(recommendation => ({ ...record, recommendations_jsonb: [recommendation] }))
-        : [record];
-      if (parts.some(part => `[${group}]\n${JSON.stringify(part)}`.length > 1600))
-        throw new ObjectivePacketBudgetError(group);
       blocks.push(text);
     }
   }
@@ -191,11 +186,13 @@ export function objectivePacketAddition(
   const intake = intent && typeof intent === 'object' && 'kind' in intent && intent.kind === 'strategy-intake';
   const intentText = [intake && generationType ? `GENERATION STRATEGY TYPE (data):\n${JSON.stringify(generationType)}` : '',
     `SAVED OBJECTIVE INTENT (data):\n${JSON.stringify(intent)}`].filter(Boolean).join('\n');
-  const retrievalLength = recordsText.length + original.retrieval.length +
-    (recordsText && original.retrieval ? 1 : 0);
   const steeringLength = intentText.length + 1 + (original.steering || OBJECTIVE_EMPTY_STEERING).length;
-  if (retrievalLength > 24000 || steeringLength > (intake ? 28000 : 12000))
+  if (steeringLength > (intake ? 28000 : 12000))
     throw new ObjectivePacketBudgetError('government_targets');
+  // An early bound avoids constructing an already oversized final prompt. The
+  // actual composed prompt (including all framing) is checked by bind as well.
+  requireObjectivePromptBudget([recordsText, original.retrieval, intentText,
+    original.steering || OBJECTIVE_EMPTY_STEERING].filter(Boolean).join('\n'));
   return { recordsText, intentText };
 }
 

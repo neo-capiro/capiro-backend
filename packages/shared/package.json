@@ -86,6 +86,9 @@
       ],
       "strategy-intake": [
         "dist/strategy-intake.d.ts"
+      ],
+      "objective-context-budget": [
+        "dist/objective-context-budget.d.ts"
       ]
     }
   },
@@ -256,6 +259,12 @@
       "require": "./dist/strategy-intake.js",
       "import": "./dist/strategy-intake.js",
       "default": "./dist/strategy-intake.js"
+    },
+    "./objective-context-budget": {
+      "types": "./dist/objective-context-budget.d.ts",
+      "require": "./dist/objective-context-budget.js",
+      "import": "./dist/objective-context-budget.js",
+      "default": "./dist/objective-context-budget.js"
     }
   },
   "scripts": {

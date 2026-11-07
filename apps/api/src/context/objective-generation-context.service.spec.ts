@@ -6,6 +6,7 @@ import {
 import { objectiveFixture } from '../../../api-strategy/src/meri/objective-generation.fixture.js';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { OBJECTIVE_REQUIRED_CONTEXT_POLICY, OBJECTIVE_PROMPT_MAX_UTF8_BYTES } from '@capiro/shared/objective-context-budget';
 
 jest.mock('../directory/directory.service.js', () => ({ DirectoryService: class {} }));
 jest.mock('../clients/representation-resolver.service.js', () => ({
@@ -249,7 +250,7 @@ describe('Objective required context observation and budget coverage', () => {
     expect(admission.localDigest).toBe(objectiveDigest(observed.sources));
     expect(admission.context.coverageDigest).toBe(objectiveDigest({
       manifest: admission.coverage, history: f.bundle.governedContext.retrieval.coverage,
-      policy: 'objective-v1-required-lossless',
+      policy: OBJECTIVE_REQUIRED_CONTEXT_POLICY,
     }));
     expect(admission.context.state).toBe('complete');
 
@@ -270,12 +271,12 @@ describe('Objective required context observation and budget coverage', () => {
     },
   );
   test.each(['recommendation', 'metadata', 'aggregate'])(
-    'recommendation cache still refuses an oversized %s without truncating required context', async which => {
+    'complete Objective byte capacity still refuses an oversized %s without truncating required context', async which => {
       const f = fixture();
       const cache = f.state.sources.target_recommendations[0]!;
-      if (which === 'recommendation') cache.recommendations_jsonb[0]!.tags = ['x'.repeat(1601)];
-      if (which === 'metadata') cache.computed_at = 'x'.repeat(1601);
-      if (which === 'aggregate') cache.recommendations_jsonb = Array.from({ length: 200 }, (_, i) => ({
+      if (which === 'recommendation') cache.recommendations_jsonb[0]!.tags = ['x'.repeat(OBJECTIVE_PROMPT_MAX_UTF8_BYTES)];
+      if (which === 'metadata') cache.computed_at = 'x'.repeat(OBJECTIVE_PROMPT_MAX_UTF8_BYTES);
+      if (which === 'aggregate') cache.recommendations_jsonb = Array.from({ length: 10000 }, (_, i) => ({
         memberId: `member-${i}`, score: 1, tags: ['committee', 'district', 'x'.repeat(100)], billCount: 1,
       }));
       const observed = await f.service.observe(f.input);
@@ -283,7 +284,7 @@ describe('Objective required context observation and budget coverage', () => {
       expect(() => f.service.bind(f.input, observed, f.bundle, 'a'.repeat(64), [], f.prompt))
         .toThrow(expect.objectContaining({ response: expect.objectContaining({
           code: 'OBJECTIVE_CONTEXT_INCOMPLETE', issues: [expect.objectContaining({
-            group: which === 'aggregate' ? 'government_targets' : 'target_recommendations',
+            group: 'government_targets',
             code: 'REQUIRED_FIELDS_EXCEED_PACKET_BUDGET',
           })],
         }) }));
@@ -295,9 +296,9 @@ describe('Objective required context observation and budget coverage', () => {
     async (which) => {
       const f = fixture();
       const observed = await f.service.observe(f.input);
-      if (which === 'record-budget') observed.sources.member_notes[0]!.body = 'x'.repeat(1601);
+      if (which === 'record-budget') observed.sources.member_notes[0]!.body = 'x'.repeat(OBJECTIVE_PROMPT_MAX_UTF8_BYTES);
       if (which === 'total-budget')
-        observed.sources.member_notes = Array.from({ length: 25 }, (_, i) => ({
+        observed.sources.member_notes = Array.from({ length: 1000 }, (_, i) => ({
           ...observed.sources.member_notes[0],
           id: `note-${i}`,
           body: 'x'.repeat(1100),
@@ -313,6 +314,35 @@ describe('Objective required context observation and budget coverage', () => {
       expect(() => f.service.bind(f.input, observed, f.bundle, 'a'.repeat(64), [], f.prompt)).toThrow();
     },
   );
+  test('large complete directory and retained research reach the unchanged prompt with full coverage', async () => {
+    const f = fixture();
+    const detail = await f.directory.getMemberDetail();
+    f.directory.getMemberDetail.mockResolvedValue({ ...detail, staffIssues: Array.from({ length: 250 }, (_, i) => ({
+      memberId: i, issueName: `COMPLETE_DIRECTORY_${i}`, updatedAt: null,
+    })) } as any);
+    const observed = await f.service.observe(f.input);
+    const findings = Array.from({ length: 454 }, (_, i) => ({ id: `synthetic-finding-${i}`, runId: 'synthetic-run',
+      status: 'pending', factKind: 'recommendation', disposition: 'candidate_unverified', contentHash: 'a'.repeat(64),
+      proposedValue: { text: 'x'.repeat(1100) }, createdAt: observed.observedAt, updatedAt: observed.observedAt }));
+    (observed.background.groups as any).profile_fill_findings = findings;
+    const admission = f.service.bind(f.input, observed, f.bundle, 'a'.repeat(64), [], f.prompt);
+    const rendered = f.bundle.governedContext.prompt;
+    expect(Buffer.byteLength(rendered)).toBeGreaterThan(600000);
+    expect(rendered).toContain(`[current_directory]\n${JSON.stringify(observed.contacts[0])}`);
+    expect(rendered).toContain(`[profile_fill_findings]\n${JSON.stringify(findings[453])}`);
+    expect(admission.coverage.find(group => group.group === 'profile_fill_findings')).toMatchObject({
+      expectedRecords: 454, readRecords: 454, enumerationComplete: true,
+    });
+    expect(admission.externalDigest).toBe(objectiveDigest(observed.contacts));
+    expect(admission.context.state).toBe('complete');
+  });
+  test('the final composed framing counts toward capacity and a refusal keeps the old prompt intact', async () => {
+    const f = fixture(), observed = await f.service.observe(f.input);
+    const originalPrompt = f.bundle.governedContext.prompt;
+    const prompt = { ...f.prompt, compose: () => 'x'.repeat(OBJECTIVE_PROMPT_MAX_UTF8_BYTES + 1) };
+    expect(() => f.service.bind(f.input, observed, f.bundle, 'a'.repeat(64), [], prompt)).toThrow();
+    expect(f.bundle.governedContext.prompt).toBe(originalPrompt);
+  });
   test('partial, degraded or rollback supplementary retrieval is disclosed and bound, not refused', async () => {
     const f = fixture();
     const observed = await f.service.observe(f.input);

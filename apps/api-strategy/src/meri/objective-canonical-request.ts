@@ -1,4 +1,5 @@
 import { parseObjectiveGenerationIntent, type ObjectiveGenerationIntent } from '@capiro/shared/strategy-intake';
+import { objectivePromptFitsBudget, ObjectiveContextBudgetError, OBJECTIVE_PUBLICATION_MAX_BYTES } from '@capiro/shared/objective-context-budget';
 import { createHash } from 'node:crypto';
 import { types as nodeTypes } from 'node:util';
 import { applicationHash, CanonicalApplicationError } from '../planner/objective-canonical-application.js';
@@ -68,7 +69,6 @@ const unavailable = (): never => { throw new CanonicalApplicationError('AUTHORIT
 const TYPES = ['appropriations', 'authorization', 'regulatory', 'coalition', 'procurement', 'earmark', 'amendment'];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const SHA = /^[0-9a-f]{64}$/;
-const MAX_BYTES = 2 * 1024 * 1024;
 
 function unicode(value: string): string {
   for (let i = 0; i < value.length; i++) {
@@ -195,8 +195,10 @@ export function canonicalRequestPublicationParts(raw: CanonicalRequestPublicatio
   if (mode !== 'initial' && mode !== 'regenerate') return invalid();
   if (mode === 'initial' ? a.expectedStrategyVersionId !== null : a.expectedStrategyVersionId === null) return unavailable();
   const input = normalizedInput(clone(v.dto), a.canonical.clientId);
-  const prompt = text(v.prompt, MAX_BYTES), promptSha256 = createHash('sha256').update(prompt, 'utf8').digest('hex');
-  if (Buffer.byteLength(prompt, 'utf8') > MAX_BYTES) return invalid();
+  if (typeof v.prompt !== 'string' || !v.prompt.trim()) return invalid();
+  const prompt = v.prompt;
+  if (!objectivePromptFitsBudget(prompt)) throw new ObjectiveContextBudgetError();
+  const promptSha256 = createHash('sha256').update(prompt, 'utf8').digest('hex');
   const c = object(clone(v.context), ['schemaVersion', 'tenantId', 'clerkUserId', 'requestId', 'source', 'intent',
     'snapshotSha256', 'sourceDigest', 'packetId', 'compiledAt', 'coverageDigest', 'promptSha256', 'evidence']);
   const s = object(c.source, ['clientId', 'objectiveId', 'objectiveVersion', 'objectiveRevisionId']);
@@ -265,7 +267,7 @@ export function createCanonicalRequestPublication(raw: CanonicalRequestPublicati
   if (Buffer.byteLength(JSON.stringify(request), 'utf8') > 131_072) return invalid();
   const result: CanonicalRequestPublication = { schemaVersion: 1, sourceAdmissionSha256: canonicalGenerationAdmissionSha256(p.admission),
     request, requestSha256: candidateJcsSha256(request), executionContext: p.executionContext };
-  if (Buffer.byteLength(JSON.stringify(result), 'utf8') > MAX_BYTES) return invalid();
+  if (Buffer.byteLength(JSON.stringify(result), 'utf8') > OBJECTIVE_PUBLICATION_MAX_BYTES) throw new ObjectiveContextBudgetError();
   return freeze(result);
 }
 
